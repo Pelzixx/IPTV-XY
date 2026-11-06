@@ -939,7 +939,7 @@ private fun EpgSourceList() {
     if (list.isEmpty()) return
     SectionTitle("EPG-Quellen")
     list.forEach { s ->
-        val kind = when (s.kind) { EpgSrc.FIXED -> "Fest eingebaut"; EpgSrc.SERVER -> "Fest für Server"; EpgSrc.OWN -> "Eigene Quelle"; EpgSrc.PROVIDER -> "Vom Anbieter"; else -> "Aus der Playlist" }
+        val kind = when (s.kind) { EpgSrc.FIXED -> "Fest eingebaut"; EpgSrc.SERVER -> "Fest für Server"; EpgSrc.OWN -> "Eigene Quelle"; EpgSrc.PROVIDER -> "Vom Anbieter"; EpgSrc.PL_EPG -> "EPG der Playlist"; else -> "Aus der Playlist" }
         val state = when (s.state) {
             EpgSourceStat.LOADING -> Lang.tr("Wird geladen …") + if (s.mb > 0) " ${s.mb} MB" else ""
             EpgSourceStat.DONE -> "${s.channels} " + Lang.tr("Sender") + " · ${s.mb} MB · " + hhmm(s.at)
@@ -1010,6 +1010,60 @@ private fun LivePage(ctx: Context) {
     ReminderSettingsSection(ctx)
 }
 
+/**
+ * Playlist bearbeiten wie bei TiviMate: Name, Server (bei festen Servern Auswahl ohne Adresse), Benutzername, Passwort
+ * bzw. M3U-Adresse, eigene EPG-Adresse. Das Passwort ist verdeckt, die Adresse fester Server wird nicht angezeigt.
+ */
+@Composable
+private fun PlaylistEditor(pl: PL, onCancel: () -> Unit, onSave: (name: String, url: String, epg: String) -> Unit) {
+    val parts = remember(pl.url) { LoadLogic.xtreamParts(pl.url) }
+    val servers = Presets.servers
+    var name by remember { mutableStateOf(pl.name) }
+    var sel by remember { mutableIntStateOf(parts?.let { PresetLogic.indexOf(it.first, servers) } ?: -1) }
+    var host by remember { mutableStateOf(if (parts != null && sel < 0) parts.first else "") }
+    var user by remember { mutableStateOf(parts?.second ?: "") }
+    var pass by remember { mutableStateOf(parts?.third ?: "") }
+    var m3u by remember { mutableStateOf(if (parts == null) pl.url else "") }
+    var epg by remember { mutableStateOf(pl.epg) }
+    var showPass by remember { mutableStateOf(false) }
+    var err by remember { mutableStateOf<String?>(null) }
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(DS.RadiusM)).background(Color(0x1AFFFFFF)).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        SectionTitle("Playlist bearbeiten")
+        Field(name, { name = it }, "Name der Playlist")
+        if (parts != null) {
+            if (servers.isNotEmpty()) {
+                Text("Server", color = Muted, fontSize = 15.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    servers.forEachIndexed { i, s -> FocusButton(s.name, primary = i == sel) { sel = i } }
+                    FocusButton("Eigener Server", primary = sel < 0) { sel = -1 }
+                }
+            }
+            if (sel < 0) Field(host, { host = it }, "Server (z. B. http://server.tld:8080)")
+            Field(user, { user = it }, "Benutzername")
+            Field(pass, { pass = it }, "Passwort", password = !showPass)
+            FocusButton(if (showPass) "Passwort verbergen" else "Passwort anzeigen") { showPass = !showPass }
+        } else Field(m3u, { m3u = it }, "http://…/playlist.m3u")
+        Field(epg, { epg = it }, "EPG-Adresse (leer = automatisch vom Anbieter)")
+        Hint("Eine eigene EPG-Adresse ersetzt das TV-Programm des Anbieters für diese Playlist.")
+        err?.let { Text(it, color = DS.Danger, fontSize = 16.sp) }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            PillButton("Speichern", light = true) {
+                val url = if (parts != null) PlaylistStore.xtreamUrl(if (sel >= 0) servers[sel].url else host, user, pass) else m3u.trim()
+                val epgOk = epg.isBlank() || epg.trim().startsWith("http://") || epg.trim().startsWith("https://")
+                when {
+                    url == null || url.isBlank() -> err = Lang.tr("Angaben unvollständig: Server, Benutzername und Passwort nötig.")
+                    !epgOk -> err = Lang.tr("Ungültige Adresse.")
+                    else -> onSave(name, url, epg)
+                }
+            }
+            PillButton("Abbrechen") { onCancel() }
+        }
+    }
+}
+
 @Composable
 private fun PlaylistPage(ctx: Context, onAdd: () -> Unit, reload: () -> Unit) {
     val scope = rememberCoroutineScope()
@@ -1030,7 +1084,7 @@ private fun PlaylistPage(ctx: Context, onAdd: () -> Unit, reload: () -> Unit) {
                 PlaylistStore.activate(ctx, i)
                 scope.launch { PlaylistStore.load(ctx, pl.url, false) }
             }
-            SmallPill("Umbenennen") { editing = i; name = pl.name }
+            SmallPill("Bearbeiten") { editing = if (editing == i) -1 else i }
             SmallPill("Löschen") {
                 val wasActive = isActive
                 PlaylistStore.remove(ctx, i)
@@ -1042,9 +1096,17 @@ private fun PlaylistPage(ctx: Context, onAdd: () -> Unit, reload: () -> Unit) {
             }
         }
     }
-    if (editing >= 0) {
-        Field(name, { name = it }, "Name der Playlist")
-        PillButton("Name speichern", light = true) { PlaylistStore.rename(ctx, editing, name); editing = -1 }
+    PlaylistStore.lists.getOrNull(editing)?.let { pl ->
+        key(editing) {
+            PlaylistEditor(pl, onCancel = { editing = -1 }) { n, url, epg ->
+                val idx = editing
+                val reloadNow = PlaylistStore.update(ctx, idx, n, url, epg)
+                editing = -1
+                // Neue Adresse: Playlist neu laden; nur EPG geändert: TV-Programm neu laden
+                if (reloadNow) scope.launch { PlaylistStore.load(ctx, url, false) }
+                else if (idx == PlaylistStore.active && epg.trim() != pl.epg) Xmltv.start(ctx, PlaylistStore.epgUrls, PlaylistStore.channels, force = true)
+            }
+        }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         PillButton("+ Weitere Playlist hinzufügen", light = true) { onAdd() }

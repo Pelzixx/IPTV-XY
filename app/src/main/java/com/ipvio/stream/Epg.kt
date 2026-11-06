@@ -114,9 +114,10 @@ object Xmltv {
      * Quelle wird das bisher Gelesene angezeigt, damit man bei großen Dateien nicht bis zum Ende warten muss.
      */
     fun start(c: Context, urls: List<String>, items: List<Item>, force: Boolean = false) {
-        val plName = PlaylistStore.lists.getOrNull(PlaylistStore.active)?.name
+        val pl = PlaylistStore.lists.getOrNull(PlaylistStore.active)
+        val plName = pl?.name
         val server = plName?.let { n -> Presets.servers.firstOrNull { it.name.equals(n, ignoreCase = true) } }
-        val tagged = EpgSources.pickTagged(urls, Presets.epg, server?.epg.orEmpty(), customUrls(c), plName)
+        val tagged = EpgSources.pickTagged(urls, Presets.epg, server?.epg.orEmpty(), customUrls(c), plName, pl?.epg.orEmpty())
         val all = tagged.map { it.url }
         if (all.isEmpty()) { status = "Keine EPG-Adresse gefunden"; return }
         val wanted = items.filter { it.kind == Kind.LIVE }.mapNotNull { it.tvgId?.lowercase() }.toSet()

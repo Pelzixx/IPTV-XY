@@ -27,4 +27,10 @@ class EpgSourcesTest {
         assertEquals("Anbieter-EPG", EpgSources.label(t[2]))
         assertEquals("fest", EpgSources.label(t[1]))
     }
+
+    @Test fun eigene_epg_der_playlist_ersetzt_anbieter() {
+        val t = EpgSources.pickTagged(list, emptyList(), emptyList(), emptyList(), "XY TV", "https://meins/epg.xml.gz")
+        assertEquals(listOf("https://meins/epg.xml.gz"), t.map { it.url })
+        assertEquals(EpgSrc.PL_EPG, t[0].kind)
+    }
 }

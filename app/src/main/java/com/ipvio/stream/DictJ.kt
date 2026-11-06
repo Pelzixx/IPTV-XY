@@ -36,4 +36,11 @@ alle Playlists¦all playlists¦tüm çalma listeleri¦sve playliste¦svi popisi 
 Fehler¦Error¦Hata¦Greška¦Pogreška¦Greška¦Error¦Erreur¦Errore
 Wartet¦Waiting¦Bekliyor¦Čeka¦Čeka¦Čeka¦En espera¦En attente¦In attesa
 EPG-Quellen¦EPG sources¦EPG kaynakları¦EPG izvori¦EPG izvori¦EPG izvori¦Fuentes EPG¦Sources EPG¦Fonti EPG
+Bearbeiten¦Edit¦Düzenle¦Uredi¦Uredi¦Uredi¦Editar¦Modifier¦Modifica
+Playlist bearbeiten¦Edit playlist¦Çalma listesini düzenle¦Uredi playlistu¦Uredi popis za reprodukciju¦Uredi plejlistu¦Editar lista¦Modifier la playlist¦Modifica playlist
+Server¦Server¦Sunucu¦Server¦Poslužitelj¦Server¦Servidor¦Serveur¦Server
+Eigener Server¦Own server¦Kendi sunucun¦Vlastiti server¦Vlastiti poslužitelj¦Sopstveni server¦Servidor propio¦Serveur personnel¦Server personale
+EPG der Playlist¦Playlist EPG¦Çalma listesi EPG'si¦EPG playliste¦EPG popisa za reprodukciju¦EPG plejliste¦EPG de la lista¦EPG de la playlist¦EPG della playlist
+EPG-Adresse (leer = automatisch vom Anbieter)¦EPG address (empty = automatic from provider)¦EPG adresi (boş = sağlayıcıdan otomatik)¦EPG adresa (prazno = automatski od provajdera)¦EPG adresa (prazno = automatski od pružatelja)¦EPG adresa (prazno = automatski od provajdera)¦Dirección EPG (vacía = automática del proveedor)¦Adresse EPG (vide = automatique du fournisseur)¦Indirizzo EPG (vuoto = automatico dal provider)
+Eine eigene EPG-Adresse ersetzt das TV-Programm des Anbieters für diese Playlist.¦An own EPG address replaces the provider's TV guide for this playlist.¦Kendi EPG adresin bu çalma listesi için sağlayıcının yayın akışının yerini alır.¦Vlastita EPG adresa zamjenjuje TV program provajdera za ovu playlistu.¦Vlastita EPG adresa zamjenjuje TV program pružatelja za ovaj popis.¦Sopstvena EPG adresa zamenjuje TV program provajdera za ovu plejlistu.¦Una dirección EPG propia sustituye la guía del proveedor para esta lista.¦Une adresse EPG personnelle remplace le programme du fournisseur pour cette playlist.¦Un indirizzo EPG personale sostituisce la guida del provider per questa playlist.
 """

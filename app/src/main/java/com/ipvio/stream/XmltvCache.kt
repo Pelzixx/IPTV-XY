@@ -66,7 +66,7 @@ object XmltvCache {
 
 /** Eine EPG-Quelle mit Herkunft. [kind]: FIXED fest eingebaut, SERVER fest für einen Server, OWN eigene, PROVIDER xmltv.php des Zugangs, PLAYLIST aus dem Playlist-Kopf. [forName] = Playlist, für die sie gilt (null = alle). */
 data class EpgSrc(val url: String, val kind: Int, val forName: String?) {
-    companion object { const val FIXED = 0; const val SERVER = 1; const val OWN = 2; const val PROVIDER = 3; const val PLAYLIST = 4 }
+    companion object { const val FIXED = 0; const val SERVER = 1; const val OWN = 2; const val PROVIDER = 3; const val PLAYLIST = 4; const val PL_EPG = 5 }
 }
 
 /** Welche XMLTV-Quellen geladen werden (ohne Android, testbar). */
@@ -79,15 +79,20 @@ object EpgSources {
      * aus dem Playlist-Kopf (url-tvg, bei manchen Anbietern über ein Dutzend Adressen) nur, wenn sonst keine eigenen
      * Quellen eingetragen sind. [playlistName] = Name der aktiven Playlist.
      */
-    fun pickTagged(fromPlaylist: List<String>, preset: List<String>, serverEpg: List<String>, custom: List<String>, playlistName: String?): List<EpgSrc> {
+    fun pickTagged(
+        fromPlaylist: List<String>, preset: List<String>, serverEpg: List<String>, custom: List<String>, playlistName: String?,
+        playlistEpg: String = ""
+    ): List<EpgSrc> {
         val provider = fromPlaylist.filter { it.contains("/xmltv.php", ignoreCase = true) }
         val header = fromPlaylist.filter { it !in provider }
-        val own = serverEpg.isNotEmpty() || preset.isNotEmpty() || custom.isNotEmpty()
+        val own = serverEpg.isNotEmpty() || preset.isNotEmpty() || custom.isNotEmpty() || playlistEpg.isNotBlank()
         val out = ArrayList<EpgSrc>()
         serverEpg.forEach { out.add(EpgSrc(it, EpgSrc.SERVER, playlistName)) }
         preset.forEach { out.add(EpgSrc(it, EpgSrc.FIXED, null)) }
         custom.forEach { out.add(EpgSrc(it, EpgSrc.OWN, null)) }
-        provider.forEach { out.add(EpgSrc(it, EpgSrc.PROVIDER, playlistName)) }
+        // Eigene EPG-Adresse der Playlist (in der App eingetragen) ersetzt die des Anbieters
+        if (playlistEpg.isNotBlank()) out.add(EpgSrc(playlistEpg.trim(), EpgSrc.PL_EPG, playlistName))
+        else provider.forEach { out.add(EpgSrc(it, EpgSrc.PROVIDER, playlistName)) }
         if (!own) header.forEach { out.add(EpgSrc(it, EpgSrc.PLAYLIST, playlistName)) }
         return out.filter { it.url.startsWith("http://", true) || it.url.startsWith("https://", true) }.distinctBy { it.url }
     }

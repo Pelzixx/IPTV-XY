@@ -38,7 +38,8 @@ import java.util.zip.Deflater
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 
-data class PL(val name: String, val url: String)
+/** Gespeicherte Playlist. [epg] = eigene XMLTV-Adresse (ersetzt die des Anbieters), leer = automatisch. */
+data class PL(val name: String, val url: String, val epg: String = "")
 
 /**
  * Playlists: Liste der gespeicherten Zugänge, Laden, Zwischenspeicher.
@@ -205,7 +206,7 @@ object PlaylistStore {
                 val u = o.getString("url")
                 // Früher hieß eine Playlist wie ihr Server – die Adresse soll nirgends zu sehen sein
                 val n = o.getString("name").let { if (it == hostOf(u)) displayName(u, lists.size) else it }
-                lists.add(PL(n, u))
+                lists.add(PL(n, u, o.optString("epg", "")))
             }
         } catch (e: Exception) {
         }
@@ -227,7 +228,7 @@ object PlaylistStore {
 
     private fun persist(c: Context) {
         val a = JSONArray()
-        for (l in lists) a.put(JSONObject().put("name", l.name).put("url", l.url))
+        for (l in lists) a.put(JSONObject().put("name", l.name).put("url", l.url).put("epg", l.epg))
         val e = prefs(c).edit().putInt("active", active).remove("url")
         val token = Secrets.encrypt(a.toString())
         if (token != null) e.putString("lists_enc", token).remove("lists")
@@ -268,7 +269,7 @@ object PlaylistStore {
             var changed = false
             for (i in lists.indices) {
                 val nu = PresetLogic.retarget(lists[i].url, lists[i].name, old, new) ?: continue
-                lists[i] = PL(lists[i].name, nu)
+                lists[i] = lists[i].copy(url = nu)
                 changed = true
                 if (i == active) activeUrl = nu
             }
@@ -296,7 +297,22 @@ object PlaylistStore {
 
     fun rename(c: Context, i: Int, name: String) {
         ensure(c)
-        if (i in lists.indices && name.isNotBlank()) { lists[i] = PL(name.trim(), lists[i].url); persist(c) }
+        if (i in lists.indices && name.isNotBlank()) { lists[i] = lists[i].copy(name = name.trim()); persist(c) }
+    }
+
+    /**
+     * Playlist bearbeiten (Name, Adresse bzw. Zugangsdaten, eigene EPG-Adresse). Liefert true, wenn sich die Adresse
+     * der aktiven Playlist geändert hat (dann neu laden). Die Zwischenspeicher der alten Adresse werden gelöscht.
+     */
+    fun update(c: Context, i: Int, name: String, url: String, epg: String): Boolean {
+        ensure(c)
+        if (i !in lists.indices) return false
+        val old = lists[i]
+        val urlChanged = url.isNotBlank() && url != old.url
+        if (urlChanged) deleteFiles(c, old.url)
+        lists[i] = PL(name.trim().ifEmpty { old.name }, if (urlChanged) url else old.url, epg.trim())
+        persist(c)
+        return urlChanged && i == active
     }
 
     fun remove(c: Context, i: Int) {
