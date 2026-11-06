@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased - IPTV-XY
+## Unreleased
+- Sign-in with built-in Xtream servers (secret PRESET_SERVERS): only user name and password, server choice when there are several; "Other source" keeps the free input
+- Several own XMLTV EPG sources in Settings > Live TV, plus built-in EPG sources (secret PRESET_EPG)
+
+## 1.0 - IPTV-XY
 - Renamed to IPTV-XY with its own logo and app ID (com.pelzixx.iptvxy), based on IPVIO Stream 1.0
 - Releases via GitHub Actions (workflow "Release"): signed APK plus update.json
 - In-app update points to the latest GitHub release by default
