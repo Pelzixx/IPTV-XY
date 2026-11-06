@@ -28,6 +28,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
@@ -132,6 +135,11 @@ object DS {
     val FocusInk = Color(0xFF0B0F19)
 }
 
+/** TV-Guide (Runde 20): markierte Zeile/Sendung hellgrau mit dunkler Schrift, Sendungsfelder als flache Kacheln. */
+val TvFocusFill = Color(0xFFE2E4E7)
+val TvCell: Color get() = lerp(Look.surf2, Color.White, 0.03f)
+val TvCellNow: Color get() = lerp(Look.surf2, Color.White, 0.10f)
+
 /** Fläche einer Zeile mit Fokus (aus dem Theme abgeleitet, passt zu jedem Hintergrund). */
 val RowFocus: Color get() = lerp(Look.surf, Color.White, 0.08f)
 
@@ -178,6 +186,7 @@ fun Field(
 ) {
     var f by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(16.dp)
+    val fm = androidx.compose.ui.platform.LocalFocusManager.current
     Box(
         modifier
             .fillMaxWidth().height(62.dp)
@@ -196,6 +205,15 @@ fun Field(
             // Nur mit eigener Aktion überschreiben; sonst bleibt das Standardverhalten (Tastatur schließen)
             keyboardActions = if (onDone != null) KeyboardActions(onDone = { onDone(); defaultKeyboardAction(ImeAction.Done) }) else KeyboardActions.Default,
             modifier = inner.fillMaxWidth().onFocusChanged { f = it.isFocused }
+                // Fernbedienung: ein einzeiliges Feld schluckt Hoch/Runter – man käme sonst nicht mehr heraus (z. B. zu „Hinzufügen“)
+                .onPreviewKeyEvent { e ->
+                    if (e.type != androidx.compose.ui.input.key.KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                    when (e.key) {
+                        androidx.compose.ui.input.key.Key.DirectionDown -> fm.moveFocus(androidx.compose.ui.focus.FocusDirection.Down)
+                        androidx.compose.ui.input.key.Key.DirectionUp -> fm.moveFocus(androidx.compose.ui.focus.FocusDirection.Up)
+                        else -> false
+                    }
+                }
         )
         if (value.isEmpty()) Text(hint, color = Muted, fontSize = 20.sp)
     }

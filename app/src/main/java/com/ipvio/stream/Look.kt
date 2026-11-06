@@ -23,9 +23,13 @@ object Look {
     const val BRAND_GREEN = 0x4ADE80
     const val BRAND_GREEN_HI = 0x86EFAC
     const val BRAND_NAVY = 0x0B0F19
-    /** Standard: IPTV-XY-Grün auf Navy (Runde 13e: die Entwurfs-Farben wurden wieder entfernt). */
-    const val DEFAULT_ACCENT = 0
-    const val DEFAULT_BG = 0
+    /** TV-Design (Runde 20): ruhiges Blau auf neutralem Graphit, wie man es von großen IPTV-Playern kennt. */
+    const val TV_BLUE = 0x1E7BC8
+    const val TV_BLUE_HI = 0x5AAEF0
+    const val TV_GRAPHITE = 0x14171A
+    /** Standard seit Runde 20: Blau auf Graphit (Index in [ACCENTS] bzw. [BGS]). */
+    const val DEFAULT_ACCENT = 12
+    const val DEFAULT_BG = 5
 
     val ACCENTS = listOf(
         AccentPreset("IPTV-XY", BRAND_GREEN, BRAND_GREEN_HI),
@@ -39,7 +43,9 @@ object Look {
         AccentPreset("Eisblau", 0x0E7490, 0x67E8F9),
         AccentPreset("Limette", 0x4D7C0F, 0xBEF264),
         AccentPreset("Purpur", 0x7E22CE, 0xE879F9),
-        AccentPreset("Schiefer", 0x475569, 0xE2E8F0)
+        AccentPreset("Schiefer", 0x475569, 0xE2E8F0),
+        // Neu angehängt (Index 12), damit gespeicherte Auswahlen nicht verrutschen
+        AccentPreset("TV-Blau", TV_BLUE, TV_BLUE_HI)
     )
     /** Farbfelder für die eigene Farbe (2 Reihen à 10). */
     val SWATCHES = listOf(
@@ -54,7 +60,9 @@ object Look {
         BgPreset("Mitternacht", 0x07080C, 0x12141C, 0x1B1E2A),
         BgPreset("OLED-Schwarz", 0x000000, 0x0B0C10, 0x15171E),
         BgPreset("Graphit", 0x121316, 0x1C1E24, 0x272A32),
-        BgPreset("Tiefblau", 0x070B14, 0x101828, 0x1A2540)
+        BgPreset("Tiefblau", 0x070B14, 0x101828, 0x1A2540),
+        // Neu angehängt (Index 5): neutrales Graphit ohne Blaustich
+        BgPreset("TV-Graphit", TV_GRAPHITE, 0x202427, 0x2B2F33)
     )
 
     /** Standard: 85 % (Index 1) – zeigt mehr Inhalt, Elemente bleiben gut lesbar. */

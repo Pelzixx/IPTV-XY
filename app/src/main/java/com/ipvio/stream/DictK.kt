@@ -10,4 +10,5 @@ Sender ausblenden¦Hide channel¦Kanalı gizle¦Sakrij kanal¦Sakrij kanal¦Sakr
 Sender wieder eingeblendet¦Channel shown again¦Kanal tekrar gösteriliyor¦Kanal ponovo prikazan¦Kanal ponovno prikazan¦Kanal ponovo prikazan¦Canal visible de nuevo¦Chaîne de nouveau affichée¦Canale di nuovo visibile
 Sender ausgeblendet. Zurückholen: „Ausgeblendete Sender“ links.¦Channel hidden. To bring it back: "Hidden channels" on the left.¦Kanal gizlendi. Geri almak için: soldaki „Gizlenen kanallar“.¦Kanal sakriven. Vraćanje: „Skriveni kanali“ lijevo.¦Kanal sakriven. Vraćanje: „Skriveni kanali“ lijevo.¦Kanal sakriven. Vraćanje: „Skriveni kanali“ levo.¦Canal oculto. Para recuperarlo: «Canales ocultos» a la izquierda.¦Chaîne masquée. Pour la récupérer : « Chaînes masquées » à gauche.¦Canale nascosto. Per recuperarlo: «Canali nascosti» a sinistra.
 Erinnern an¦Remind me¦Hatırlat¦Podsjeti me¦Podsjeti me¦Podseti me¦Recordarme¦Me rappeler¦Ricordami
+Senderlisten¦Channel lists¦Kanal listeleri¦Liste kanala¦Popisi kanala¦Liste kanala¦Listas de canales¦Listes de chaînes¦Liste canali
 """

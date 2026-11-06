@@ -162,3 +162,61 @@ fun StepRow(label: String, value: String, onMinus: () -> Unit, onPlus: () -> Uni
     }
 }
 
+
+/** Eintrag im Seitenmenü: Text, Symbol, Aktion. [raw] = Text nicht übersetzen (Sender- und Sendungsnamen). */
+class SideEntry(val label: String, val icon: AIcon? = null, val raw: Boolean = false, val onPick: () -> Unit)
+
+/** Abschnitt im Seitenmenü mit Überschrift (z. B. Sendername) und Einträgen. */
+class SideSection(val title: String?, val items: List<SideEntry>, val rawTitle: Boolean = true)
+
+/** Am rechten Fensterrand, volle Höhe. */
+private val rightEdge = object : PopupPositionProvider {
+    override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize, layoutDirection: LayoutDirection, popupContentSize: IntSize) =
+        IntOffset(windowSize.width - popupContentSize.width, 0)
+}
+
+/**
+ * Menü als Leiste am rechten Rand (OK gedrückt halten): Abschnitte mit farbiger Überschrift, darunter die Einträge.
+ * Markiert = helle Fläche mit dunkler Schrift. Zurück schließt das Menü.
+ */
+@Composable
+fun SideMenu(sections: List<SideSection>, onDismiss: () -> Unit) {
+    Popup(popupPositionProvider = rightEdge, onDismissRequest = onDismiss, properties = PopupProperties(focusable = true)) {
+        val fr = remember { FocusRequester() }
+        LaunchedEffect(Unit) { kotlinx.coroutines.delay(30); runCatching { fr.requestFocus() } }
+        val shown = sections.filter { it.items.isNotEmpty() }
+        LazyColumn(
+            Modifier.fillMaxHeight().width(460.dp).background(Surf.copy(alpha = 0.98f)),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp)
+        ) {
+            shown.forEachIndexed { si, s ->
+                if (si > 0) item { Box(Modifier.padding(horizontal = 16.dp, vertical = 10.dp).fillMaxWidth().height(1.dp).background(DS.Hairline)) }
+                if (s.title != null) item {
+                    Text(raw = s.rawTitle, text = s.title, color = Accent2, fontSize = 17.sp, fontWeight = FontWeight.Medium, maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp))
+                }
+                itemsIndexed(s.items) { i, e ->
+                    SideMenuRow(e, if (si == 0 && i == 0) Modifier.focusRequester(fr) else Modifier) { onDismiss(); e.onPick() }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SideMenuRow(e: SideEntry, modifier: Modifier, onClick: () -> Unit) {
+    var f by remember { mutableStateOf(false) }
+    val ink = if (f) DS.FocusInk else Color.White
+    Row(
+        modifier.fillMaxWidth().heightIn(min = 56.dp).clip(RoundedCornerShape(DS.RadiusS))
+            .background(if (f) TvFocusFill else Color.Transparent)
+            .onFocusChanged { f = it.isFocused }
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        if (e.icon != null) AppIcon(e.icon, if (e.icon == AIcon.Star && !f) DS.Gold else ink, size = 20.dp)
+        Text(raw = e.raw, text = e.label, color = ink, fontSize = 18.sp, maxLines = 2,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+    }
+}

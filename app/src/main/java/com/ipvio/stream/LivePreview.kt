@@ -129,18 +129,22 @@ fun LiveInfo(ch: Item?, modifier: Modifier = Modifier) {
         val epg by produceState(emptyList<EpgEntry>(), ch.id) { value = Epg.now(ch) }
         val nowE = Epg.current(epg)
         val next = if (nowE != null) epg.firstOrNull { it.start >= nowE.end } else epg.firstOrNull()
-        Text(raw = true, text = nowE?.title ?: ChannelEdit.title(ch), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold,
-            maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(raw = true, text = nowE?.title ?: ChannelEdit.title(ch), color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.SemiBold,
+            maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (nowE != null) {
-            val frac = ((System.currentTimeMillis() / 1000 - nowE.start).toFloat() / (nowE.end - nowE.start).coerceAtLeast(1)).coerceIn(0f, 1f)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(raw = true, text = hhmm(nowE.start) + " – " + hhmm(nowE.end), color = Muted, fontSize = 14.sp)
-                Box(Modifier.size(width = 160.dp, height = 3.dp).background(DS.Overlay3)) {
-                    Box(Modifier.fillMaxWidth(frac).fillMaxHeight().background(Accent2))
+            val nowS = System.currentTimeMillis() / 1000
+            val frac = ((nowS - nowE.start).toFloat() / (nowE.end - nowE.start).coerceAtLeast(1)).coerceIn(0f, 1f)
+            val leftMin = ((nowE.end - nowS) / 60).coerceAtLeast(0)
+            // Zeit, Fortschritt und Restzeit in einer Zeile: „21:45 — 22:20  ▬▬──  27 Min“
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text(raw = true, text = hhmm(nowE.start) + " — " + hhmm(nowE.end), color = Tok.TextMid, fontSize = 17.sp)
+                Box(Modifier.size(width = 64.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(DS.Overlay3)) {
+                    Box(Modifier.fillMaxWidth(frac).fillMaxHeight().background(Color.White))
                 }
+                Text(raw = true, text = "$leftMin Min", color = Tok.TextMid, fontSize = 17.sp)
             }
             nowE.desc.takeIf { it.isNotBlank() }?.let {
-                Text(raw = true, text = it, color = Tok.TextMid, fontSize = 14.sp, lineHeight = 19.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                Text(raw = true, text = it, color = Tok.TextLow, fontSize = 16.sp, lineHeight = 21.sp, maxLines = 4, overflow = TextOverflow.Ellipsis)
             }
         } else if (epg.isEmpty()) Text("Für diesen Sender gibt es kein Programm.", color = Muted, fontSize = 14.sp)
         Text(raw = true, text = ChannelEdit.title(ch), color = Muted, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)

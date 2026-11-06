@@ -46,6 +46,9 @@ fun hhmm(sec: Long): String = fmt(SettingsLogic.timePattern(General.timeFmt, Gen
 /** Tag "Mo 19.10." in der gewählten Zeitzone und Sprache. */
 fun dayLabel(sec: Long): String = fmt("EE dd.MM.").format(Date(sec * 1000))
 
+/** Tag ausgeschrieben, z. B. „Fr., 6. Nov.“ (Kopf des TV-Guides). */
+fun longDay(sec: Long): String = fmt("EE, d. MMM").format(Date(sec * 1000))
+
 /** Gemeinsamer Netzwerkzugang für Programminfos: ein Client (Verbindungen werden wiederverwendet) und höchstens 6 Abfragen gleichzeitig. */
 object EpgNet {
     val client = Net.withTimeouts(8, 12)

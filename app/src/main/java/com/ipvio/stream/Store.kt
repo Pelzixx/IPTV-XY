@@ -159,13 +159,27 @@ object AppSettings {
             // die eigene Farbe steht wieder an Stelle 12. Wer vorher die eigene Farbe hatte, bekommt sie zurück.
             val e = p.edit().putInt("look_ver", 6)
             val acc = p.getInt("look_accent", 0)
+            // Feste Werte von damals (eigene Farbe = 12, Standard = 0), nicht die heutigen Konstanten: sonst verschiebt
+            // Schritt 7 bei einer Neuinstallation den Standard fälschlich auf „eigene Farbe“.
             val newAcc = when {
-                acc == 13 -> Look.CUSTOM
-                acc == 12 -> if (p.getInt("look_custom_was", 0) == 1) Look.CUSTOM else Look.DEFAULT_ACCENT
+                acc == 13 -> 12
+                acc == 12 -> if (p.getInt("look_custom_was", 0) == 1) 12 else 0
                 else -> acc
             }
             val bg = p.getInt("look_bg", 0)
-            e.putInt("look_accent", newAcc).putInt("look_bg", if (bg >= 5) Look.DEFAULT_BG else bg).remove("look_custom_was").commit()
+            e.putInt("look_accent", newAcc).putInt("look_bg", if (bg >= 5) 0 else bg).remove("look_custom_was").commit()
+        }
+        if (p.getInt("look_ver", 1) < 7) {
+            // Einmalig (Runde 20): neues TV-Design. Wer das bisherige Standard-Design hatte (Grün auf Navy), bekommt Blau auf Graphit.
+            // Die eigene Farbe rückt von 12 auf 13 (an 12 steht jetzt „TV-Blau“). Zurück geht es unter Einstellungen > Design.
+            val acc = p.getInt("look_accent", 0)
+            val bg = p.getInt("look_bg", 0)
+            val e = p.edit().putInt("look_ver", 7)
+            when {
+                acc == 12 -> e.putInt("look_accent", Look.CUSTOM)
+                acc == 0 && bg == 0 -> e.putInt("look_accent", Look.DEFAULT_ACCENT).putInt("look_bg", Look.DEFAULT_BG)
+            }
+            e.commit()
         }
         Look.accentIdx = p.getInt("look_accent", Look.DEFAULT_ACCENT).coerceIn(0, Look.ACCENTS.size)
         Look.custom = p.getInt("look_custom", Look.BRAND_GREEN) and 0xFFFFFF
@@ -183,7 +197,7 @@ object AppSettings {
         Look.bgIdx = bg.coerceIn(0, Look.BGS.lastIndex)
         Look.motion = motion.coerceIn(0, 2)
         Look.uiScale = scale.coerceIn(0, Look.SCALES.lastIndex)
-        prefs(c).edit().putInt("look_accent", Look.accentIdx).putInt("look_custom", Look.custom).putInt("look_custom2", Look.custom2).putInt("look_bg", Look.bgIdx).putInt("look_ver", 6)
+        prefs(c).edit().putInt("look_accent", Look.accentIdx).putInt("look_custom", Look.custom).putInt("look_custom2", Look.custom2).putInt("look_bg", Look.bgIdx).putInt("look_ver", 7)
             .putInt("look_motion", Look.motion).putInt("look_scale", Look.uiScale).apply()
     }
 
