@@ -164,8 +164,10 @@ fun Sidebar(tab: Int, onTab: (Int) -> Unit, modifier: Modifier, activeFocus: Foc
                 .onFocusChanged { expanded = it.hasFocus; onFocusIn(it.hasFocus) }
                 .padding(start = dpx(16), end = dpx(16), top = dpx(22))
         ) {
-            Box(Modifier.padding(start = dpx(6)).size(dpx(48)), contentAlignment = Alignment.Center) { BrandMark(Modifier.fillMaxSize()) }
-            Spacer(Modifier.height(dpx(34)))
+            // Logo mittig über die ganze Breite: eingeklappt so breit wie die Leiste, aufgeklappt groß.
+            // Feste Höhe, damit die Menüpunkte beim Aufklappen nicht springen.
+            Box(Modifier.fillMaxWidth().height(dpx(130)), contentAlignment = Alignment.Center) { BrandMark(Modifier.fillMaxSize()) }
+            Spacer(Modifier.height(dpx(20)))
             Column(verticalArrangement = Arrangement.spacedBy(dpx(10))) {
                 visible.forEach { id ->
                     SideItem(id, MENU_LABELS[id], id == tab, expanded, if (id == tab) Modifier.focusRequester(activeFocus) else Modifier) {
