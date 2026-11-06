@@ -457,6 +457,29 @@ object PlaylistStore {
             return raw to charsetOf(pi.charset)
         }
         raw.delete()
+        // Xtream: schnell über die Schnittstelle (nur Sender, Filme, Serien – Folgen erst beim Öffnen). Klappt das nicht,
+        // geht es mit der kompletten M3U-Liste weiter.
+        LoadLogic.xtreamParts(u)?.let { (host, user, pass) ->
+            try {
+                phase = "Verbindung zum Server wird aufgebaut …"
+                bytesRead = 0L; totalBytes = -1L; downloadDone = false
+                part.delete()
+                val n = java.io.OutputStreamWriter(BufferedOutputStream(FileOutputStream(part), 1 shl 16), Charsets.UTF_8).use { w ->
+                    XtreamApiLoad.writeM3u(client, host, user, pass, w,
+                        onPhase = { phase = it }, onCount = { k -> if (k % 500 == 0) bytesRead = part.length() },
+                        cancelled = { cancelled() })
+                }
+                if (n > 0 && part.length() > 0) {
+                    info.writeText(LoadLogic.PartInfo(key(u), null, null, "UTF-8").encode())
+                    if (part.renameTo(raw)) return raw to Charsets.UTF_8
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // weiter mit der M3U-Liste
+            }
+            part.delete(); info.delete()
+        }
         var offset = if (pi != null && part.exists()) part.length() else 0L
         // Nach einem Stromausfall können die letzten geschriebenen Bytes fehlen oder unsauber sein: ein Stück zurückgehen
         if (offset > 0) { offset = maxOf(0L, offset - 65_536); RandomAccessFile(part, "rw").use { it.setLength(offset) } }

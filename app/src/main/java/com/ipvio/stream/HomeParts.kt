@@ -144,6 +144,7 @@ fun HeroMetaLine(item: Item, m: Meta?, dots: Boolean = false) {
 
 /** „3 Staffeln · 64 Episoden“ (Großes Bild und aufgeklappte Karte). */
 fun seriesCountText(item: Item): String {
+    if (SeriesLazy.isLazy(item)) return ""   // Folgen noch nicht geladen (schnelles Laden)
     val e = item.episodes.size
     return if (e > 0) Lang.tr(seasonsText(item)) + " · " + Lang.tr(if (e == 1) "1 Episode" else "$e Episoden") else Lang.tr(seasonsText(item))
 }

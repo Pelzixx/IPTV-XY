@@ -351,7 +351,7 @@ private fun AppContent() {
                     }
                 } else emptyList()
                 val seriesItem = remember(p.itemId, all) {
-                    if (p.live || p.archive != null) null else all.firstOrNull { it.id == p.itemId }
+                    if (p.live || p.archive != null) null else SeriesLazy.cached(p.itemId) ?: all.firstOrNull { it.id == p.itemId }
                 }
                 // Neuer Start von außen (z. B. Erinnerung „Umschalten“) während der Wiedergabe: Player neu aufbauen
                 key(p) {

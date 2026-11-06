@@ -78,13 +78,15 @@ private const val FULL_TEXT_CHARS = 800
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun DetailScreen(
-    item: Item, all: List<Item>, onPlay: (String, String, Long) -> Unit,
+    item0: Item, all: List<Item>, onPlay: (String, String, Long) -> Unit,
     onPerson: (PersonRef) -> Unit, onOpenItem: (Item) -> Unit, onBack: () -> Unit,
     // Kino-Ansicht: eingebettet unter der Titelreihe (kein eigener Zurück-Knopf, kein automatischer Fokus, Hoch am Kopf gibt weiter)
     embedded: Boolean = false, autoFocus: Boolean = true, onTopUp: (() -> Unit)? = null,
     // false = nur Infos (Kino-Vorschau): keine Knöpfe, keine Staffel-Leiste
     showActions: Boolean = true
 ) {
+    // Serien aus dem schnellen Laden: Folgen erst jetzt vom Server holen (Platzhalter bis dahin)
+    val item by produceState(item0, item0.id, showActions) { value = if (showActions) SeriesLazy.full(item0) else item0 }
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()

@@ -128,6 +128,7 @@ fun SectionHeader(title: String) {
 /** Untertitel einer Serienkarte: „5 Staffeln · 62 Folgen“. */
 fun seriesInfo(item: Item): String {
     val sc = seasonCount(item)
+    if (SeriesLazy.isLazy(item)) return ""   // Folgen noch nicht geladen (schnelles Laden)
     val ec = item.episodes.size
     val a = if (sc == 1) "1 Staffel" else "$sc Staffeln"
     return if (ec <= 0) a else a + " · " + (if (ec == 1) "1 Folge" else "$ec Folgen")
