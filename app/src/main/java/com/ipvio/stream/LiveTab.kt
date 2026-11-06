@@ -62,8 +62,8 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     val favCats = CatFavs.list.filter { it in groups }
     val myLists = ChannelLists.lists.toList()
     val byId = remember(live) { live.associateBy { it.id } }
-    // Reihenfolge: Favoriten, eigene Senderlisten, „Neue Senderliste“, alle Sender, Kategorien
-    val names = listOf("GUIDE", FAV_CAT) + myLists.map { ChannelListLogic.key(it) } + listOf("NEW", "ALL") + favCats + groups.keys.filter { it !in favCats }
+    // Reihenfolge: TV-Guide, Favoriten, eigene Senderlisten, alle Sender, Kategorien (neue Liste: Menü eines Senders)
+    val names = listOf("GUIDE", FAV_CAT) + myLists.map { ChannelListLogic.key(it) } + listOf("ALL") + favCats + groups.keys.filter { it !in favCats }
     val curList = ChannelLists.byKey(sel)
     val list = when {
         sel == FAV_CAT -> favs
@@ -86,7 +86,6 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
             if (runCatching { restoreReq.requestFocus() }.isSuccess) { LastFocus.pending = null; return@LaunchedEffect }
         }
     }
-    var askDelete by remember { mutableStateOf(false) }
     val catState = remember { LazyListState() }
     var ask by remember { mutableStateOf<NameAsk?>(null) }
     SideEffect { ContentFocus.tab = 3 }
@@ -106,28 +105,36 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
         if (first == null) Toast.makeText(ctx, Lang.tr("Liste angelegt. Mit „Sender hinzufügen“ füllen."), Toast.LENGTH_SHORT).show()
     }
 
-    // Runde 17b: markierter Sender bestimmt Hintergrund und die große Anzeige rechts („Was läuft gerade“)
+    // Markierter Sender bestimmt die Anzeige oben (Sendung und Vorschau).
+    // Erst nach kurzem Verweilen wechseln (beim schnellen Durchblättern kein Laden von Logo, Programm und Vorschau)
     var focusedCh by remember { mutableStateOf<Item?>(null) }
-    // 17c: erst nach kurzem Verweilen wechseln (beim schnellen Durchblättern kein Laden von Logo und Programm)
     var focusTarget by remember { mutableStateOf<Item?>(null) }
     LaunchedEffect(focusTarget) { if (focusedCh != null) kotlinx.coroutines.delay(300); focusedCh = focusTarget }
+    val shown = focusedCh ?: list.firstOrNull()
+    // Vorschau nur, solange ein Sender in der Liste markiert ist (nicht beim Wechseln der Kategorie)
+    val preview = remember { LivePreviewPlayer(ctx) }
+    DisposableEffect(Unit) { onDispose { preview.release() } }
+    fun open(ch: Item) { preview.stop(); ZapContext.list = list; ZapContext.key = sel; LiveMemory.setSel(ctx, sel); onOpen(ch) }
     Box(Modifier.fillMaxSize()) {
-        LiveBackdrop(focusedCh, Modifier.fillMaxSize())
-        Row(Modifier.fillMaxSize().padding(top = 20.dp)) {
-            LazyColumn(Modifier.width(270.dp).fillMaxHeight().padding(start = 24.dp, end = 8.dp), state = catState, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(Modifier.fillMaxSize().background(Bg).padding(start = 24.dp, end = 24.dp, top = 12.dp)) {
+        // Oben: was auf dem markierten Sender läuft, rechts die Vorschau
+        Row(Modifier.fillMaxWidth().height(200.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+            LiveInfo(shown, list.indexOf(shown) + 1, Modifier.weight(1f).fillMaxHeight())
+            LivePreview(preview, focusedCh, Modifier.fillMaxHeight().aspectRatio(16f / 9f))
+        }
+        Spacer(Modifier.height(12.dp))
+        Row(Modifier.fillMaxWidth().weight(1f)) {
+            // Links: Kategorien und Listen
+            LazyColumn(Modifier.width(250.dp).fillMaxHeight().padding(end = 12.dp), state = catState, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 itemsIndexed(names) { _, n ->
                     val ml = ChannelLists.byKey(n)
                     if (n == "GUIDE") {
-                        // TV-Guide wie im Entwurf: startet den zuletzt gesehenen (sonst ersten) Sender der Auswahl und öffnet den Guide
+                        // TV-Guide: startet den zuletzt gesehenen (sonst ersten) Sender der Auswahl und öffnet den Guide
                         CatRow("TV-Guide", -1, false, Modifier, onFocus = {}, onRight = { runCatching { firstChan.requestFocus() } }, onFav = {}, icon = AIcon.Grid) {
                             val src = list.ifEmpty { live }
                             val ch = History.ids.firstNotNullOfOrNull { id -> src.firstOrNull { it.id == id } } ?: src.firstOrNull()
-                            if (ch != null) { ZapContext.list = src; ZapContext.key = sel; AppNav.openGuide = true; onOpen(ch) }
+                            if (ch != null) { preview.stop(); ZapContext.list = src; ZapContext.key = sel; AppNav.openGuide = true; onOpen(ch) }
                         }
-                        return@itemsIndexed
-                    }
-                    if (n == "NEW") {
-                        CatRow("Neue Senderliste", -1, false, Modifier, onFocus = {}, onRight = { runCatching { firstChan.requestFocus() } }, onFav = {}, icon = AIcon.Plus) { newList(null) }
                         return@itemsIndexed
                     }
                     val label = when {
@@ -148,6 +155,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                         else -> groups[n]?.size ?: 0
                     }
                     var listMenu by remember { mutableStateOf(false) }
+                    var confirmDelete by remember { mutableStateOf(false) }
                     Box {
                         CatRow(
                             label, count, n == sel,
@@ -156,41 +164,34 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                             onFav = { if (ml != null) listMenu = true else if (n != FAV_CAT && n != "ALL") CatFavs.toggle(ctx, n) },
                             icon = icon, raw = ml != null
                         ) { runCatching { firstChan.requestFocus() } }
-                        // Menü einer eigenen Liste: umbenennen, löschen
-                        if (listMenu && ml != null) OptionPopup(listOf("Umbenennen", "Liste löschen"), -1, { listMenu = false }) { i ->
+                        // Menü einer eigenen Liste (OK gedrückt halten): Sender hinzufügen, umbenennen, löschen
+                        if (listMenu && ml != null) OptionPopup(
+                            listOf("Sender hinzufügen", "Umbenennen", "Liste löschen"), -1, { listMenu = false },
+                            listOf(AIcon.Plus, AIcon.Edit, AIcon.Close)
+                        ) { i ->
                             listMenu = false
-                            if (i == 0) ask = NameAsk("Liste umbenennen", ml.name) { ChannelLists.rename(ctx, ml.id, it) }
-                            else { ChannelLists.delete(ctx, ml.id); sel = "ALL" }
+                            when (i) {
+                                0 -> { addTo = ml.id; sel = "ALL" }
+                                1 -> ask = NameAsk("Liste umbenennen", ml.name) { ChannelLists.rename(ctx, ml.id, it) }
+                                else -> confirmDelete = true
+                            }
+                        }
+                        if (confirmDelete && ml != null) OptionPopup(listOf("Löschen", "Abbrechen"), -1, { confirmDelete = false }, listOf(AIcon.Close, AIcon.Left)) { i ->
+                            confirmDelete = false
+                            if (i == 0) { ChannelLists.delete(ctx, ml.id); sel = "ALL"; LiveMemory.setSel(ctx, "ALL") }
                         }
                     }
                 }
             }
-            Column(Modifier.weight(0.9f).fillMaxHeight().padding(end = 24.dp)) {
-                // Eigene Liste: Umbenennen und Löschen gut sichtbar über den Sendern (vorher nur über langes OK auf der Liste)
-                if (curList != null) Row(
-                    Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    AppIcon(AIcon.Lists, Accent1, size = 22.dp)
-                    Text(raw = true, text = curList.name, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                    PillButton("Sender hinzufügen", if (list.isEmpty()) Modifier.focusRequester(firstChan) else Modifier, icon = AIcon.Plus) { addTo = curList.id; sel = "ALL" }
-                    PillButton("Umbenennen", icon = AIcon.Edit) { ask = NameAsk("Liste umbenennen", curList.name) { ChannelLists.rename(ctx, curList.id, it) } }
-                    Box {
-                        PillButton("Liste löschen", icon = AIcon.Close) { askDelete = true }
-                        if (askDelete) OptionPopup(listOf("Löschen", "Abbrechen"), -1, { askDelete = false }, listOf(AIcon.Close, AIcon.Left)) { i ->
-                            askDelete = false
-                            if (i == 0) { ChannelLists.delete(ctx, curList.id); sel = "ALL"; LiveMemory.setSel(ctx, "ALL") }
-                        }
-                    }
-                }
+            // Rechts: Sender
+            Column(Modifier.weight(1f).fillMaxHeight()) {
                 if (addList != null) Row(
-                    Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                    Modifier.fillMaxWidth().padding(bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    AppIcon(AIcon.Plus, Accent1, size = 22.dp)
+                    AppIcon(AIcon.Plus, Accent1, size = 20.dp)
                     Text(raw = true, text = Lang.tr("Zu „") + addList.name + Lang.tr("“ hinzufügen: OK auf einem Sender fügt ihn hinzu bzw. entfernt ihn wieder"),
-                        color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                        color = Color.White, fontSize = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     PillButton("Fertig", light = true) { finishAdd() }
                 }
                 if (list.isEmpty()) EmptyState(
@@ -200,12 +201,15 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                         sel == FAV_CAT -> "Auf einem Sender OK gedrückt halten und „Zu Favoriten“ wählen."
                         curList != null -> "In „Alle Sender“ oder einer Kategorie auf einem Sender OK gedrückt halten und „Zu …“ wählen."
                         else -> "In dieser Kategorie gibt es keine Sender. Links eine andere Kategorie wählen."
-                    }
-                ) else LazyColumn(state = chanState, verticalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(bottom = 40.dp)) {
+                    },
+                    action = if (curList != null) "Sender hinzufügen" else null,
+                    actionModifier = Modifier.focusRequester(firstChan),
+                    onAction = if (curList != null) ({ addTo = curList.id; sel = "ALL" }) else null
+                ) else LazyColumn(state = chanState, verticalArrangement = Arrangement.spacedBy(2.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
                     // In eigenen Listen wandert der Fokus beim Verschieben mit dem Sender mit (Schlüssel = Sender)
                     itemsIndexed(list, key = if (curList != null) { _, ch -> ch.id } else null) { i, ch ->
                         ChannelLine(
-                            ch, (if (i == 0) Modifier.focusRequester(firstChan) else Modifier)
+                            ch, i + 1, (if (i == 0) Modifier.focusRequester(firstChan) else Modifier)
                                 .then(if (ch.id == restoreId) Modifier.focusRequester(restoreReq) else Modifier), curList,
                             onNewList = { newList(ch.id) },
                             onFocus = { focusTarget = ch }
@@ -214,16 +218,13 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                                 val has = ch.id in addList.ids
                                 if (has) ChannelLists.remove(ctx, addList.id, ch.id) else ChannelLists.add(ctx, addList.id, ch.id)
                                 Toast.makeText(ctx, (if (has) Lang.tr("Entfernt: ") else Lang.tr("Hinzugefügt: ")) + ch.title, Toast.LENGTH_SHORT).show()
-                            } else { ZapContext.list = list; ZapContext.key = sel; LiveMemory.setSel(ctx, sel); onOpen(ch) }
+                            } else open(ch)
                         }
                     }
                 }
             }
-            // Rechts: was auf dem markierten Sender läuft
-            Box(Modifier.weight(1.1f).fillMaxHeight().padding(start = dpx(30), end = dpx(60), top = dpx(150))) {
-                LiveNowPanel(focusedCh ?: list.firstOrNull())
-            }
         }
+    }
         ask?.let { a -> NameDialog(a.title, a.initial, onDismiss = { ask = null }) { a.onSave(it); ask = null } }
     }
 }
@@ -260,14 +261,14 @@ private fun CatRow(
     val shape = RoundedCornerShape(DS.RadiusS)
     Row(
         modifier.fillMaxWidth().clip(shape)
-            .background(if (f) Color(0x33FFFFFF) else if (selected) Accent1.copy(alpha = 0.16f) else Color.Transparent)
+            .background(if (f) Accent1.copy(alpha = 0.38f) else if (selected) Color(0x1FFFFFFF) else Color.Transparent)
             .onFocusChanged { f = it.isFocused; if (it.isFocused) onFocus() }
             .onPreviewKeyEvent { e ->
                 if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionRight && e.nativeKeyEvent.repeatCount == 0) { onRight(); true } else false
             }
             .favKeys { onFav() }
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 12.dp, vertical = 9.dp),
         horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically
     ) {
         Row(Modifier.weight(1f, fill = false), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -280,50 +281,45 @@ private fun CatRow(
 }
 
 @Composable
-private fun ChannelLine(item: Item, modifier: Modifier, inList: ChList?, onNewList: () -> Unit, onFocus: () -> Unit = {}, onClick: () -> Unit) {
-    val ctx = LocalContext.current
+private fun ChannelLine(item: Item, number: Int, modifier: Modifier, inList: ChList?, onNewList: () -> Unit, onFocus: () -> Unit = {}, onClick: () -> Unit) {
     var f by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     Box {
     if (menu) ChannelMenu(item, inList, onNewList) { menu = false }
-    val shape = RoundedCornerShape(DS.RadiusM)
+    val shape = RoundedCornerShape(DS.RadiusS)
     val epg by produceState(emptyList<EpgEntry>(), item.id) { value = Epg.now(item) }
     val nowE = Epg.current(epg)
-    val nextE = epg.firstOrNull { nowE != null && it.start >= nowE.end }
-    // Runde 17b: markierter Sender schwebt als helles Glas mit Schatten hervor (statt Rahmen)
-    val sc by androidx.compose.animation.core.animateFloatAsState(if (f) focusScale(1.03f) else 1f, label = "chl")
+    // Schlicht wie eine Programmliste: eine Zeile je Sender, markiert = farbige Fläche (kein Vergrößern, kein Schatten)
     Row(
-        modifier.fillMaxWidth()
-            .graphicsLayer { scaleX = sc; scaleY = sc; transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f) }
-            .then(if (f) Modifier.shadow(18.dp, shape, ambientColor = Tok.Lift, spotColor = Tok.Lift) else Modifier)
+        modifier.fillMaxWidth().height(46.dp)
             .clip(shape)
-            .background(if (f) Color(0x29FFFFFF) else Color(0x0AFFFFFF))
-            .border(1.dp, if (f) Color(0x40FFFFFF) else Color.Transparent, shape)
+            .background(if (f) Accent1.copy(alpha = 0.38f) else Color.Transparent)
             .onFocusChanged { f = it.isFocused; if (it.isFocused) onFocus() }
             .menuKeys(onMenu = { menu = true }, onLong = { menu = true })
             .clickable(onClick = onClick)
-            .padding(12.dp),
+            .padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp)
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Box(Modifier.size(56.dp).clip(RoundedCornerShape(DS.RadiusS)).background(DS.Overlay2), contentAlignment = Alignment.Center) {
-            if (item.logo != null) AsyncImage(item.logo, null, Modifier.fillMaxSize().padding(6.dp), contentScale = ContentScale.Fit)
-            else Text(raw = true, text = item.title.take(2).uppercase(), color = Color.White, fontWeight = FontWeight.Bold)
+        Text(raw = true, text = number.toString(), color = if (f) Color.White else Muted, fontSize = 14.sp, modifier = Modifier.width(34.dp), maxLines = 1)
+        Box(Modifier.size(width = 48.dp, height = 34.dp), contentAlignment = Alignment.Center) {
+            if (item.logo != null) AsyncImage(item.logo, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+            else Text(raw = true, text = item.title.take(2).uppercase(), color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(raw = true, text = item.title, color = Tok.TextHi, fontSize = 19.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(raw = true, text = item.title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(0.42f))
+        Column(Modifier.weight(0.58f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             if (nowE != null) {
-                val frac = ((System.currentTimeMillis() / 1000 - nowE.start).toFloat() / (nowE.end - nowE.start)).coerceIn(0f, 1f)
-                Text(raw = true, text = "${hhmm(nowE.start)}–${hhmm(nowE.end)}  ${nowE.title}", color = Accent2, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Box(Modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(50)).background(DS.Overlay3)) {
+                val frac = ((System.currentTimeMillis() / 1000 - nowE.start).toFloat() / (nowE.end - nowE.start).coerceAtLeast(1)).coerceIn(0f, 1f)
+                Text(raw = true, text = nowE.title, color = if (f) Color.White else Tok.TextMid, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Box(Modifier.fillMaxWidth().height(2.dp).background(DS.Overlay3)) {
                     Box(Modifier.fillMaxWidth(frac).fillMaxHeight().background(Accent2))
                 }
-                if (nextE != null) Text(raw = true, text = "${hhmm(nextE.start)}  ${nextE.title}", color = Muted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            } else Text(raw = true, text = item.group, color = Muted, fontSize = 13.sp, maxLines = 1)
+            }
         }
-        if (Catchup.version >= 0 && Catchup.has(item)) AppIcon(AIcon.Catchup, Accent2, size = 20.dp)
-        if (DeadLinks.isDead(item.url)) AppIcon(AIcon.Warning, DS.Gold, size = 20.dp)
-        if (Library.isFav(item.id)) AppIcon(AIcon.Star, DS.Gold, size = 20.dp)
+        if (Catchup.version >= 0 && Catchup.has(item)) AppIcon(AIcon.Catchup, Accent2, size = 16.dp)
+        if (DeadLinks.isDead(item.url)) AppIcon(AIcon.Warning, DS.Gold, size = 16.dp)
+        if (Library.isFav(item.id)) AppIcon(AIcon.Star, DS.Gold, size = 16.dp)
     }
     }
 }

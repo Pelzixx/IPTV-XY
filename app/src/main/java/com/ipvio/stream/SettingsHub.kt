@@ -945,6 +945,9 @@ private fun LivePage(ctx: Context) {
     Text("TV-Programm (EPG)", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
     Text("Programm bei $xtream von ${counts.first} Sendern möglich", color = Muted, fontSize = 15.sp)
     Text("XMLTV: ${Xmltv.status}", color = Accent2, fontSize = 15.sp)
+    ToggleRow("Vorschau in Live TV", "Spielt den markierten Sender oben rechts klein ab (ohne Ton). Ausschalten, wenn dein Anbieter nur eine Verbindung erlaubt oder die Box langsam ist.", AppSettings.livePreview) {
+        AppSettings.setLivePreview(ctx, it)
+    }
     Hint("Die App sucht die Programmdaten automatisch (Xtream-Schnittstelle oder XMLTV-Adresse aus der Playlist). Weitere XMLTV-Quellen kannst du hier hinzufügen – alle werden zusammen geladen.")
     if (Presets.epg.isNotEmpty()) Text("Fest eingebaute EPG-Quellen: ${Presets.epg.size}", color = Muted, fontSize = 15.sp)
     // Eigene Quellen: Liste mit Entfernen-Knopf

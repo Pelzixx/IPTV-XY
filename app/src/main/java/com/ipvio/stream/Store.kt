@@ -73,6 +73,8 @@ object AppSettings {
     var clockOn by mutableStateOf(false)
     /** Bildrate an den Film anpassen (ExoPlayer: nur, wenn der Wechsel nahtlos möglich ist). */
     var autoFps by mutableStateOf(true)
+    /** Live TV: markierten Sender klein oben rechts als Vorschau abspielen. */
+    var livePreview by mutableStateOf(true)
     /** Uhr: Hintergrundkasten an/aus und seine Deckkraft in % (die Deckkraft der Schrift ist clockOpacity). */
     var clockBg by mutableStateOf(true)
     var clockBgOpacity by mutableIntStateOf(40)
@@ -115,6 +117,7 @@ object AppSettings {
         autoSkipOutro = p.getBoolean("auto_outro", false)
         clockOn = p.getBoolean("clock_on", false)
         autoFps = p.getBoolean("auto_fps", true)
+        livePreview = p.getBoolean("live_preview", true)
         clockBg = p.getBoolean("clock_bg", true)
         clockBgOpacity = p.getInt("clock_bg_op", 40).coerceIn(10, 100)
         bufferMode = p.getInt("buf_mode", 0).coerceIn(0, 3)
@@ -248,6 +251,11 @@ object AppSettings {
         if (n == bufferLearned) return
         bufferLearned = n
         prefs(c).edit().putInt("buf_learned", n).apply()
+    }
+
+    fun setLivePreview(c: Context, on: Boolean) {
+        livePreview = on
+        prefs(c).edit().putBoolean("live_preview", on).apply()
     }
 
     fun setAutoFps(c: Context, on: Boolean) {
