@@ -400,6 +400,31 @@ interface ProgrammeDao {
     )
     suspend fun upcoming(channelId: String, nowUtcMillis: Long, limit: Int): List<Programme>
 
+    /**
+     * XY IPTV Sport-Guide: Kandidaten für Sportsendungen im Zeitfenster (grobe Vorauswahl per Stichwort,
+     * die genaue Einordnung macht SportLogic).
+     */
+    @Query(
+        """
+        SELECT * FROM programmes
+        WHERE endUtcMillis > :fromUtcMillis AND startUtcMillis < :toUtcMillis
+          AND (lower(ifnull(category, '')) LIKE '%sport%'
+            OR lower(title) LIKE '%fußball%' OR lower(title) LIKE '%fussball%' OR lower(title) LIKE '%football%'
+            OR lower(title) LIKE '%soccer%' OR lower(title) LIKE '%liga%' OR lower(title) LIKE '%league%'
+            OR lower(title) LIKE '%pokal%' OR lower(title) LIKE '%cup%' OR lower(title) LIKE '%formel%'
+            OR lower(title) LIKE '%formula%' OR lower(title) LIKE '%grand prix%' OR lower(title) LIKE '%motogp%'
+            OR lower(title) LIKE '%nba%' OR lower(title) LIKE '%nfl%' OR lower(title) LIKE '%nhl%'
+            OR lower(title) LIKE '%tennis%' OR lower(title) LIKE '%atp%' OR lower(title) LIKE '%wta%'
+            OR lower(title) LIKE '%boxen%' OR lower(title) LIKE '%boxing%' OR lower(title) LIKE '%ufc%'
+            OR lower(title) LIKE '%darts%' OR lower(title) LIKE '%handball%' OR lower(title) LIKE '%eishockey%'
+            OR lower(title) LIKE '%basketball%' OR lower(title) LIKE '%golf%' OR lower(title) LIKE '%biathlon%'
+            OR lower(title) LIKE '% vs %' OR lower(title) LIKE '% vs. %' OR lower(title) LIKE '% - %')
+        ORDER BY startUtcMillis
+        LIMIT 4000
+        """
+    )
+    suspend fun sportsCandidates(fromUtcMillis: Long, toUtcMillis: Long): List<Programme>
+
     @Query("SELECT COUNT(*) FROM programmes WHERE feedId = :feedId")
     suspend fun countForFeed(feedId: Long): Int
 
