@@ -27,8 +27,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VERSION_NAME: ${{ inputs.version }}
-      # Muss bei jeder Version steigen; 100 + laufende Nummer dieses Workflows
-      VERSION_CODE: ${{ 100 + github.run_number }}
       KEYSTORE_FILE: ${{ github.workspace }}/release.jks
       KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
     steps:
@@ -36,6 +34,8 @@ jobs:
 
       - name: Versionsnummer prüfen
         run: |
+          # versionCode muss bei jeder Version steigen: 100 + laufende Nummer dieses Workflows
+          echo "VERSION_CODE=$((100 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
           if ! [[ "$VERSION_NAME" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]]; then
             echo "::error::Versionsnummer bitte im Format 1.1 oder 1.1.0 angeben"; exit 1
           fi
