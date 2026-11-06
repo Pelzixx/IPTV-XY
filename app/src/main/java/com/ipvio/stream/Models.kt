@@ -184,6 +184,8 @@ object M3uParser {
     private val SPACES = Regex("""\s{2,}""")
     private val VOD_GROUP = Regex("""film|movie|vod|kino|cinema""", RegexOption.IGNORE_CASE)
     private val VIDEO_FILE = Regex("""\.(mp4|mkv|avi)(\?.*)?$""", RegexOption.IGNORE_CASE)
+    /** Typische Live-Adresse: /live/…, Endung .ts/.m3u8 oder Xtream-Form …/Nummer (ohne Endung). */
+    private val LIVE_URL = Regex("""/live/|\.(ts|m3u8?)(\?.*)?$|/\d+/?(\?.*)?$""", RegexOption.IGNORE_CASE)
     private val Q4K = Regex("""\b(4K|UHD|2160p?)\b""", RegexOption.IGNORE_CASE)
     private val QFHD = Regex("""\b(FHD|1080[pi]?)\b""", RegexOption.IGNORE_CASE)
     private val QHD = Regex("""\b(HD|720p?)\b""", RegexOption.IGNORE_CASE)
@@ -295,7 +297,10 @@ object M3uParser {
         if (isSeparator(e.name)) return null
         val m = SE.find(e.name)
         val isSeriesUrl = e.url.contains("/series/")
-        val isMovie = e.url.contains("/movie/") || VIDEO_FILE.containsMatchIn(e.url) || VOD_GROUP.containsMatchIn(e.group)
+        // Der Kategoriename allein („Sky Cinema“, „Kino“, „YouTube VOD“) macht aus einem Live-Sender keinen Film:
+        // er zählt nur, wenn die Adresse nicht nach Live-Stream aussieht.
+        val isMovie = e.url.contains("/movie/") || VIDEO_FILE.containsMatchIn(e.url) ||
+            (VOD_GROUP.containsMatchIn(e.group) && !LIVE_URL.containsMatchIn(e.url))
         val kind = if (m != null || isSeriesUrl) Kind.SERIES else if (isMovie) Kind.MOVIE else Kind.LIVE
         val lang = langOf.of(e.group, e.name, kind == Kind.LIVE)
         val countKey = if (kind == Kind.SERIES) (m?.groupValues?.get(1) ?: e.name).trim().lowercase() else null
