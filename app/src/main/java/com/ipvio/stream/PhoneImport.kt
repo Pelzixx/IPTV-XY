@@ -26,13 +26,14 @@ object PhoneImportLogic {
         }
 
     /** Prüft Eingaben; null = ungültig. */
-    fun toInput(f: Map<String, String>): PhoneInput? {
+    /** [noHostOk]: fest eingebaute Server vorhanden – dann darf das Server-Feld leer bleiben (die App nimmt den gewählten). */
+    fun toInput(f: Map<String, String>, noHostOk: Boolean = false): PhoneInput? {
         val url = f["url"].orEmpty().trim()
         if (url.isNotEmpty()) return if (url.startsWith("http://") || url.startsWith("https://")) PhoneInput(url, "", "", "") else null
         val host = f["host"].orEmpty().trim()
         val user = f["user"].orEmpty().trim()
         val pass = f["pass"].orEmpty().trim()
-        return if (host.isNotEmpty() && user.isNotEmpty() && pass.isNotEmpty()) PhoneInput("", host, user, pass) else null
+        return if ((host.isNotEmpty() || noHostOk) && user.isNotEmpty() && pass.isNotEmpty()) PhoneInput("", host, user, pass) else null
     }
 
     fun newCode(rnd: java.util.Random): String = (1000 + rnd.nextInt(9000)).toString()
@@ -153,7 +154,7 @@ class PhoneImport(private val onReceive: (PhoneInput) -> Unit) {
                     fails >= 5 -> 429 to PhoneImportLogic.message(de, "lock")
                     f["code"].orEmpty().trim() != code -> { fails++; 403 to PhoneImportLogic.message(de, "code") }
                     else -> {
-                        val input = PhoneImportLogic.toInput(f)
+                        val input = PhoneImportLogic.toInput(f, noHostOk = Presets.servers.isNotEmpty())
                         if (input == null) 400 to PhoneImportLogic.message(de, "bad")
                         else { onReceive(input); 200 to PhoneImportLogic.message(de, "ok") }
                     }

@@ -81,8 +81,9 @@ object Xmltv {
     private var job: Job? = null
 
     private fun prefs(c: Context) = c.getSharedPreferences("ipvio_epg", Context.MODE_PRIVATE)
-    fun customUrl(c: Context): String = prefs(c).getString("custom", "") ?: ""
-    fun setCustom(c: Context, u: String) { prefs(c).edit().putString("custom", u.trim()).apply() }
+    /** Eigene XMLTV-Adressen (Einstellungen > Live-TV), zeilenweise gespeichert; ältere Versionen hatten genau eine. */
+    fun customUrls(c: Context): List<String> = PresetLogic.parseUrls(prefs(c).getString("custom", "") ?: "")
+    fun setCustomUrls(c: Context, urls: List<String>) { prefs(c).edit().putString("custom", PresetLogic.joinUrls(urls)).apply() }
 
     fun has(id: String?): Boolean = id != null && progs.containsKey(id.lowercase())
     fun forChannel(id: String?): List<EpgEntry> = if (id == null) emptyList() else progs[id.lowercase()] ?: emptyList()
@@ -93,7 +94,8 @@ object Xmltv {
      * gleiche Titel nur einmal. Wird der Speicher knapp, hört das Einlesen auf und behält das bis dahin Gelesene.
      */
     fun start(c: Context, urls: List<String>, items: List<Item>) {
-        val all = (urls + listOf(customUrl(c))).filter { it.startsWith("http") }.distinct()
+        // Reihenfolge: Playlist/Xtream, fest eingebaute Quellen, eigene Quellen. Spätere ergänzen Sender, die vorher fehlten.
+        val all = (urls + Presets.epg + customUrls(c)).filter { it.startsWith("http") }.distinct()
         if (all.isEmpty()) { status = "Keine EPG-Adresse gefunden"; return }
         val wanted = items.filter { it.kind == Kind.LIVE }.mapNotNull { it.tvgId?.lowercase() }.toSet()
         if (wanted.isEmpty()) { status = "Playlist enthält keine Sender-IDs (tvg-id)"; return }

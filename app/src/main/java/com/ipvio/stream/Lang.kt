@@ -22,7 +22,7 @@ object Lang {
     private fun ensureLoaded() {
         if (loaded) return
         loaded = true
-        I18nCore.load(DictA, DictB, DictC, DictD, DictE, DictF, DictG, DictH, DictI)
+        I18nCore.load(DictA, DictB, DictC, DictD, DictE, DictF, DictG, DictH, DictI, DictJ)
     }
 
     /** Index in I18nCore.CODES. Liest den Zustand, damit Texte beim Umstellen neu gezeichnet werden. */

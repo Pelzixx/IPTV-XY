@@ -934,7 +934,8 @@ private fun LanguageFilterSection(ctx: Context) {
 
 @Composable
 private fun LivePage(ctx: Context) {
-    var url by remember { mutableStateOf(Xmltv.customUrl(ctx)) }
+    var url by remember { mutableStateOf("") }
+    var custom by remember { mutableStateOf(Xmltv.customUrls(ctx)) }
     val all = PlaylistStore.channels
     val chCount = Xmltv.channelCount
     val counts by produceState(0 to 0, all, chCount) {
@@ -944,11 +945,28 @@ private fun LivePage(ctx: Context) {
     Text("TV-Programm (EPG)", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
     Text("Programm bei $xtream von ${counts.first} Sendern möglich", color = Muted, fontSize = 15.sp)
     Text("XMLTV: ${Xmltv.status}", color = Accent2, fontSize = 15.sp)
-    Hint("Die App sucht die Programmdaten automatisch (Xtream-Schnittstelle oder XMLTV-Adresse aus der Playlist). Wenn dein Anbieter eine eigene XMLTV-Adresse nennt, trage sie hier ein.")
+    Hint("Die App sucht die Programmdaten automatisch (Xtream-Schnittstelle oder XMLTV-Adresse aus der Playlist). Weitere XMLTV-Quellen kannst du hier hinzufügen – alle werden zusammen geladen.")
+    if (Presets.epg.isNotEmpty()) Text("Fest eingebaute EPG-Quellen: ${Presets.epg.size}", color = Muted, fontSize = 15.sp)
+    // Eigene Quellen: Liste mit Entfernen-Knopf
+    custom.forEach { u ->
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(u, raw = true, color = Color.White, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+            PillButton("Entfernen") {
+                custom = custom - u
+                Xmltv.setCustomUrls(ctx, custom)
+                Xmltv.start(ctx, PlaylistStore.epgUrls, PlaylistStore.channels)
+            }
+        }
+    }
     Field(url, { url = it }, "https://…/xmltv.php?username=…&password=…")
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        PillButton("Speichern & laden", light = true) {
-            Xmltv.setCustom(ctx, url)
+        PillButton("Hinzufügen & laden", light = true) {
+            val add = PresetLogic.parseUrls(url)
+            if (add.isNotEmpty()) {
+                custom = (custom + add).distinct()
+                Xmltv.setCustomUrls(ctx, custom)
+                url = ""
+            }
             Xmltv.start(ctx, PlaylistStore.epgUrls, PlaylistStore.channels)
         }
         PillButton("Neu laden") { Xmltv.start(ctx, PlaylistStore.epgUrls, PlaylistStore.channels) }

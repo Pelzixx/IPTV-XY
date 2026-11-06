@@ -29,6 +29,9 @@ jobs:
       VERSION_NAME: ${{ inputs.version }}
       KEYSTORE_FILE: ${{ github.workspace }}/release.jks
       KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      # Fest eingebaute Server und EPG-Quellen (optional), siehe Presets.kt
+      PRESET_SERVERS: ${{ secrets.PRESET_SERVERS }}
+      PRESET_EPG: ${{ secrets.PRESET_EPG }}
     steps:
       - uses: actions/checkout@v4
 

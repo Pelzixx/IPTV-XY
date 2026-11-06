@@ -14,6 +14,11 @@ val secrets = Properties().apply {
 fun secret(name: String): String =
     (secrets.getProperty(name) ?: System.getenv(name) ?: "").trim().filter { it.isLetterOrDigit() }
 
+// Fest eingebaute Server/EPG-Adressen (Secrets PRESET_SERVERS / PRESET_EPG), als Java-Text maskiert
+fun presetText(name: String): String =
+    (secrets.getProperty(name) ?: System.getenv(name) ?: "").trim()
+        .replace("\\", "\\\\").replace("\"", "\\\"").replace("\r", "").replace("\n", "\\n")
+
 android {
     namespace = "com.ipvio.stream"
     compileSdk {
@@ -30,6 +35,8 @@ android {
 
         buildConfigField("String", "TMDB_KEY", "\"${secret("TMDB_KEY")}\"")
         buildConfigField("String", "OMDB_KEY", "\"${secret("OMDB_KEY")}\"")
+        buildConfigField("String", "PRESET_SERVERS", "\"${presetText("PRESET_SERVERS")}\"")
+        buildConfigField("String", "PRESET_EPG", "\"${presetText("PRESET_EPG")}\"")
     }
 
     // Signaturschlüssel für Releases kommt aus den GitHub-Secrets. Fehlt er (lokaler Build), bleibt die Release-APK unsigniert.

@@ -40,13 +40,24 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
     var user by remember { mutableStateOf(pendX?.second ?: "") }
     var pass by remember { mutableStateOf(pendX?.third ?: "") }
     var showPass by remember { mutableStateOf(false) }
+    // Fest eingebaute Server (Presets.kt): dann reichen Benutzername und Passwort. "Andere Quelle" öffnet die freie Eingabe.
+    val servers = Presets.servers
+    val pendIdx = remember { pendX?.let { PresetLogic.indexOf(it.first, servers) } ?: -1 }
+    var manual by remember { mutableStateOf(servers.isEmpty() || (pend != null && pendIdx < 0)) }
+    var sel by remember { mutableStateOf(pendIdx.coerceAtLeast(0)) }
     // Vom Handy senden: lokaler Mini-Server, solange dieser Bildschirm offen ist
     val ip = remember { PhoneImport.localIp() }
     val receiver = remember {
         PhoneImport { inp ->
             Handler(Looper.getMainLooper()).post {
-                val u = if (inp.isXtream) PlaylistStore.xtreamUrl(inp.host, inp.user, inp.pass) else inp.url
-                if (inp.isXtream) { xtream = true; host = inp.host; user = inp.user; pass = inp.pass } else { xtream = false; url = inp.url }
+                // Ohne Server vom Handy: den gewählten fest eingebauten Server nehmen
+                val h = if (inp.isXtream && inp.host.isBlank()) servers.getOrNull(sel)?.url.orEmpty() else inp.host
+                val u = if (inp.isXtream) PlaylistStore.xtreamUrl(h, inp.user, inp.pass) else inp.url
+                if (inp.isXtream) {
+                    xtream = true; host = h; user = inp.user; pass = inp.pass
+                    val i = PresetLogic.indexOf(h, servers)
+                    if (i >= 0) { sel = i; manual = false } else manual = true
+                } else { xtream = false; url = inp.url; manual = true }
                 if (u == null) PlaylistStore.error = "Angaben unvollständig: Server, Benutzername und Passwort nötig."
                 else scope.launch { if (PlaylistStore.load(ctx, u, true)) onDone() }
             }
@@ -74,7 +85,7 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
 
     // Start-Fokus auf die Auswahl M3U/Xtream (nicht auf ein Eingabefeld: das würde sofort die Bildschirmtastatur öffnen)
     val startFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { delay(120); runCatching { startFocus.requestFocus() } }
+    LaunchedEffect(manual) { delay(120); runCatching { startFocus.requestFocus() } }
 
     Row(
         Modifier.fillMaxSize()
@@ -93,6 +104,19 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
                 BrandMark(Modifier.size(48.dp))
                 Text("IPTV-XY", color = Color.White, fontSize = 38.sp, fontWeight = FontWeight.ExtraBold)
             }
+            if (!manual) {
+                PresetLogin(
+                    servers, sel, { sel = it }, user, { user = it }, pass, { pass = it }, showPass, { showPass = !showPass },
+                    startFocus, canCancel,
+                    onLogin = {
+                        val finalUrl = PlaylistStore.xtreamUrl(servers[sel].url, user, pass)
+                        if (finalUrl == null) PlaylistStore.error = "Angaben unvollständig: Benutzername und Passwort nötig."
+                        else { host = servers[sel].url; scope.launch { if (PlaylistStore.load(ctx, finalUrl, true)) onDone() } }
+                    },
+                    onOther = { manual = true; xtream = true; host = ""; PlaylistStore.error = null },
+                    onCancel = { PlaylistStore.clearPending(ctx); onDone() }
+                )
+            } else {
             Text("Playlist hinzufügen", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 FocusButton("M3U-Link", Modifier.focusRequester(startFocus), primary = !xtream) { xtream = false }
@@ -119,6 +143,8 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
                     else scope.launch { if (PlaylistStore.load(ctx, finalUrl, true)) onDone() }
                 }
                 if (canCancel) FocusButton("Abbrechen") { PlaylistStore.clearPending(ctx); onDone() }
+            }
+            if (servers.isNotEmpty()) FocusButton("Zurück zur Anmeldung") { manual = false; PlaylistStore.error = null }
             }
         }
         // Rechts: Anleitung für die Eingabe am Handy
@@ -176,5 +202,37 @@ private fun Step(n: Int, text: String) {
             Text(n.toString(), color = OnAccent, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
         Text(text, color = Color.White, fontSize = 17.sp, lineHeight = 24.sp, modifier = Modifier.padding(top = 2.dp))
+    }
+}
+
+/** Anmeldung mit fest eingebautem Server: Server wählen (bei mehreren), Benutzername, Passwort. */
+@Composable
+private fun PresetLogin(
+    servers: List<PresetServer>, sel: Int, onSel: (Int) -> Unit,
+    user: String, onUser: (String) -> Unit, pass: String, onPass: (String) -> Unit,
+    showPass: Boolean, onTogglePass: () -> Unit,
+    startFocus: FocusRequester, canCancel: Boolean,
+    onLogin: () -> Unit, onOther: () -> Unit, onCancel: () -> Unit
+) {
+    Text("Anmelden", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+    // Start-Fokus auf einen Knopf, nicht auf ein Eingabefeld (das würde sofort die Bildschirmtastatur öffnen)
+    if (servers.size > 1) {
+        Text("Server wählen", color = Muted, fontSize = 18.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            servers.forEachIndexed { i, s ->
+                FocusButton(s.name, if (i == sel) Modifier.focusRequester(startFocus) else Modifier, primary = i == sel) { onSel(i) }
+            }
+        }
+    }
+    Field(user, onUser, "Benutzername")
+    Field(pass, onPass, "Passwort", password = !showPass)
+    FocusButton(if (showPass) "Passwort verbergen" else "Passwort anzeigen") { onTogglePass() }
+    PlaylistStore.error?.let { Text(it, color = DS.Danger, fontSize = 18.sp) }
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        FocusButton("Anmelden", if (servers.size > 1) Modifier else Modifier.focusRequester(startFocus), primary = true) {
+            if (!PlaylistStore.loading) onLogin()
+        }
+        FocusButton("Andere Quelle") { onOther() }
+        if (canCancel) FocusButton("Abbrechen") { onCancel() }
     }
 }

@@ -21,6 +21,9 @@ jobs:
       - name: Unit tests
         run: ./gradlew --no-daemon testDebugUnitTest
       - name: Build debug APK
+        env:
+          PRESET_SERVERS: ${{ secrets.PRESET_SERVERS }}
+          PRESET_EPG: ${{ secrets.PRESET_EPG }}
         run: ./gradlew --no-daemon assembleDebug
       - uses: actions/upload-artifact@v4
         with:

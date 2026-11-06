@@ -7,7 +7,7 @@ import org.junit.Test
 
 /** Runde 18: Übersetzungen der Laufzeit-Texte (Player-Hinweis, Kino-Hinweis, Jahrzehnte, Update-Meldungen). */
 class Round18Test {
-    @Before fun setUp() { I18nCore.load(DictA, DictB, DictC, DictD, DictE, DictF, DictG, DictH, DictI) }
+    @Before fun setUp() { I18nCore.load(DictA, DictB, DictC, DictD, DictE, DictF, DictG, DictH, DictI, DictJ) }
     private val EN = 1; private val TR = 2; private val IT = 8
 
     @Test fun playerTimelineHint() {

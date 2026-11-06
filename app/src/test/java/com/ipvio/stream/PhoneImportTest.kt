@@ -59,7 +59,7 @@ class PhoneImportTest {
         assertEquals(5, PhoneImportLogic.langIndex("sr-Latn-RS"))
         assertEquals(1, PhoneImportLogic.langIndex("ja-JP,nl;q=0.5"))
         assertEquals(1, PhoneImportLogic.langIndex(""))
-        I18nCore.load(DictA, DictB, DictC, DictD, DictE, DictF, DictG, DictH, DictI)
+        I18nCore.load(DictA, DictB, DictC, DictD, DictE, DictF, DictG, DictH, DictI, DictJ)
         assertTrue(PhoneImportLogic.page(2).contains("Televizyona gönder"))
         assertTrue(PhoneImportLogic.page(0).contains("An den Fernseher senden"))
         assertTrue(PhoneImportLogic.page(1).contains("Send to TV"))
