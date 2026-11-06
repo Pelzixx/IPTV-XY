@@ -10,7 +10,7 @@ A free, open-source IPTV player for **Android TV, Google TV and Amazon Fire TV**
 
 ## Installation on Fire TV / Android TV
 
-**Downloader code: `6952026`** (or http://aftv.news/6952026)
+**Downloader code: `6420457`** (or http://aftv.news/6420457)
 
 1. Install the free app **Downloader** (by AFTVnews) from the Amazon Appstore or Google Play.
 2. Allow Downloader to install apps: Fire TV *Settings > My Fire TV > Developer options > Install unknown apps > Downloader: On*.
