@@ -102,7 +102,14 @@ object General {
     fun init(c: Context) {
         val p = prefs(c)
         autoStart = p.getBoolean("auto_start", false)
-        startTab = p.getInt("start_tab", 0).coerceIn(0, 4)
+        // Runde 20: Die App startet im TV (Live TV), wie man es von IPTV-Playern kennt. Einmalig auch für bestehende Installationen,
+        // die noch auf „Start“ standen; eine bewusst andere Wahl (Filme, Serien, Suche) bleibt.
+        if (p.getInt("start_ver", 1) < 2) {
+            val e = p.edit().putInt("start_ver", 2)
+            if (p.getInt("start_tab", 0) == 0) e.putInt("start_tab", 3)
+            e.apply()
+        }
+        startTab = p.getInt("start_tab", 3).coerceIn(0, 4)
         resumeLive = p.getBoolean("resume_live", false)
         resumeVod = p.getBoolean("resume_vod", false)
         confirmExit = p.getBoolean("confirm_exit", true)

@@ -34,7 +34,8 @@ class Round17Test {
         assertEquals(10, MenuLogic.COUNT)
         assertTrue(MenuLogic.VERLAUF in MenuLogic.parseOrder(null))
         assertEquals(MenuLogic.COUNT, MenuLogic.parseOrder("0,1,2,3,4,5").size)
-        assertFalse(MenuLogic.VERLAUF in MenuLogic.parseHidden(MenuLogic.DEFAULT_HIDDEN))
+        // Runde 20: Verlauf ist standardmäßig ausgeblendet (TV-Aufbau), lässt sich aber einblenden
+        assertTrue(MenuLogic.VERLAUF in MenuLogic.parseHidden(MenuLogic.DEFAULT_HIDDEN))
     }
 
     // T237

@@ -335,6 +335,8 @@ fun HomeScreen(
     // Beenden: zweimal Zurück innerhalb von 2,5 s. Unabhängig davon, wo der Fokus gerade liegt (sonst führte das zweite
     // Zurück wieder auf die Startseite statt zu beenden).
     var lastBack by remember { mutableLongStateOf(0L) }
+    // „Zuhause“ ist der Start-Bereich (Standard seit Runde 20: TV), nicht mehr fest die Startseite
+    val homeTab = SettingsLogic.resolveStartTab(General.startTab, AppSettings.menuOrder.toList(), AppSettings.menuHidden.toList())
     fun exitApp() {
         val act = generateSequence<android.content.Context>(ctx) { (it as? android.content.ContextWrapper)?.baseContext }
             .filterIsInstance<android.app.Activity>().firstOrNull()
@@ -342,7 +344,7 @@ fun HomeScreen(
     }
     BackHandler(enabled = !inSidebar && all.isNotEmpty()) {
         val now = System.currentTimeMillis()
-        if (tab == 0 && General.confirmExit && now - lastBack < 2500) exitApp()
+        if (tab == homeTab && General.confirmExit && now - lastBack < 2500) exitApp()
         // Runde 17: Zurück geht genau eine Ebene hoch – weiter unten auf der Startseite zuerst nach oben zu „Jetzt ansehen“,
         // erst von dort in die Seitenleiste (wie in Filme/Serien)
         else if (tab == 0 && states[0].firstVisibleItemIndex > 0) scope.launch {
@@ -366,8 +368,8 @@ fun HomeScreen(
             runCatching { sideFocus.requestFocus() }
         }
     }
-    BackHandler(enabled = inSidebar && tab != 0) { onTab(0) }
-    BackHandler(enabled = inSidebar && tab == 0 && General.confirmExit) {
+    BackHandler(enabled = inSidebar && tab != homeTab) { onTab(homeTab) }
+    BackHandler(enabled = inSidebar && tab == homeTab && General.confirmExit) {
         val now = System.currentTimeMillis()
         if (now - lastBack < 2500) exitApp()
         else { lastBack = now; android.widget.Toast.makeText(ctx, Lang.tr("Noch einmal Zurück drücken zum Beenden"), android.widget.Toast.LENGTH_SHORT).show() }

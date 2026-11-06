@@ -130,7 +130,7 @@ http://h/x
     }
 
     // ---------------------------------------------------------------- Menü
-    @Test fun menue_standard() = assertEquals(listOf(0, 3, 1, 2, 6, 7, 8, 9, 4, 5), MenuLogic.parseOrder(null))
+    @Test fun menue_standard() = assertEquals(listOf(4, 3, 1, 2, 8, 7, 9, 6, 0, 5), MenuLogic.parseOrder(null))
 
     @Test fun menue_alteReihenfolge_neueBereicheVorEinstellungen() {
         assertEquals(listOf(0, 1, 2, 3, 4, 6, 7, 8, 9, 5), MenuLogic.parseOrder("0,1,2,3,4,5"))
@@ -154,8 +154,8 @@ http://h/x
 
     @Test fun menue_verschiebenUndGrenzen() {
         val o = MenuLogic.DEFAULT_ORDER
-        assertEquals(listOf(3, 0, 1, 2, 6, 7, 8, 9, 4, 5), MenuLogic.move(o, 0, 1))
-        assertEquals(o, MenuLogic.move(o, 0, -1))
+        assertEquals(listOf(4, 3, 1, 2, 8, 7, 9, 6, 5, 0), MenuLogic.move(o, 0, 1))
+        assertEquals(o, MenuLogic.move(o, 4, -1))
         assertEquals(o, MenuLogic.move(o, 5, 1))
         assertEquals(o, MenuLogic.move(o, 99, 1))
     }

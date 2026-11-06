@@ -15,14 +15,16 @@ object MenuLogic {
     const val MYLIST = 8
     /** Runde 15 (Nachtrag 17): Verlauf – zuletzt Angesehenes, Filme und Serien getrennt. */
     const val VERLAUF = 9
-    /** Wie im Entwurf: Home, Live TV, Filme, Serien, EPG, Favoriten, Meine Liste, (Suche), Einstellungen. */
-    val DEFAULT_ORDER = listOf(0, 3, 1, 2, EPG, FAVS, MYLIST, VERLAUF, SEARCH, 5)
     /**
-     * Suche steht oben im Kopf, nicht in der Seitenleiste: standardmäßig ausgeblendet.
-     * EPG (Runde 14, Wunsch des Nutzers): ebenfalls ausgeblendet – der TV-Guide ist über Live TV erreichbar.
-     * Beides lässt sich unter Einstellungen > Menü wieder einblenden.
+     * Runde 20 (TV-Aufbau wie bei großen IPTV-Playern): Suchen, TV, Filme, Serien, Meine Liste; dahinter die eigenen
+     * Bereiche (Favoriten, Verlauf, EPG, Home mit Zugang und Mitteilungen), zuletzt Einstellungen.
      */
-    const val DEFAULT_HIDDEN = "4,6"
+    val DEFAULT_ORDER = listOf(SEARCH, 3, 1, 2, MYLIST, FAVS, VERLAUF, EPG, 0, 5)
+    /**
+     * Standardmäßig ausgeblendet: EPG (der Guide steckt in TV), Favoriten (stehen in TV links in den Gruppen) und Verlauf.
+     * Alles lässt sich unter Einstellungen > Menü wieder einblenden.
+     */
+    const val DEFAULT_HIDDEN = "6,7,9"
 
     fun parseOrder(raw: String?): List<Int> {
         val order = (raw ?: DEFAULT_ORDER.joinToString(",")).split(",").mapNotNull { it.trim().toIntOrNull() }

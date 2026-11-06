@@ -38,7 +38,7 @@ object SubStyle {
     val EDGES = listOf("Kein", "Schatten", "Kontur")
 }
 
-val MENU_LABELS = listOf("Home", "Filme", "Serien", "Live TV", "Suche", "Einstellungen", "EPG", "Favoriten", "Meine Liste", "Verlauf")
+val MENU_LABELS = listOf("Home", "Filme", "Serien", "TV", "Suchen", "Einstellungen", "EPG", "Favoriten", "Meine Liste", "Verlauf")
 
 object AppSettings {
     var ipvioFilter by mutableStateOf(false)
@@ -131,6 +131,13 @@ object AppSettings {
         if (p.getInt("menu_ver", 1) < 2) {
             if (MenuLogic.EPG !in menuHidden) menuHidden.add(MenuLogic.EPG)
             p.edit().putInt("menu_ver", 2).putString("menu_hidden", menuHidden.joinToString(",")).apply()
+        }
+        // Einmalig (Runde 20): Menü im TV-Aufbau (Suchen, TV, Filme, Serien, Meine Liste … Einstellungen)
+        if (p.getInt("menu_ver", 1) < 3) {
+            menuOrder.clear(); menuOrder.addAll(MenuLogic.DEFAULT_ORDER)
+            menuHidden.clear(); menuHidden.addAll(MenuLogic.parseHidden(MenuLogic.DEFAULT_HIDDEN))
+            p.edit().putInt("menu_ver", 3).putString("menu_order", menuOrder.joinToString(","))
+                .putString("menu_hidden", menuHidden.joinToString(",")).apply()
         }
         searchHistory.clear()
         searchHistory.addAll((p.getString("search_hist", "") ?: "").split("\n").filter { it.isNotBlank() })
