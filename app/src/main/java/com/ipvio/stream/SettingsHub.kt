@@ -997,7 +997,6 @@ private fun PlaylistPage(ctx: Context, onAdd: () -> Unit, reload: () -> Unit) {
         ) {
             Column(Modifier.weight(1f)) {
                 Text(pl.name + if (isActive) "  ·  aktiv" else "", color = if (isActive) Accent2 else Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(PlaylistStore.hostOf(pl.url), color = Muted, fontSize = 13.sp, maxLines = 1)
             }
             if (!isActive) SmallPill("Aktivieren") {
                 PlaylistStore.activate(ctx, i)

@@ -202,12 +202,15 @@ object PlaylistStore {
             val a = JSONArray(json)
             for (i in 0 until a.length()) {
                 val o = a.getJSONObject(i)
-                lists.add(PL(o.getString("name"), o.getString("url")))
+                val u = o.getString("url")
+                // Früher hieß eine Playlist wie ihr Server – die Adresse soll nirgends zu sehen sein
+                val n = o.getString("name").let { if (it == hostOf(u)) displayName(u, lists.size) else it }
+                lists.add(PL(n, u))
             }
         } catch (e: Exception) {
         }
         val old = p.getString("url", null)
-        if (lists.isEmpty() && old != null) lists.add(PL(hostOf(old), old))
+        if (lists.isEmpty() && old != null) lists.add(PL(displayName(old, 0), old))
         active = p.getInt("active", 0).coerceIn(0, maxOf(lists.size - 1, 0))
         if (enc == null && lists.isNotEmpty()) persist(c)   // Übernahme der alten Klartext-Liste (nach dem Setzen von "active")
     }
@@ -255,6 +258,13 @@ object PlaylistStore {
 
     private fun failPending(c: Context, msg: String) {
         runCatching { pending(c)?.let { writePending(c, it.copy(state = LoadLogic.FAILED, msg = msg)) } }
+    }
+
+    /** Name einer neuen Playlist ohne Server-Adresse: Name des fest eingebauten Servers, sonst „Playlist 1“, „Playlist 2“ … */
+    fun displayName(url: String, index: Int): String {
+        val host = LoadLogic.xtreamParts(url)?.first
+        val preset = host?.let { h -> Presets.servers.getOrNull(PresetLogic.indexOf(h, Presets.servers)) }
+        return preset?.name ?: ("Playlist " + (index + 1))
     }
 
     fun hostOf(url: String): String = try { android.net.Uri.parse(url).host ?: "Playlist" } catch (e: Exception) { "Playlist" }
@@ -729,7 +739,7 @@ object PlaylistStore {
     /** Neu hinzugefügte Playlist erfolgreich geladen: in die Liste übernehmen und den gemerkten Auftrag löschen. */
     private fun finishSave(c: Context, u: String) {
         val idx = lists.indexOfFirst { it.url == u }
-        if (idx >= 0) active = idx else { lists.add(PL(hostOf(u), u)); active = lists.size - 1 }
+        if (idx >= 0) active = idx else { lists.add(PL(displayName(u, lists.size), u)); active = lists.size - 1 }
         persist(c)
         clearPending(c)
     }

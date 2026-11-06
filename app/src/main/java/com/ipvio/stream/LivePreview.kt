@@ -120,18 +120,14 @@ fun LivePreview(p: LivePreviewPlayer, ch: Item?, modifier: Modifier = Modifier) 
 
 /** Oben links in Live TV: Sender, laufende Sendung mit Zeit und Fortschritt, Beschreibung und was danach kommt. */
 @Composable
-fun LiveInfo(ch: Item?, number: Int, modifier: Modifier = Modifier) {
+fun LiveInfo(ch: Item?, modifier: Modifier = Modifier) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (ch == null) return@Column
         val epg by produceState(emptyList<EpgEntry>(), ch.id) { value = Epg.now(ch) }
         val nowE = Epg.current(epg)
         val next = if (nowE != null) epg.firstOrNull { it.start >= nowE.end } else epg.firstOrNull()
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (number > 0) Text(raw = true, text = number.toString(), color = Muted, fontSize = 16.sp)
-            Text(raw = true, text = ch.title, color = Tok.TextMid, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
         Text(raw = true, text = nowE?.title ?: ch.title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold,
-            maxLines = 1, overflow = TextOverflow.Ellipsis)
+            maxLines = 2, overflow = TextOverflow.Ellipsis)
         if (nowE != null) {
             val frac = ((System.currentTimeMillis() / 1000 - nowE.start).toFloat() / (nowE.end - nowE.start).coerceAtLeast(1)).coerceIn(0f, 1f)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -140,10 +136,11 @@ fun LiveInfo(ch: Item?, number: Int, modifier: Modifier = Modifier) {
                     Box(Modifier.fillMaxWidth(frac).fillMaxHeight().background(Accent2))
                 }
             }
-            nowE.desc?.takeIf { it.isNotBlank() }?.let {
+            nowE.desc.takeIf { it.isNotBlank() }?.let {
                 Text(raw = true, text = it, color = Tok.TextMid, fontSize = 14.sp, lineHeight = 19.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
             }
         } else if (epg.isEmpty()) Text("Für diesen Sender gibt es kein Programm.", color = Muted, fontSize = 14.sp)
+        Text(raw = true, text = ch.title, color = Muted, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (next != null) Row(Modifier.fillMaxWidth().height(22.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Danach", color = Accent2, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             Text(raw = true, text = hhmm(next.start) + "  " + next.title, color = Tok.TextMid, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
