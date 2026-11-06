@@ -3,7 +3,7 @@ package com.ipvio.stream
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** Live-Sender in Kategorien mit „Kino“, „Cinema“, „VOD“ im Namen bleiben Live-Sender. */
+/** Film nur bei Videodatei-Endung; Kategorienamen mit „Kino“, „Cinema“, „VOD“ machen keinen Film. */
 class LiveGroupTest {
     private val m3u = """#EXTM3U
 #EXTINF:-1 group-title="DE | Sky Cinema",Sky Cinema Action HD
@@ -14,6 +14,8 @@ http://h/live/u/p/102.ts
 http://h/x/stream.m3u8
 #EXTINF:-1 group-title="Filme",Matrix (1999)
 http://h/movie/u/p/2.mp4
+#EXTINF:-1 group-title="Live",Dune (2021)
+http://h/a/b/dune.MKV?token=1
 #EXTINF:-1 group-title="VOD Klassiker",Nosferatu
 http://h/files/nosferatu
 """
@@ -25,7 +27,8 @@ http://h/files/nosferatu
         assertEquals(Kind.LIVE, kind("Lofi"))
         assertEquals(Kind.LIVE, kind("Kinowelt"))
         assertEquals(Kind.MOVIE, kind("Matrix"))
-        // Ohne Live-Merkmale in der Adresse zählt der Kategoriename weiter
-        assertEquals(Kind.MOVIE, kind("Nosferatu"))
+        assertEquals(Kind.MOVIE, kind("Dune"))
+        // Ohne Videodatei-Endung kein Film, auch in einer VOD-Kategorie
+        assertEquals(Kind.LIVE, kind("Nosferatu"))
     }
 }
