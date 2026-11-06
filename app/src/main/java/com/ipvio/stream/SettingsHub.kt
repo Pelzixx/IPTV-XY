@@ -1170,17 +1170,15 @@ private fun AboutPage(ctx: Context) {
     Hint("Setzt Ansicht, Design, Menü, Player, Ton und Start auf die Standardwerte. Playlists, Favoriten, Verlauf und Fortsetzen-Positionen bleiben erhalten. Zwischenspeicher leerst du unter „Speicher“.")
 }
 
-/** App-Aktualisierung aus der App heraus. Ohne eingetragene Adresse gibt es nur das Eingabefeld. */
+/** App-Aktualisierung aus der App heraus. Die Update-Adresse ist fest eingebaut und wird nicht angezeigt. */
 @Composable
 private fun UpdateSection(ctx: Context) {
     SectionTitle("App-Aktualisierung")
-    var url by remember { mutableStateOf(AppUpdate.url(ctx)) }
     var status by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var info by remember { mutableStateOf<UpdateInfo?>(null) }
     val scope = rememberCoroutineScope()
-    Field(url, { url = it; AppUpdate.setUrl(ctx, it); info = null }, "Adresse der Update-Datei (https://…/update.json)")
-    if (url.isNotBlank()) {
+    run {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             PillButton(if (busy) "Bitte warten …" else "Nach Update suchen") {
                 if (busy) return@PillButton
@@ -1207,6 +1205,6 @@ private fun UpdateSection(ctx: Context) {
         }
         if (status.isNotBlank()) Text(status, color = Muted, fontSize = 16.sp)
     }
-    Hint("Trage die Adresse einer kleinen Datei update.json ein, die du selbst bereitstellst: {\"versionCode\": 2, \"versionName\": \"1.1\", \"apk\": \"ipvio.apk\"}. Die neue APK muss mit demselben Schlüssel signiert sein wie die installierte, sonst lehnt Android sie ab.")
+    Hint("Sucht nach einer neuen Version von IPTV-XY und installiert sie. Deine Einstellungen und Playlists bleiben erhalten.")
 }
 

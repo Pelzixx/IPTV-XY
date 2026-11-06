@@ -19,12 +19,13 @@ data class UpdateInfo(val code: Long, val name: String, val apkUrl: String, val 
  * Ohne eingetragene Adresse bleibt die Funktion unsichtbar/inaktiv.
  */
 object AppUpdate {
-    /** Fest eingebaute Update-Adresse (leer = keine); Nutzer können eine eigene in den Einstellungen eintragen. */
+    /** Fest eingebaute Update-Adresse (öffentliches Repo IPTV-XY-Releases). */
     const val DEFAULT_URL = "https://github.com/Pelzixx/IPTV-XY-Releases/releases/latest/download/update.json"
 
     private fun prefs(c: Context) = Profiles.sp(c, "ipvio_upd")
-    fun url(c: Context) = prefs(c).getString("url", "").orEmpty().ifBlank { DEFAULT_URL }
-    fun setUrl(c: Context, v: String) = prefs(c).edit().putString("url", v.trim()).apply()
+    /** Immer die fest eingebaute Adresse (eine früher eingetragene eigene Adresse wird nicht mehr verwendet). */
+    @Suppress("UNUSED_PARAMETER")
+    fun url(c: Context) = DEFAULT_URL
 
     fun currentCode(c: Context): Long = runCatching {
         val pi = c.packageManager.getPackageInfo(c.packageName, 0)
