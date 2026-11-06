@@ -148,3 +148,124 @@ object SportLogic {
         else -> SportKind.OTHER
     }
 }
+
+/** Sport-Sendungen aus dem TV-Programm zu Ereignissen zusammenfassen (gleiche Sendung auf mehreren Sendern = ein Eintrag). */
+object SportGuideLogic {
+    /** Eine Sendung aus dem TV-Programm, ohne Abhängigkeit von Room (für Tests). */
+    data class Show(val epgId: String, val title: String, val category: String?, val description: String?, val start: Long, val end: Long)
+
+    fun fromShows(shows: List<Show>, now: Long): List<SportEvent> {
+        val groups = LinkedHashMap<String, MutableList<Pair<Show, Pair<SportKind, String?>>>>()
+        for (s in shows) {
+            if (s.end <= now) continue
+            val c = SportLogic.classify(s.title, s.category, s.description) ?: continue
+            groups.getOrPut(SportLogic.key(s.title, s.start)) { mutableListOf() }.add(s to c)
+        }
+        return groups.values.map { list ->
+            val (first, cls) = list.first()
+            val t = SportLogic.teams(first.title)
+            SportEvent(
+                kind = cls.first, league = cls.second ?: list.firstNotNullOfOrNull { it.second.second },
+                title = first.title, startMillis = list.minOf { it.first.start }, endMillis = list.maxOf { it.first.end },
+                epgIds = list.map { it.first.epgId }.distinct(), home = t?.first, away = t?.second,
+                description = first.description,
+            )
+        }.sortedBy { it.startMillis }
+    }
+
+    /** Eigene Top-Spiele zuerst, danach das TV-Programm; ein Top-Spiel ersetzt die gleiche Sendung aus dem Programm. */
+    fun merge(featured: List<SportEvent>, fromGuide: List<SportEvent>, now: Long): List<SportEvent> {
+        val f = featured.filter { it.endMillis > now }.sortedBy { it.startMillis }
+        val rest = fromGuide.filter { g -> f.none { same(it, g) } }
+        return f + rest
+    }
+
+    private fun same(a: SportEvent, b: SportEvent): Boolean {
+        if (kotlin.math.abs(a.startMillis - b.startMillis) > 30 * 60_000L) return false
+        if (a.home != null && a.away != null && b.home != null && b.away != null)
+            return SportScores.teamMatches(a.home, b.home) && SportScores.teamMatches(a.away, b.away)
+        return SportLogic.norm(a.title) == SportLogic.norm(b.title)
+    }
+
+    fun isLive(e: SportEvent, now: Long) = now >= e.startMillis && now < e.endMillis
+}
+
+/** Live-Spielstand. */
+data class SportScore(
+    val home: String, val away: String, val homeScore: String, val awayScore: String,
+    /** "pre", "in" oder "post" */
+    val state: String,
+    /** z. B. „67'“, „Halbzeit“, „Ende“ */
+    val detail: String,
+    val startMillis: Long?,
+)
+
+/** Spielstände aus dem öffentlichen ESPN-Scoreboard (ohne Schlüssel) lesen und Ereignissen zuordnen. */
+object SportScores {
+    /** Ligen, für die Spielstände geholt werden (ESPN-Pfad). */
+    val LEAGUES = listOf(
+        "soccer/ger.1", "soccer/ger.2", "soccer/ger.dfb_pokal", "soccer/uefa.champions", "soccer/uefa.europa",
+        "soccer/uefa.europa.conf", "soccer/eng.1", "soccer/esp.1", "soccer/ita.1", "soccer/fra.1", "soccer/tur.1",
+        "basketball/nba", "football/nfl", "hockey/nhl",
+    )
+
+    fun url(league: String) = "https://site.api.espn.com/apis/site/v2/sports/$league/scoreboard"
+
+    fun parseEspn(body: String): List<SportScore> = runCatching {
+        val root = Json.parseToJsonElement(body) as JsonObject
+        val events = root["events"] as? JsonArray ?: return emptyList()
+        events.mapNotNull { ev ->
+            val e = ev as? JsonObject ?: return@mapNotNull null
+            val comp = (e["competitions"] as? JsonArray)?.firstOrNull() as? JsonObject ?: return@mapNotNull null
+            val teams = (comp["competitors"] as? JsonArray)?.mapNotNull { it as? JsonObject } ?: return@mapNotNull null
+            fun side(which: String) = teams.firstOrNull { str(it, "homeAway") == which }
+            val h = side("home") ?: teams.getOrNull(0) ?: return@mapNotNull null
+            val a = side("away") ?: teams.getOrNull(1) ?: return@mapNotNull null
+            fun name(t: JsonObject) = (t["team"] as? JsonObject)?.let { str(it, "displayName").ifEmpty { str(it, "name") } }.orEmpty()
+            val status = ((comp["status"] ?: e["status"]) as? JsonObject)
+            val type = status?.get("type") as? JsonObject
+            val state = type?.let { str(it, "state") }.orEmpty()
+            val detail = type?.let { str(it, "shortDetail").ifEmpty { str(it, "detail") } }.orEmpty()
+            val start = runCatching { java.time.Instant.parse(fixIso(str(e, "date"))).toEpochMilli() }.getOrNull()
+            SportScore(name(h), name(a), str(h, "score"), str(a, "score"), state, detail, start)
+        }
+    }.getOrElse { emptyList() }
+
+    /** ESPN liefert „2026-11-08T17:30Z“ (ohne Sekunden). */
+    private fun fixIso(s: String) = if (Regex("""T\d\d:\d\dZ$""").containsMatchIn(s)) s.dropLast(1) + ":00Z" else s
+
+    private fun str(o: JsonObject, k: String) = (o[k] as? JsonPrimitive)?.content?.trim().orEmpty()
+
+    private val STOP = setOf("fc", "sc", "sv", "vfb", "vfl", "tsg", "bv", "afc", "cf", "ac", "as", "ssc", "rb", "1", "04", "05", "09", "1899", "1846", "1848", "the", "club", "de")
+
+    private fun tokens(n: String) = n.lowercase()
+        .replace("ü", "u").replace("ö", "o").replace("ä", "a").replace("ß", "ss")
+        .split(Regex("""[^a-z0-9]+""")).filter { it.length >= 3 && it !in STOP }
+
+    /** „FC Bayern“ ≈ „Bayern Munich“, „BVB“ ≈ „Borussia Dortmund“ (Kürzel), „Lakers“ ≈ „Los Angeles Lakers“. */
+    fun teamMatches(a: String, b: String): Boolean {
+        val na = SportLogic.norm(a); val nb = SportLogic.norm(b)
+        if (na.isEmpty() || nb.isEmpty()) return false
+        if (na == nb) return true
+        ALIASES[na]?.let { if (it == nb || nb.contains(it)) return true }
+        ALIASES[nb]?.let { if (it == na || na.contains(it)) return true }
+        if (na.length >= 5 && nb.contains(na) || nb.length >= 5 && na.contains(nb)) return true
+        val ta = tokens(a); val tb = tokens(b)
+        return ta.any { x -> tb.any { y -> x == y || (x.length >= 5 && y.length >= 5 && (x.startsWith(y) || y.startsWith(x))) } }
+    }
+
+    private val ALIASES = mapOf(
+        "bvb" to "dortmund", "fcb" to "bayern", "s04" to "schalke", "hsv" to "hamburg", "rbl" to "leipzig",
+        "b04" to "leverkusen", "sge" to "frankfurt", "bmg" to "monchengladbach", "fcbayernmünchen" to "bayern",
+        "fcbayernmunchen" to "bayern", "barca" to "barcelona", "manutd" to "manchesterunited", "mancity" to "manchestercity",
+    )
+
+    /** Passenden Spielstand zu einem Ereignis finden (Mannschaften + Anstoß innerhalb von 3 Stunden). */
+    fun find(e: SportEvent, scores: List<SportScore>): SportScore? {
+        val home = e.home ?: return null; val away = e.away ?: return null
+        return scores.firstOrNull { s ->
+            (s.startMillis == null || kotlin.math.abs(s.startMillis - e.startMillis) < 3 * 3_600_000L) &&
+                ((teamMatches(home, s.home) && teamMatches(away, s.away)) || (teamMatches(home, s.away) && teamMatches(away, s.home)))
+        }
+    }
+}

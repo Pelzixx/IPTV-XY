@@ -459,4 +459,19 @@
     <string name="xy_provider_epg_add">EPG-Quelle hinzufügen</string>
     <string name="xy_epg_unassigned">Nicht zugewiesene Quellen</string>
     <string name="xy_epg_provider_suffix">Anbieter-EPG</string>
+    <string name="nav_sport">Sport</string>
+    <string name="sport_loading">Sport wird geladen …</string>
+    <string name="sport_all">Alle</string>
+    <string name="sport_live">LIVE</string>
+    <string name="sport_top">TOP</string>
+    <string name="sport_empty">Keine Sportübertragungen im TV-Programm gefunden. Lade zuerst die EPG-Daten.</string>
+    <string name="sport_no_channel">Kein passender Sender in deinen Playlisten</string>
+    <string name="sport_kind_football">Fußball</string>
+    <string name="sport_kind_basketball">Basketball</string>
+    <string name="sport_kind_motorsport">Motorsport</string>
+    <string name="sport_kind_tennis">Tennis</string>
+    <string name="sport_kind_ice_hockey">Eishockey</string>
+    <string name="sport_kind_american_football">American Football</string>
+    <string name="sport_kind_combat">Kampfsport</string>
+    <string name="sport_kind_other">Weitere Sportarten</string>
 </resources>

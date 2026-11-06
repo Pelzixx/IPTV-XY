@@ -526,4 +526,19 @@
     <string name="xy_provider_epg_add">Add EPG source</string>
     <string name="xy_epg_unassigned">Unassigned sources</string>
     <string name="xy_epg_provider_suffix">provider EPG</string>
+    <string name="nav_sport">Sport</string>
+    <string name="sport_loading">Loading sports…</string>
+    <string name="sport_all">All</string>
+    <string name="sport_live">LIVE</string>
+    <string name="sport_top">TOP</string>
+    <string name="sport_empty">No sports broadcasts found in the TV guide. Load the EPG first.</string>
+    <string name="sport_no_channel">No matching channel in your playlists</string>
+    <string name="sport_kind_football">Football</string>
+    <string name="sport_kind_basketball">Basketball</string>
+    <string name="sport_kind_motorsport">Motorsport</string>
+    <string name="sport_kind_tennis">Tennis</string>
+    <string name="sport_kind_ice_hockey">Ice hockey</string>
+    <string name="sport_kind_american_football">American football</string>
+    <string name="sport_kind_combat">Combat sports</string>
+    <string name="sport_kind_other">More sports</string>
 </resources>

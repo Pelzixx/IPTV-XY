@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SportsSoccer
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
@@ -81,6 +82,8 @@ enum class Tab(val labelRes: Int, val icon: ImageVector) {
     /** XY IPTV: Info-Startseite (Zugang, Mitteilungen/Angebote, QR-Code). */
     HOME(R.string.nav_home, Icons.Filled.Home),
     LIVE(R.string.nav_live_tv, Icons.Filled.LiveTv),
+    /** XY IPTV: Sport-Guide (Sportübertragungen mit Sendern, Top-Spiele, Spielstände). */
+    SPORT(R.string.nav_sport, Icons.Filled.SportsSoccer),
     MOVIES(R.string.nav_movies, Icons.Filled.Movie),
     SHOWS(R.string.nav_shows, Icons.Filled.Tv),
     RECORDINGS(R.string.nav_recordings, Icons.Filled.FiberManualRecord),
@@ -119,6 +122,7 @@ fun MainScreen(
         buildList {
             add(Tab.HOME)
             if (liveEnabled) add(Tab.LIVE)
+            if (liveEnabled) add(Tab.SPORT)
             if (moviesEnabled) add(Tab.MOVIES)
             if (seriesEnabled) add(Tab.SHOWS)
             add(Tab.RECORDINGS)
@@ -187,6 +191,7 @@ fun MainScreen(
                     onRefresh = onRefresh,
                     onPlayCatchup = onPlayCatchup,
                 )
+                Tab.SPORT -> app.opentv.ui.sport.SportScreen(onPlayChannel = onPlayChannel)
                 Tab.MOVIES -> MoviesScreen(
                     onOpenMovie = onOpenMovie,
                     onResume = onResume,
