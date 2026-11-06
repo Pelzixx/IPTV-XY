@@ -454,4 +454,7 @@
     <string name="info_connections">Verbindungen: %1$d von %2$d</string>
     <string name="xy_choose_server">Server wählen</string>
     <string name="xy_own_server">Eigener Server</string>
+    <string name="xy_provider_epg_title">TV-Guide (EPG)</string>
+    <string name="xy_provider_epg_auto">Guide des Anbieters (automatisch)</string>
+    <string name="xy_provider_epg_add">EPG-Quelle hinzufügen</string>
 </resources>

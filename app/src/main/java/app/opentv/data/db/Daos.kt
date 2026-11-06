@@ -325,8 +325,13 @@ interface EpgFeedDao {
     @Query("SELECT * FROM epg_feeds WHERE enabled = 1")
     suspend fun enabled(): List<EpgFeed>
 
-    @Query("SELECT * FROM epg_feeds WHERE providerSourceId = :sourceId")
+    /** Die automatische Guide-Quelle eines Anbieters (ohne eigene Adresse). */
+    @Query("SELECT * FROM epg_feeds WHERE providerSourceId = :sourceId AND url IS NULL")
     suspend fun forProvider(sourceId: Long): EpgFeed?
+
+    /** XY IPTV: alle Guide-Quellen eines Anbieters (automatische und zusätzlich eingetragene). */
+    @Query("SELECT * FROM epg_feeds WHERE providerSourceId = :sourceId ORDER BY url IS NOT NULL, id")
+    fun observeForProvider(sourceId: Long): Flow<List<EpgFeed>>
 
     @Query("SELECT * FROM epg_feeds WHERE url = :url")
     suspend fun byUrl(url: String): EpgFeed?

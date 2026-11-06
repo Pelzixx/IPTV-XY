@@ -96,6 +96,15 @@ class EpgRepository(
         )
     }
 
+    /** XY IPTV: zusätzliche Guide-Quelle nur für einen Anbieter (wie bei TiviMate je Playlist). */
+    suspend fun addFeedForProvider(sourceId: Long, name: String, url: String) {
+        val trimmed = url.trim()
+        if (trimmed.isEmpty()) return
+        feedDao.insert(EpgFeed(name = name.trim().ifBlank { trimmed }, url = trimmed, providerSourceId = sourceId, enabled = true))
+    }
+
+    fun observeFeedsForProvider(sourceId: Long) = feedDao.observeForProvider(sourceId)
+
     suspend fun setFeedEnabled(id: Long, enabled: Boolean) = feedDao.setEnabled(id, enabled)
 
     suspend fun removeFeed(feed: EpgFeed) {
@@ -245,6 +254,16 @@ class EpgRepository(
      */
     private suspend fun openFeedStream(feed: EpgFeed): InputStream {
         val raw: InputStream = when {
+            // XY IPTV: eine zusätzliche Quelle eines Anbieters hat eine eigene Adresse – die zuerst
+            feed.url != null && feed.providerSourceId != null -> {
+                val response = http.newCall(Request.Builder().url(feed.url).build()).execute()
+                if (!response.isSuccessful) {
+                    response.close()
+                    throw IllegalStateException("Guide download failed (HTTP ${response.code}).")
+                }
+                response.body?.byteStream()
+                    ?: throw IllegalStateException("The server returned an empty guide.")
+            }
             feed.providerSourceId != null -> {
                 val source: Source = sourceDao.byId(feed.providerSourceId)
                     ?: throw IllegalStateException("Provider for this guide no longer exists.")

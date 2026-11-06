@@ -151,6 +151,10 @@ private fun ProviderRow(
                 Spacer(Modifier.height(14.dp))
                 StreamFormatSelector(selected = source.liveFormat, onSelect = onSetLiveFormat)
             }
+
+            // XY IPTV: TV-Guide-Quellen dieses Anbieters (automatisch + zusätzliche)
+            Spacer(Modifier.height(14.dp))
+            ProviderEpgSection(source)
         }
     }
 }

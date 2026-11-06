@@ -521,4 +521,7 @@
     <string name="info_connections">Connections: %1$d of %2$d</string>
     <string name="xy_choose_server">Choose server</string>
     <string name="xy_own_server">Own server</string>
+    <string name="xy_provider_epg_title">TV guide (EPG)</string>
+    <string name="xy_provider_epg_auto">Provider guide (automatic)</string>
+    <string name="xy_provider_epg_add">Add EPG source</string>
 </resources>
