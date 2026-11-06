@@ -92,6 +92,19 @@ http://h/series/u/p/8.mkv
         assertNull(PlaylistCacheIO.read(ByteArrayInputStream(bad.toByteArray()), "http://a", emptySet()))
     }
 
+    /** Alter Zwischenspeicher: als Film gespeicherter Live-Sender ohne Videodatei-Endung wird beim Lesen zu Live. */
+    @Test fun cache_filmOhneVideoendungWirdLive() {
+        val out = ByteArrayOutputStream()
+        val o = DataOutputStream(out)
+        fun str(s: String?) { if (s == null) o.writeInt(-1) else { val b = s.toByteArray(); o.writeInt(b.size); o.write(b) } }
+        o.writeInt(3); str("http://a"); o.writeInt(0); o.writeInt(0); o.writeInt(2)
+        str("1"); o.writeInt(Kind.MOVIE.ordinal); str("13th Street HD"); o.writeInt(-1); str("http://h/u/p/77"); str(null); str("DE | Kino"); str(null); str(null); o.writeInt(0)
+        str("2"); o.writeInt(Kind.MOVIE.ordinal); str("Matrix"); o.writeInt(1999); str("http://h/movie/u/p/2.mkv"); str(null); str("Filme"); str(null); str(null); o.writeInt(0)
+        val c = PlaylistCacheIO.read(ByteArrayInputStream(out.toByteArray()), "http://a", emptySet())!!
+        assertEquals(Kind.LIVE, c.items.first { it.id == "1" }.kind)
+        assertEquals(Kind.MOVIE, c.items.first { it.id == "2" }.kind)
+    }
+
     /** Version 3 (ältere App, ohne Sprache) wird weiter gelesen; die Sprache wird aus Kategorie/Name berechnet. */
     @Test fun cache_version3WirdGelesen() {
         val out = ByteArrayOutputStream()

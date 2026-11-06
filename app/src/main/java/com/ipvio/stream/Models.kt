@@ -183,6 +183,9 @@ object M3uParser {
     private val TAGS = Regex("""\b(4K|UHD|FHD|HD|HEVC|H265|1080p|720p|MULTI|GERMAN|DUAL)\b""", RegexOption.IGNORE_CASE)
     private val SPACES = Regex("""\s{2,}""")
     /** Videodatei-Endungen: nur damit wird ein Eintrag ein Film (Kategoriename und Pfad zählen nicht). */
+    /** Hat die Adresse eine Videodatei-Endung (.mkv, .mp4 …)? Nur dann ist ein Eintrag ein Film. */
+    fun isVideoFile(url: String): Boolean = VIDEO_FILE.containsMatchIn(url)
+
     private val VIDEO_FILE = Regex("""\.(mp4|mkv|avi|mov|m4v|wmv|flv|webm|mpe?g)(\?.*)?$""", RegexOption.IGNORE_CASE)
     private val Q4K = Regex("""\b(4K|UHD|2160p?)\b""", RegexOption.IGNORE_CASE)
     private val QFHD = Regex("""\b(FHD|1080[pi]?)\b""", RegexOption.IGNORE_CASE)

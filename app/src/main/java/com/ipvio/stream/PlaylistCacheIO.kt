@@ -149,7 +149,7 @@ object PlaylistCacheIO {
     /** Liest einen Eintrag; ausgeblendete Sprachen liefern null (gezählt werden sie trotzdem). */
     private fun DataInputStream.readItem(version: Int, pool: StringPool, hidden: Set<String>, counts: HashMap<String, Int>): Item? {
         val id = str() ?: ""
-        val kind = Kind.entries.getOrNull(readInt()) ?: throw IOException("Zwischenspeicher beschädigt")
+        val storedKind = Kind.entries.getOrNull(readInt()) ?: throw IOException("Zwischenspeicher beschädigt")
         var lang: String? = if (version >= 4) pool.of(str() ?: LangTagLogic.UNKNOWN) else null
         if (lang != null) {
             counts[lang] = (counts[lang] ?: 0) + 1
@@ -157,9 +157,12 @@ object PlaylistCacheIO {
         }
         // Ältere Zwischenspeicher: Titel noch mit „&amp;“ bzw. „|EN|“ – beim Lesen bereinigen (schnell, meist unverändert)
         val rawTitle = str() ?: ""
-        val title = if (kind == Kind.LIVE) TitleText.decode(rawTitle) else TitleText.title(rawTitle)
         val y = readInt()
         val url = str() ?: ""
+        // Ältere Zwischenspeicher: Live-Sender in „Kino“-/„VOD“-Kategorien waren als Film gespeichert.
+        // Film nur noch mit Videodatei-Endung – so stimmt es ohne Neuladen der Playlist.
+        val kind = if (storedKind == Kind.MOVIE && !M3uParser.isVideoFile(url)) Kind.LIVE else storedKind
+        val title = if (kind == Kind.LIVE) TitleText.decode(rawTitle) else TitleText.title(rawTitle)
         val logo = str()
         val group = pool.of(str() ?: "")
         val quality = pool.ofOrNull(str())
