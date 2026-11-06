@@ -76,7 +76,8 @@ object Xmltv {
     var status by mutableStateOf("Noch nicht geladen")
     var channelCount by mutableStateOf(0)
     private val progs = ConcurrentHashMap<String, List<EpgEntry>>()
-    private val client = Net.withTimeouts(20, 180)
+    // 60 s ohne Daten oder 10 min insgesamt: Quelle abbrechen und mit der nächsten weitermachen
+    private val client = Net.withTimeouts(20, 60).newBuilder().callTimeout(10, java.util.concurrent.TimeUnit.MINUTES).build()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var job: Job? = null
 
@@ -102,8 +103,7 @@ object Xmltv {
      * Quelle wird das bisher Gelesene angezeigt, damit man bei großen Dateien nicht bis zum Ende warten muss.
      */
     fun start(c: Context, urls: List<String>, items: List<Item>, force: Boolean = false) {
-        // Reihenfolge: Playlist/Xtream, fest eingebaute Quellen, eigene Quellen. Spätere ergänzen Sender, die vorher fehlten.
-        val all = (urls + Presets.epg + customUrls(c)).filter { it.startsWith("http") }.distinct()
+        val all = EpgSources.pick(urls, Presets.epg, customUrls(c))
         if (all.isEmpty()) { status = "Keine EPG-Adresse gefunden"; return }
         val wanted = items.filter { it.kind == Kind.LIVE }.mapNotNull { it.tvgId?.lowercase() }.toSet()
         if (wanted.isEmpty()) { status = "Playlist enthält keine Sender-IDs (tvg-id)"; return }

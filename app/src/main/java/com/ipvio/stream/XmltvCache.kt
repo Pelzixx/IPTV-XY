@@ -63,3 +63,18 @@ object XmltvCache {
         }
     }
 }
+
+/** Welche XMLTV-Quellen geladen werden (ohne Android, testbar). */
+object EpgSources {
+    /**
+     * Reihenfolge: fest eingebaute, eigene, dann die xmltv.php des Xtream-Zugangs. Die EPG-Liste aus dem Playlist-Kopf
+     * (url-tvg, bei manchen Anbietern über ein Dutzend Adressen) nur, wenn weder feste noch eigene Quellen eingetragen sind.
+     */
+    fun pick(fromPlaylist: List<String>, preset: List<String>, custom: List<String>): List<String> {
+        val provider = fromPlaylist.filter { it.contains("/xmltv.php", ignoreCase = true) }
+        val header = fromPlaylist.filter { it !in provider }
+        val own = preset + custom
+        return (own + provider + (if (own.isEmpty()) header else emptyList()))
+            .filter { it.startsWith("http://", true) || it.startsWith("https://", true) }.distinct()
+    }
+}
