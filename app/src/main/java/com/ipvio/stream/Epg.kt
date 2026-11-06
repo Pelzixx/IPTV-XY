@@ -72,9 +72,20 @@ fun epgSane(start: Long, end: Long): Boolean {
     return true
 }
 
+/** Stand einer EPG-Quelle für die Übersicht. [at] = Zeitpunkt (Sekunden) des letzten Ladens. */
+data class EpgSourceStat(
+    val label: String, val kind: Int, val forName: String?, val state: Int,
+    val channels: Int = 0, val mb: Long = 0, val at: Long = 0, val error: String? = null
+) {
+    companion object { const val WAITING = 0; const val LOADING = 1; const val DONE = 2; const val ERROR = 3 }
+}
+
 object Xmltv {
     var status by mutableStateOf("Noch nicht geladen")
     var channelCount by mutableStateOf(0)
+    /** Übersicht je Quelle (Einstellungen > Live-TV & Guide). */
+    var sources by mutableStateOf<List<EpgSourceStat>>(emptyList())
+        private set
     private val progs = ConcurrentHashMap<String, List<EpgEntry>>()
     // 60 s ohne Daten oder 10 min insgesamt: Quelle abbrechen und mit der nächsten weitermachen
     private val client = Net.withTimeouts(20, 60).newBuilder().callTimeout(10, java.util.concurrent.TimeUnit.MINUTES).build()
@@ -103,7 +114,10 @@ object Xmltv {
      * Quelle wird das bisher Gelesene angezeigt, damit man bei großen Dateien nicht bis zum Ende warten muss.
      */
     fun start(c: Context, urls: List<String>, items: List<Item>, force: Boolean = false) {
-        val all = EpgSources.pick(urls, Presets.epg, customUrls(c))
+        val plName = PlaylistStore.lists.getOrNull(PlaylistStore.active)?.name
+        val server = plName?.let { n -> Presets.servers.firstOrNull { it.name.equals(n, ignoreCase = true) } }
+        val tagged = EpgSources.pickTagged(urls, Presets.epg, server?.epg.orEmpty(), customUrls(c), plName)
+        val all = tagged.map { it.url }
         if (all.isEmpty()) { status = "Keine EPG-Adresse gefunden"; return }
         val wanted = items.filter { it.kind == Kind.LIVE }.mapNotNull { it.tvgId?.lowercase() }.toSet()
         if (wanted.isEmpty()) { status = "Playlist enthält keine Sender-IDs (tvg-id)"; return }
@@ -113,7 +127,9 @@ object Xmltv {
         job = scope.launch {
             val now = System.currentTimeMillis() / 1000
             var age = Long.MAX_VALUE
+            sources = tagged.map { EpgSourceStat(EpgSources.label(it), it.kind, it.forName, EpgSourceStat.WAITING) }
             if (!force) runCatching { XmltvCache.read(file, key, now) }.getOrNull()?.let { (savedAt, saved) ->
+                loadStats(c, key)?.let { sources = it }
                 progs.clear()
                 for ((k, v) in saved) if (k in wanted) progs[k] = v
                 channelCount = progs.size
@@ -134,16 +150,25 @@ object Xmltv {
                 val k = id.lowercase()
                 past[k] = maxOf(past[k] ?: 0, d.coerceAtMost(7))
             }
+            val fresh = sources.toMutableList()
             for ((i, u) in all.withIndex()) {
                 val src = if (all.size > 1) "${i + 1}/${all.size}" else ""
+                val hit = HashSet<String>()
+                var mbNow = 0L
+                fresh[i] = fresh[i].copy(state = EpgSourceStat.LOADING); sources = fresh.toList()
                 try {
-                    parse(u, wanted, map, past) { mb ->
+                    parse(u, wanted, map, past, hit) { mb ->
+                        mbNow = mb
                         if (!hadSaved) status = "Wird geladen … (" + listOf(src, "$mb MB").filter { it.isNotEmpty() }.joinToString(" · ") + ")"
+                        fresh[i] = fresh[i].copy(mb = mb); sources = fresh.toList()
                     }
+                    fresh[i] = fresh[i].copy(state = EpgSourceStat.DONE, channels = hit.size, mb = mbNow, at = now)
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
                     err = if (e is PlaylistError) e.message else e.javaClass.simpleName
+                    fresh[i] = fresh[i].copy(state = EpgSourceStat.ERROR, channels = hit.size, mb = mbNow, at = now, error = err)
                 }
+                sources = fresh.toList()
                 // Zwischenstand zeigen: was bisher gelesen ist, steht sofort im Programm
                 for ((k, v) in map) progs[k] = v.sortedBy { it.start }
                 channelCount = progs.size
@@ -153,6 +178,7 @@ object Xmltv {
                 progs.keys.retainAll(map.keys)
                 channelCount = progs.size
                 runCatching { XmltvCache.write(file, key, now, progs) }
+                saveStats(c, key, sources)
             }
             status = when {
                 progs.isEmpty() -> "Keine Programmdaten erhalten (${err ?: "leer"})"
@@ -162,6 +188,24 @@ object Xmltv {
             }
         }
     }
+
+    private fun saveStats(c: Context, key: String, l: List<EpgSourceStat>) {
+        val a = org.json.JSONArray()
+        for (s in l) a.put(JSONObject().put("label", s.label).put("kind", s.kind).put("for", s.forName ?: "").put("state", s.state)
+            .put("ch", s.channels).put("mb", s.mb).put("at", s.at).put("err", s.error ?: ""))
+        prefs(c).edit().putString("stats", JSONObject().put("key", key).put("list", a).toString()).apply()
+    }
+
+    private fun loadStats(c: Context, key: String): List<EpgSourceStat>? = runCatching {
+        val o = JSONObject(prefs(c).getString("stats", null) ?: return null)
+        if (o.optString("key") != key) return null
+        val a = o.getJSONArray("list")
+        (0 until a.length()).map { i ->
+            val j = a.getJSONObject(i)
+            EpgSourceStat(j.optString("label"), j.optInt("kind"), j.optString("for").ifEmpty { null }, j.optInt("state"),
+                j.optInt("ch"), j.optLong("mb"), j.optLong("at"), j.optString("err").ifEmpty { null })
+        }
+    }.getOrNull()
 
     private fun parseTime(s: String?): Long? = xmltvTime(s)
 
@@ -174,7 +218,7 @@ object Xmltv {
 
     private fun parse(
         url: String, wanted: Set<String>, out: HashMap<String, MutableList<EpgEntry>>, past: Map<String, Int> = emptyMap(),
-        onProgress: (Long) -> Unit = {}
+        hit: MutableSet<String> = HashSet(), onProgress: (Long) -> Unit = {}
     ) {
         client.newCall(Request.Builder().url(url).build()).execute().use { r ->
             if (!r.isSuccessful) throw PlaylistError("HTTP ${r.code}")
@@ -219,6 +263,7 @@ object Xmltv {
                     ) {
                         val l = out.getOrPut(ch) { ArrayList() }
                         if (l.size < MAX_PER_CHANNEL + pd * 48) l.add(EpgEntry(pool.of(title), shortDesc(desc), s, e))
+                        hit.add(ch)
                     }
                     // Speicher wird knapp: aufhören und das bisher Gelesene behalten (lieber Lücken im Programm als ein Absturz)
                     if (++seen % 5000 == 0 && Mem.heapTight(0.70)) { truncated = true; return }

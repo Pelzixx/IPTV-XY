@@ -27,4 +27,13 @@ Geladen: {#0} Sender mit Programm (gespeichert, Aktualisieren fehlgeschlagen)¦L
 Jetzt aktualisieren auf {0}¦Update now to {0}¦Şimdi {0} sürümüne güncelle¦Ažuriraj sada na {0}¦Ažuriraj sada na {0}¦Ažuriraj sada na {0}¦Actualizar ahora a {0}¦Mettre à jour vers {0}¦Aggiorna ora a {0}
 Wird abgefragt …¦Checking …¦Sorgulanıyor …¦Provjerava se …¦Provjerava se …¦Proverava se …¦Consultando …¦Vérification …¦Verifica in corso …
 Keine Angaben vom Server¦No details from the server¦Sunucudan bilgi yok¦Nema podataka sa servera¦Nema podataka s poslužitelja¦Nema podataka sa servera¦Sin datos del servidor¦Aucune information du serveur¦Nessun dato dal server
+Fest eingebaut¦Built in¦Yerleşik¦Ugrađeno¦Ugrađeno¦Ugrađeno¦Integrada¦Intégrée¦Integrata
+Fest für Server¦Built in for server¦Sunucuya özel¦Ugrađeno za server¦Ugrađeno za poslužitelj¦Ugrađeno za server¦Integrada para el servidor¦Intégrée pour le serveur¦Integrata per il server
+Eigene Quelle¦Own source¦Kendi kaynağın¦Vlastiti izvor¦Vlastiti izvor¦Sopstveni izvor¦Fuente propia¦Source personnelle¦Fonte personale
+Vom Anbieter¦From provider¦Sağlayıcıdan¦Od provajdera¦Od pružatelja usluge¦Od provajdera¦Del proveedor¦Du fournisseur¦Dal provider
+Aus der Playlist¦From playlist¦Çalma listesinden¦Iz playliste¦S popisa za reprodukciju¦Iz plejliste¦De la lista¦De la playlist¦Dalla playlist
+alle Playlists¦all playlists¦tüm çalma listeleri¦sve playliste¦svi popisi za reprodukciju¦sve plejliste¦todas las listas¦toutes les playlists¦tutte le playlist
+Fehler¦Error¦Hata¦Greška¦Pogreška¦Greška¦Error¦Erreur¦Errore
+Wartet¦Waiting¦Bekliyor¦Čeka¦Čeka¦Čeka¦En espera¦En attente¦In attesa
+EPG-Quellen¦EPG sources¦EPG kaynakları¦EPG izvori¦EPG izvori¦EPG izvori¦Fuentes EPG¦Sources EPG¦Fonti EPG
 """

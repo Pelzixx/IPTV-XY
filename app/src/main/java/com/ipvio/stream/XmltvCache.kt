@@ -64,17 +64,37 @@ object XmltvCache {
     }
 }
 
+/** Eine EPG-Quelle mit Herkunft. [kind]: FIXED fest eingebaut, SERVER fest für einen Server, OWN eigene, PROVIDER xmltv.php des Zugangs, PLAYLIST aus dem Playlist-Kopf. [forName] = Playlist, für die sie gilt (null = alle). */
+data class EpgSrc(val url: String, val kind: Int, val forName: String?) {
+    companion object { const val FIXED = 0; const val SERVER = 1; const val OWN = 2; const val PROVIDER = 3; const val PLAYLIST = 4 }
+}
+
 /** Welche XMLTV-Quellen geladen werden (ohne Android, testbar). */
 object EpgSources {
+    fun pick(fromPlaylist: List<String>, preset: List<String>, custom: List<String>): List<String> =
+        pickTagged(fromPlaylist, preset, emptyList(), custom, null).map { it.url }
+
     /**
-     * Reihenfolge: fest eingebaute, eigene, dann die xmltv.php des Xtream-Zugangs. Die EPG-Liste aus dem Playlist-Kopf
-     * (url-tvg, bei manchen Anbietern über ein Dutzend Adressen) nur, wenn weder feste noch eigene Quellen eingetragen sind.
+     * Reihenfolge: feste EPG des Servers, fest eingebaute, eigene, dann die xmltv.php des Xtream-Zugangs. Die EPG-Liste
+     * aus dem Playlist-Kopf (url-tvg, bei manchen Anbietern über ein Dutzend Adressen) nur, wenn sonst keine eigenen
+     * Quellen eingetragen sind. [playlistName] = Name der aktiven Playlist.
      */
-    fun pick(fromPlaylist: List<String>, preset: List<String>, custom: List<String>): List<String> {
+    fun pickTagged(fromPlaylist: List<String>, preset: List<String>, serverEpg: List<String>, custom: List<String>, playlistName: String?): List<EpgSrc> {
         val provider = fromPlaylist.filter { it.contains("/xmltv.php", ignoreCase = true) }
         val header = fromPlaylist.filter { it !in provider }
-        val own = preset + custom
-        return (own + provider + (if (own.isEmpty()) header else emptyList()))
-            .filter { it.startsWith("http://", true) || it.startsWith("https://", true) }.distinct()
+        val own = serverEpg.isNotEmpty() || preset.isNotEmpty() || custom.isNotEmpty()
+        val out = ArrayList<EpgSrc>()
+        serverEpg.forEach { out.add(EpgSrc(it, EpgSrc.SERVER, playlistName)) }
+        preset.forEach { out.add(EpgSrc(it, EpgSrc.FIXED, null)) }
+        custom.forEach { out.add(EpgSrc(it, EpgSrc.OWN, null)) }
+        provider.forEach { out.add(EpgSrc(it, EpgSrc.PROVIDER, playlistName)) }
+        if (!own) header.forEach { out.add(EpgSrc(it, EpgSrc.PLAYLIST, playlistName)) }
+        return out.filter { it.url.startsWith("http://", true) || it.url.startsWith("https://", true) }.distinctBy { it.url }
+    }
+
+    /** Anzeigename ohne Zugangsdaten: Anbieter-EPG bzw. nur der Rechnername. */
+    fun label(s: EpgSrc): String = when (s.kind) {
+        EpgSrc.PROVIDER -> "Anbieter-EPG"
+        else -> s.url.substringAfter("://").substringBefore('/').substringBefore('?').substringAfter('@').ifEmpty { "EPG" }
     }
 }

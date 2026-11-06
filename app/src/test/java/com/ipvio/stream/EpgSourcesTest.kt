@@ -19,4 +19,12 @@ class EpgSourcesTest {
             EpgSources.pick(list, emptyList(), emptyList())
         )
     }
+
+    @Test fun herkunft_und_name() {
+        val t = EpgSources.pickTagged(list, listOf("https://fest/de.xml.gz"), listOf("https://radio/epg.xml"), emptyList(), "XY Radio")
+        assertEquals(listOf(EpgSrc.SERVER, EpgSrc.FIXED, EpgSrc.PROVIDER), t.map { it.kind })
+        assertEquals(listOf("XY Radio", null, "XY Radio"), t.map { it.forName })
+        assertEquals("Anbieter-EPG", EpgSources.label(t[2]))
+        assertEquals("fest", EpgSources.label(t[1]))
+    }
 }

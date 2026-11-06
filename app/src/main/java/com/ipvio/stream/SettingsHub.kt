@@ -932,6 +932,34 @@ private fun LanguageFilterSection(ctx: Context) {
     if (list.size > 4) ApplyRow()
 }
 
+/** Übersicht der EPG-Quellen: welche Quelle, für welche Playlist, wie viele Sender, Größe, Stand. */
+@Composable
+private fun EpgSourceList() {
+    val list = Xmltv.sources
+    if (list.isEmpty()) return
+    SectionTitle("EPG-Quellen")
+    list.forEach { s ->
+        val kind = when (s.kind) { EpgSrc.FIXED -> "Fest eingebaut"; EpgSrc.SERVER -> "Fest für Server"; EpgSrc.OWN -> "Eigene Quelle"; EpgSrc.PROVIDER -> "Vom Anbieter"; else -> "Aus der Playlist" }
+        val state = when (s.state) {
+            EpgSourceStat.LOADING -> Lang.tr("Wird geladen …") + if (s.mb > 0) " ${s.mb} MB" else ""
+            EpgSourceStat.DONE -> "${s.channels} " + Lang.tr("Sender") + " · ${s.mb} MB · " + hhmm(s.at)
+            EpgSourceStat.ERROR -> Lang.tr("Fehler") + ": " + (s.error ?: "?") + (if (s.channels > 0) " · ${s.channels} " + Lang.tr("Sender") else "")
+            else -> Lang.tr("Wartet")
+        }
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(DS.RadiusS)).background(Color(0x12FFFFFF)).padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(raw = true, text = s.label, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(raw = true, text = Lang.tr(kind) + " · " + (s.forName ?: Lang.tr("alle Playlists")), color = Muted, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Text(raw = true, text = state, fontSize = 15.sp, maxLines = 1,
+                color = when (s.state) { EpgSourceStat.DONE -> Accent2; EpgSourceStat.ERROR -> DS.Danger; else -> Tok.TextMid })
+        }
+    }
+}
+
 @Composable
 private fun LivePage(ctx: Context) {
     var url by remember { mutableStateOf("") }
@@ -949,7 +977,7 @@ private fun LivePage(ctx: Context) {
         AppSettings.setLivePreview(ctx, it)
     }
     Hint("Die App sucht die Programmdaten automatisch (Xtream-Schnittstelle oder XMLTV-Adresse aus der Playlist). Weitere XMLTV-Quellen kannst du hier hinzufügen – alle werden zusammen geladen.")
-    if (Presets.epg.isNotEmpty()) Text("Fest eingebaute EPG-Quellen: ${Presets.epg.size}", color = Muted, fontSize = 15.sp)
+    EpgSourceList()
     // Eigene Quellen: Liste mit Entfernen-Knopf
     custom.forEach { u ->
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {

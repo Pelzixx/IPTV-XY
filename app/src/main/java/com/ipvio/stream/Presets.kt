@@ -8,8 +8,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Request
 
-/** Ein fest eingebauter Xtream-Server: angezeigter Name und Adresse (z. B. http://server.tld:8080). */
-data class PresetServer(val name: String, val url: String)
+/** Ein fest eingebauter Xtream-Server: angezeigter Name, Adresse (z. B. http://server.tld:8080), eigene EPG-Quellen. */
+data class PresetServer(val name: String, val url: String, val epg: List<String> = emptyList())
 
 /**
  * Fest eingebaute Server und EPG-Quellen. Die Werte kommen beim Bauen aus den GitHub-Secrets
@@ -104,7 +104,9 @@ object PresetLogic {
             for (i in 0 until a.length()) {
                 val s = a.optJSONObject(i) ?: continue
                 val url = normalize(s.optString("url", "")) ?: continue
-                servers.add(PresetServer(s.optString("name", "").trim().ifEmpty { "Server " + (servers.size + 1) }, url))
+                val sEpg = ArrayList<String>()
+                s.optJSONArray("epg")?.let { e -> for (j in 0 until e.length()) sEpg.add(e.optString(j, "")) }
+                servers.add(PresetServer(s.optString("name", "").trim().ifEmpty { "Server " + (servers.size + 1) }, url, parseUrls(sEpg.joinToString("\n"))))
             }
         }
         val epg = ArrayList<String>()
