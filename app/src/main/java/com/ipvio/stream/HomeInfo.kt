@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -84,7 +86,10 @@ object HomeInfo {
     /** Mitteilung, QR-Link und Bild: im öffentlichen Releases-Repo änderbar, ohne neue App-Version. */
     const val NEWS_URL = "https://raw.githubusercontent.com/Pelzixx/IPTV-XY-Releases/main/news.json"
     private const val TTL = 30 * 60 * 1000L
-    private var acc: Triple<String, Long, AccountInfo?>? = null
+    private var acc: Triple<String, Long, AccountInfo>? = null
+    /** Grund, warum keine Zugangsdaten kamen (für die Anzeige), oder null. */
+    var accountError by mutableStateOf<String?>(null)
+        private set
     private var news: Pair<Long, NewsInfo?>? = null
 
     suspend fun account(playlistUrl: String?): AccountInfo? = withContext(Dispatchers.IO) {
@@ -93,10 +98,15 @@ object HomeInfo {
         acc?.let { if (it.first == playlistUrl && now - it.second < TTL) return@withContext it.third }
         val (host, user, pass) = parts
         val url = "$host/player_api.php?username=${URLEncoder.encode(user, "UTF-8")}&password=${URLEncoder.encode(pass, "UTF-8")}"
+        // Gleiche Kennung wie beim Laden der Playlist: manche Server lehnen unbekannte Programme ab
         val r = runCatching {
-            Net.base.newCall(Request.Builder().url(url).build()).execute().use { if (it.isSuccessful) HomeInfoLogic.parseAccount(it.body?.string().orEmpty()) else null }
-        }.getOrNull()
-        acc = Triple(playlistUrl, now, r)
+            Net.base.newCall(Request.Builder().url(url).header("User-Agent", "IPTV-XY/1.0").build()).execute().use {
+                if (!it.isSuccessful) { accountError = "HTTP ${it.code}"; null }
+                else HomeInfoLogic.parseAccount(it.body?.string().orEmpty()).also { a -> accountError = if (a == null) "keine Angaben" else null }
+            }
+        }.getOrElse { e -> accountError = e.javaClass.simpleName; null }
+        // Nur Erfolge merken: ein Fehler (z. B. Netz beim Start noch nicht da) wird beim nächsten Anzeigen erneut versucht
+        if (r != null) acc = Triple(playlistUrl, now, r)
         r
     }
 
@@ -122,16 +132,28 @@ object HomeInfo {
 @Composable
 fun HomeInfoRow(modifier: Modifier = Modifier) {
     val url = PlaylistStore.lists.getOrNull(PlaylistStore.active)?.url
-    val account by produceState<AccountInfo?>(null, url) { value = HomeInfo.account(url) }
+    val account by produceState<AccountInfo?>(null, url) {
+        value = HomeInfo.account(url)
+        // Beim Start ist das Netz manchmal noch nicht bereit: zweimal nachfassen
+        repeat(2) { if (value == null && LoadLogic.xtreamParts(url ?: "") != null) { kotlinx.coroutines.delay(15_000); value = HomeInfo.account(url) } }
+    }
+    val isXtream = url?.let { LoadLogic.xtreamParts(it) } != null
     val news by produceState<NewsInfo?>(null) { value = HomeInfo.news() }
     val a = account
     val n = news
     val hasNews = n != null && (n.title.isNotEmpty() || n.text.isNotEmpty() || n.image != null)
     val qr = n?.qr
-    if (a == null && !hasNews && qr == null) return
+    if (a == null && !isXtream && !hasNews && qr == null) return
     val shape = RoundedCornerShape(DS.RadiusM)
     val card = Modifier.fillMaxHeight().clip(shape).background(Color(0x14FFFFFF)).padding(16.dp)
     Row(modifier.fillMaxWidth().height(150.dp).padding(horizontal = DS.PageX), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        // Xtream-Zugang, aber (noch) keine Angaben vom Server: Karte trotzdem zeigen, mit Grund
+        if (a == null && isXtream) Column(card.width(300.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Mein Zugang", color = Muted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            val err = HomeInfo.accountError
+            Text(if (err == null) "Wird abgefragt …" else "Keine Angaben vom Server", color = Tok.TextMid, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            if (err != null) Text(raw = true, text = err, color = Muted, fontSize = 13.sp)
+        }
         if (a != null) Column(card.width(300.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(if (a.trial) "Testzugang" else "Mein Zugang", color = Muted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             val days = HomeInfoLogic.daysLeft(a.expSec, System.currentTimeMillis() / 1000)
