@@ -191,6 +191,7 @@ object PlaylistStore {
 
     private fun prefs(c: Context) = c.getSharedPreferences("ipvio", Context.MODE_PRIVATE)
 
+    @Synchronized
     private fun ensure(c: Context) {
         if (inited) return
         inited = true

@@ -5,7 +5,7 @@ import org.junit.Before
 import org.junit.Test
 
 class I18nCoreTest {
-    @Before fun setUp() { I18nCore.load(DictA, DictB, DictC, DictD, DictE, DictF, DictG, DictH, DictI, DictJ) }
+    @Before fun setUp() { I18nCore.load(DictA, DictB, DictC, DictD, DictE, DictF, DictG, DictH, DictI, DictJ, DictK) }
 
     private val EN = 1; private val TR = 2; private val BS = 3; private val HR = 4; private val SR = 5; private val DE = 0
 
@@ -25,7 +25,7 @@ class I18nCoreTest {
     }
     @Test fun noEmojisInDictionaries() {
         // Symbole sind gezeichnet (AppIcons), Texte enthalten keine Emojis/Bildzeichen
-        for (d in listOf(DictA, DictB, DictC, DictD, DictE, DictF, DictG, DictH, DictI, DictJ)) for (ch in d) {
+        for (d in listOf(DictA, DictB, DictC, DictD, DictE, DictF, DictG, DictH, DictI, DictJ, DictK)) for (ch in d) {
             val c = ch.code
             val pictographic = c in 0x2190..0x21FF && ch != '→' && ch != '↑' && ch != '↓' || c in 0x2300..0x23FF || c in 0x2460..0x27BF ||
                 c in 0x2B00..0x2BFF || c in 0xFF01..0xFF0F || Character.isSurrogate(ch)

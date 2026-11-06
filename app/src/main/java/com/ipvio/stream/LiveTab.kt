@@ -52,6 +52,9 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     val ctx = LocalContext.current
     CatFavs.init(ctx)
     ChannelLists.init(ctx)
+    ChannelEdit.init(ctx)
+    // Liest den Stand, damit Ausblenden/Umbenennen sofort sichtbar wird
+    @Suppress("UNUSED_VARIABLE") val editVersion = ChannelEdit.version
     // Zuletzt gewählte Kategorie / Liste (Runde 14): nach dem Zurück aus dem Player und nach einem Neustart wieder dieselbe
     var sel by remember {
         val saved = LiveMemory.sel(ctx)?.takeIf { k ->
@@ -63,14 +66,22 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     val myLists = ChannelLists.lists.toList()
     val byId = remember(live) { live.associateBy { it.id } }
     // Reihenfolge: TV-Guide, Favoriten, eigene Senderlisten, alle Sender, Kategorien (neue Liste: Menü eines Senders)
-    val names = listOf("GUIDE", FAV_CAT) + myLists.map { ChannelListLogic.key(it) } + listOf("ALL") + favCats + groups.keys.filter { it !in favCats }
+    // „Ausgeblendete Sender“ nur, wenn es welche gibt (dort holt man sie per Menü zurück)
+    val hiddenCat = if (ChannelEdit.hiddenCount() > 0) listOf(HIDDEN_CAT) else emptyList()
+    val names = listOf("GUIDE", FAV_CAT) + myLists.map { ChannelListLogic.key(it) } + listOf("ALL") + hiddenCat + favCats + groups.keys.filter { it !in favCats }
     val curList = ChannelLists.byKey(sel)
-    val list = when {
-        sel == FAV_CAT -> favs
-        sel == "ALL" -> live
-        curList != null -> ChannelListLogic.resolve(curList, byId)
-        else -> groups[sel].orEmpty()
-    }
+    val showHidden = sel == HIDDEN_CAT
+    val list = ChannelEditLogic.visible(
+        when {
+            sel == FAV_CAT -> favs
+            sel == "ALL" || showHidden -> live
+            curList != null -> ChannelListLogic.resolve(curList, byId)
+            else -> groups[sel].orEmpty()
+        },
+        { it.id }, ChannelEdit::isHidden, showHidden
+    )
+    // Letzter ausgeblendeter Sender wieder eingeblendet: Kategorie gibt es nicht mehr
+    LaunchedEffect(showHidden, hiddenCat.isEmpty()) { if (showHidden && hiddenCat.isEmpty()) sel = "ALL" }
     val firstChan = remember { FocusRequester() }
     // Zurück aus dem Player: der zuletzt gesehene Sender bekommt den Fokus (nicht die Seitenleiste)
     val chanState = remember { LazyListState() }
@@ -139,17 +150,20 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                     val label = when {
                         n == FAV_CAT -> "Favoriten"
                         n == "ALL" -> "Alle Sender"
+                        n == HIDDEN_CAT -> "Ausgeblendete Sender"
                         ml != null -> ml.name
                         else -> n
                     }
                     val icon = when {
                         n == FAV_CAT || n in CatFavs.list -> AIcon.Star
+                        n == HIDDEN_CAT -> AIcon.EyeOff
                         ml != null -> AIcon.Lists
                         else -> null
                     }
                     val count = when {
                         n == FAV_CAT -> favs.size
                         n == "ALL" -> live.size
+                        n == HIDDEN_CAT -> ChannelEdit.hiddenCount()
                         ml != null -> ChannelListLogic.resolve(ml, byId).size
                         else -> groups[n]?.size ?: 0
                     }
@@ -160,7 +174,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                             label, count, n == sel,
                             if (n == sel) Modifier.focusRequester(ContentFocus.req) else Modifier,
                             onFocus = { sel = n }, onRight = { runCatching { firstChan.requestFocus() } },
-                            onFav = { if (ml != null) listMenu = true else if (n != FAV_CAT && n != "ALL") CatFavs.toggle(ctx, n) },
+                            onFav = { if (ml != null) listMenu = true else if (n != FAV_CAT && n != "ALL" && n != HIDDEN_CAT) CatFavs.toggle(ctx, n) },
                             icon = icon, raw = ml != null
                         ) { runCatching { firstChan.requestFocus() } }
                         // Menü einer eigenen Liste (OK gedrückt halten): Sender hinzufügen, umbenennen, löschen
@@ -185,7 +199,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
             // Rechts: oben Vorschau und Sendung, darunter Zeitleiste und Sender
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 Row(Modifier.fillMaxWidth().height(190.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                    LivePreview(preview, focusedCh, Modifier.fillMaxHeight().aspectRatio(16f / 9f))
+                    LivePreview(preview, focusedCh, Modifier.fillMaxHeight().aspectRatio(16f / 9f), fallback = shown)
                     LiveInfo(shown, Modifier.weight(1f).fillMaxHeight())
                 }
                 Spacer(Modifier.height(10.dp))
@@ -217,6 +231,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                             ch, ws, nowSec, (if (i == 0) Modifier.focusRequester(firstChan) else Modifier)
                                 .then(if (ch.id == restoreId) Modifier.focusRequester(restoreReq) else Modifier), curList,
                             onNewList = { newList(ch.id) },
+                            onRename = { ask = NameAsk("Sender umbenennen", ChannelEdit.title(ch)) { ChannelEdit.rename(ctx, ch.id, it) } },
                             onFocus = { focusTarget = ch }
                         ) {
                             if (addList != null) {
@@ -309,12 +324,17 @@ private fun TimelineHeader(ws: Long, nowSec: Long) {
 }
 
 @Composable
-private fun ChannelLine(item: Item, ws: Long, nowSec: Long, modifier: Modifier, inList: ChList?, onNewList: () -> Unit, onFocus: () -> Unit = {}, onClick: () -> Unit) {
+private fun ChannelLine(
+    item: Item, ws: Long, nowSec: Long, modifier: Modifier, inList: ChList?, onNewList: () -> Unit, onRename: () -> Unit,
+    onFocus: () -> Unit = {}, onClick: () -> Unit
+) {
     var f by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
-    Box {
-    if (menu) ChannelMenu(item, inList, onNewList) { menu = false }
+    // Neu zeichnen, wenn der Sender umbenannt wurde
+    @Suppress("UNUSED_VARIABLE") val editVersion = ChannelEdit.version
     val epg by produceState(emptyList<EpgEntry>(), item.id) { value = Epg.now(item) }
+    Box {
+    if (menu) ChannelMenu(item, inList, onNewList, onRename, next = epg.firstOrNull { it.start > nowSec }) { menu = false }
     val shape = RoundedCornerShape(DS.RadiusS)
     // Schlicht wie eine Programmzeitschrift: links Sender, rechts die Sendungen auf der Zeitleiste.
     // Markiert = hellere Fläche (kein Vergrößern, kein Schatten).
@@ -334,7 +354,7 @@ private fun ChannelLine(item: Item, ws: Long, nowSec: Long, modifier: Modifier, 
                 if (item.logo != null) AsyncImage(item.logo, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                 else Text(raw = true, text = item.title.take(2).uppercase(), color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
-            Text(raw = true, text = item.title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+            Text(raw = true, text = ChannelEdit.title(item), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
                 maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             if (Library.isFav(item.id)) AppIcon(AIcon.Star, DS.Gold, size = 14.dp)
             if (Catchup.version >= 0 && Catchup.has(item)) AppIcon(AIcon.Catchup, Accent2, size = 14.dp)
@@ -347,7 +367,7 @@ private fun ChannelLine(item: Item, ws: Long, nowSec: Long, modifier: Modifier, 
                 // Kein Programm: eine Fläche mit dem Sendernamen über die ganze Breite
                 Box(Modifier.fillMaxSize().padding(start = 2.dp).clip(shape).background(if (f) Color(0x33FFFFFF) else DS.Overlay2).padding(horizontal = 10.dp),
                     contentAlignment = Alignment.CenterStart) {
-                    Text(raw = true, text = item.title, color = Muted, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(raw = true, text = ChannelEdit.title(item), color = Muted, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             } else shownE.forEach { e ->
                 val a = ((maxOf(e.start, ws) - ws).toFloat() / SPAN).coerceIn(0f, 1f)
@@ -371,14 +391,28 @@ private fun ChannelLine(item: Item, ws: Long, nowSec: Long, modifier: Modifier, 
 }
 
 /**
- * Menü eines Senders (Menü-Taste oder OK gedrückt halten): Favorit, eigene Listen (hinzufügen/entfernen),
- * in der Liste verschieben, neue Liste. [onNewList] = null blendet „Neue Senderliste“ aus (Player).
+ * Menü eines Senders (Menü-Taste oder OK gedrückt halten): Favorit, Erinnerung an die nächste Sendung, eigene Listen
+ * (hinzufügen/entfernen), in der Liste verschieben, neue Liste, umbenennen, ausblenden.
+ * [onNewList] = null blendet „Neue Senderliste“ aus (Player); [onRename] = null blendet Umbenennen und Ausblenden aus.
+ * [next] = nächste Sendung des Senders (für die Erinnerung).
  */
 @Composable
-fun ChannelMenu(item: Item, inList: ChList?, onNewList: (() -> Unit)?, onClose: () -> Unit) {
+fun ChannelMenu(
+    item: Item, inList: ChList?, onNewList: (() -> Unit)?, onRename: (() -> Unit)? = null, next: EpgEntry? = null,
+    onClose: () -> Unit
+) {
     val ctx = LocalContext.current
     val acts = ArrayList<Triple<String, AIcon?, () -> Unit>>()
     acts.add(Triple(if (Library.isFav(item.id)) "Aus Favoriten entfernen" else "Zu Favoriten", AIcon.Star) { Library.toggleFav(ctx, item.id) })
+    if (next != null && ReminderLogic.canRemind(next.start, System.currentTimeMillis() / 1000)) {
+        val set = Reminders.isSet(item.id, next.start)
+        acts.add(Triple((if (set) Lang.tr("Erinnerung löschen") else Lang.tr("Erinnern an")) + ": " + hhmm(next.start) + " " + next.title,
+            if (set) AIcon.BellOff else AIcon.Bell) {
+            val on = Reminders.toggle(ctx, Reminder(item.id, ChannelEdit.title(item), next.title, next.start, next.end))
+            if (on) Reminders.askPermission(ctx as? android.app.Activity)
+            Toast.makeText(ctx, if (on) Lang.tr("Erinnerung gesetzt – ${Reminders.leadMin} Min vorher") else Lang.tr("Erinnerung gelöscht"), Toast.LENGTH_SHORT).show()
+        })
+    }
     if (inList != null) {
         acts.add(Triple("Nach oben", AIcon.Up) { ChannelLists.move(ctx, inList.id, item.id, -1) })
         acts.add(Triple("Nach unten", AIcon.Down) { ChannelLists.move(ctx, inList.id, item.id, 1) })
@@ -390,6 +424,14 @@ fun ChannelMenu(item: Item, inList: ChList?, onNewList: (() -> Unit)?, onClose: 
         else acts.add(Triple("Zu „${l.name}“", AIcon.Plus) { ChannelLists.add(ctx, l.id, item.id) })
     }
     if (onNewList != null) acts.add(Triple("Neue Senderliste …", AIcon.Plus, onNewList))
+    if (onRename != null) {
+        acts.add(Triple("Umbenennen …", AIcon.Edit, onRename))
+        val hidden = ChannelEdit.isHidden(item.id)
+        acts.add(Triple(if (hidden) "Wieder einblenden" else "Sender ausblenden", if (hidden) AIcon.Eye else AIcon.EyeOff) {
+            ChannelEdit.toggleHidden(ctx, item.id)
+            Toast.makeText(ctx, Lang.tr(if (hidden) "Sender wieder eingeblendet" else "Sender ausgeblendet. Zurückholen: „Ausgeblendete Sender“ links."), Toast.LENGTH_SHORT).show()
+        })
+    }
     OptionPopup(acts.map { it.first }, -1, onClose, acts.map { it.second }) { i -> onClose(); acts[i].third() }
 }
 

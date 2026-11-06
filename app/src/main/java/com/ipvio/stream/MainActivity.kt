@@ -45,6 +45,10 @@ class MainActivity : ComponentActivity() {
         Config.init(this)
         // Server-Adressen aus der Fernkonfiguration: gespeicherten Stand sofort, frischen im Hintergrund
         Presets.init(this)
+        // Playlists hier (Hauptthread, vor der Oberfläche) laden: Presets.refresh greift im Hintergrund auf PlaylistStore zu.
+        // Lief das Laden dort zuerst, während die Oberfläche schon las, stürzte die App beim Start ab
+        // („Reading a state that was created after the snapshot was taken“).
+        PlaylistStore.savedUrl(this)
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch { Presets.refresh(applicationContext) }
         // Frischer Start (nicht nur gedrehter/neu erstellter Bildschirm): "Zuletzt Geschautes beim Start fortsetzen" darf wieder greifen.
         // Der Prozess lebt nach Beenden oft weiter; das Merker-Flag blieb deshalb vom ersten Start stehen und nichts wurde mehr geöffnet.

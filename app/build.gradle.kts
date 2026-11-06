@@ -53,6 +53,10 @@ android {
     }
 
     buildTypes {
+        // Test-Builds laufen neben der installierten App (eigene App-ID, eigene Daten)
+        debug {
+            applicationIdSuffix = ".debug"
+        }
         release {
             if (keystoreFile != null) signingConfig = signingConfigs.getByName("release")
             optimization {

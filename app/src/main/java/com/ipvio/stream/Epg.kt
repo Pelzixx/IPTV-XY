@@ -132,7 +132,8 @@ object Xmltv {
             if (!force) runCatching { XmltvCache.read(file, key, now) }.getOrNull()?.let { (savedAt, saved) ->
                 loadStats(c, key)?.let { sources = it }
                 progs.clear()
-                for ((k, v) in saved) if (k in wanted) progs[k] = v
+                // Ältere Speicherstände können doppelte Sendungen aus mehreren Quellen enthalten
+                for ((k, v) in saved) if (k in wanted) progs[k] = EpgMergeLogic.noOverlap(v)
                 channelCount = progs.size
                 age = now - savedAt
                 status = "Geladen: ${progs.size} Sender mit Programm (gespeichert)"
@@ -155,10 +156,12 @@ object Xmltv {
             for ((i, u) in all.withIndex()) {
                 val src = if (all.size > 1) "${i + 1}/${all.size}" else ""
                 val hit = HashSet<String>()
+                // Sender, die eine frühere Quelle schon geliefert hat, nicht noch einmal (sonst liegen Sendungen übereinander)
+                val taken = HashSet(map.keys)
                 var mbNow = 0L
                 fresh[i] = fresh[i].copy(state = EpgSourceStat.LOADING); sources = fresh.toList()
                 try {
-                    parse(u, wanted, map, past, hit) { mb ->
+                    parse(u, wanted, map, past, hit, taken) { mb ->
                         mbNow = mb
                         if (!hadSaved) status = "Wird geladen … (" + listOf(src, "$mb MB").filter { it.isNotEmpty() }.joinToString(" · ") + ")"
                         fresh[i] = fresh[i].copy(mb = mb); sources = fresh.toList()
@@ -171,7 +174,7 @@ object Xmltv {
                 }
                 sources = fresh.toList()
                 // Zwischenstand zeigen: was bisher gelesen ist, steht sofort im Programm
-                for ((k, v) in map) progs[k] = v.sortedBy { it.start }
+                for ((k, v) in map) progs[k] = EpgMergeLogic.noOverlap(v)
                 channelCount = progs.size
             }
             if (map.isNotEmpty()) {
@@ -219,7 +222,7 @@ object Xmltv {
 
     private fun parse(
         url: String, wanted: Set<String>, out: HashMap<String, MutableList<EpgEntry>>, past: Map<String, Int> = emptyMap(),
-        hit: MutableSet<String> = HashSet(), onProgress: (Long) -> Unit = {}
+        hit: MutableSet<String> = HashSet(), taken: Set<String> = emptySet(), onProgress: (Long) -> Unit = {}
     ) {
         client.newCall(Request.Builder().url(url).build()).execute().use { r ->
             if (!r.isSuccessful) throw PlaylistError("HTTP ${r.code}")
@@ -259,7 +262,7 @@ object Xmltv {
                         inner = p.next()
                     }
                     val pd = if (ch != null) past[ch] ?: 0 else 0
-                    if (ch != null && ch in wanted && s != null && e != null &&
+                    if (ch != null && ch in wanted && ch !in taken && s != null && e != null &&
                         e > now - (if (pd > 0) pd * 86400L else 3600L) && s < now + 129600 && epgSane(s, e)
                     ) {
                         val l = out.getOrPut(ch) { ArrayList() }
@@ -323,8 +326,7 @@ object Epg {
             }
         } catch (e: Exception) {
         }
-        out.sortBy { it.start }
-        return out
+        return EpgMergeLogic.noOverlap(out)
     }
 
     /** Laufende und kommende Sendungen eines Senders. Reihenfolge: Zwischenspeicher, geladenes XMLTV (sofort), dann Xtream-Abfrage. */

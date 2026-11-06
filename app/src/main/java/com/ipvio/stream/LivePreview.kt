@@ -79,7 +79,7 @@ class LivePreviewPlayer(ctx: Context) {
 
 /** Vorschaufenster: spielt den markierten Sender nach kurzer Pause ab; bis dahin (und bei Fehlern) das Senderlogo. */
 @Composable
-fun LivePreview(p: LivePreviewPlayer, ch: Item?, modifier: Modifier = Modifier) {
+fun LivePreview(p: LivePreviewPlayer, ch: Item?, modifier: Modifier = Modifier, fallback: Item? = null) {
     var showVideo by remember { mutableStateOf(false) }
     DisposableEffect(p) {
         val l = object : Player.Listener {
@@ -109,10 +109,12 @@ fun LivePreview(p: LivePreviewPlayer, ch: Item?, modifier: Modifier = Modifier) 
             },
             modifier = Modifier.fillMaxSize()
         )
-        if (!showVideo && ch != null) {
+        // Kein Sender markiert (Fokus links in den Kategorien): statt einer schwarzen Fläche das Logo des oberen Senders
+        val logoCh = ch ?: fallback
+        if (!showVideo && logoCh != null) {
             Box(Modifier.fillMaxSize().background(Surf), contentAlignment = Alignment.Center) {
-                if (ch.logo != null) AsyncImage(ch.logo, null, Modifier.fillMaxSize().padding(28.dp), contentScale = ContentScale.Fit)
-                else Text(raw = true, text = ch.title, color = Muted, fontSize = 18.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                if (logoCh.logo != null) AsyncImage(logoCh.logo, null, Modifier.fillMaxSize().padding(28.dp), contentScale = ContentScale.Fit)
+                else Text(raw = true, text = logoCh.title, color = Muted, fontSize = 18.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
     }
@@ -123,10 +125,11 @@ fun LivePreview(p: LivePreviewPlayer, ch: Item?, modifier: Modifier = Modifier) 
 fun LiveInfo(ch: Item?, modifier: Modifier = Modifier) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (ch == null) return@Column
+        @Suppress("UNUSED_VARIABLE") val editVersion = ChannelEdit.version
         val epg by produceState(emptyList<EpgEntry>(), ch.id) { value = Epg.now(ch) }
         val nowE = Epg.current(epg)
         val next = if (nowE != null) epg.firstOrNull { it.start >= nowE.end } else epg.firstOrNull()
-        Text(raw = true, text = nowE?.title ?: ch.title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold,
+        Text(raw = true, text = nowE?.title ?: ChannelEdit.title(ch), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold,
             maxLines = 2, overflow = TextOverflow.Ellipsis)
         if (nowE != null) {
             val frac = ((System.currentTimeMillis() / 1000 - nowE.start).toFloat() / (nowE.end - nowE.start).coerceAtLeast(1)).coerceIn(0f, 1f)
@@ -140,7 +143,7 @@ fun LiveInfo(ch: Item?, modifier: Modifier = Modifier) {
                 Text(raw = true, text = it, color = Tok.TextMid, fontSize = 14.sp, lineHeight = 19.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
             }
         } else if (epg.isEmpty()) Text("Für diesen Sender gibt es kein Programm.", color = Muted, fontSize = 14.sp)
-        Text(raw = true, text = ch.title, color = Muted, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(raw = true, text = ChannelEdit.title(ch), color = Muted, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (next != null) Row(Modifier.fillMaxWidth().height(22.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Danach", color = Accent2, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             Text(raw = true, text = hhmm(next.start) + "  " + next.title, color = Tok.TextMid, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
