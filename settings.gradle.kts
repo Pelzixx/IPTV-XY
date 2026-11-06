@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "IPVIO Stream"
+rootProject.name = "IPTV-XY"
 include(":app")

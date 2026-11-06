@@ -23,12 +23,12 @@ object Look {
     const val BRAND_GREEN = 0x4ADE80
     const val BRAND_GREEN_HI = 0x86EFAC
     const val BRAND_NAVY = 0x0B0F19
-    /** Standard: IPVIO-Grün auf Navy (Runde 13e: die Entwurfs-Farben wurden wieder entfernt). */
+    /** Standard: IPTV-XY-Grün auf Navy (Runde 13e: die Entwurfs-Farben wurden wieder entfernt). */
     const val DEFAULT_ACCENT = 0
     const val DEFAULT_BG = 0
 
     val ACCENTS = listOf(
-        AccentPreset("IPVIO", BRAND_GREEN, BRAND_GREEN_HI),
+        AccentPreset("IPTV-XY", BRAND_GREEN, BRAND_GREEN_HI),
         AccentPreset("Violett & Türkis", 0x7C5CFF, 0x00D4C8),
         AccentPreset("Ozean", 0x2F6FE0, 0x5CD6FF),
         AccentPreset("Smaragd", 0x0A7F58, 0x4ADE80),
@@ -50,7 +50,7 @@ object Look {
     val CUSTOM get() = ACCENTS.size
 
     val BGS = listOf(
-        BgPreset("IPVIO Navy", BRAND_NAVY, 0x151B2A, 0x1F2739),
+        BgPreset("IPTV-XY Navy", BRAND_NAVY, 0x151B2A, 0x1F2739),
         BgPreset("Mitternacht", 0x07080C, 0x12141C, 0x1B1E2A),
         BgPreset("OLED-Schwarz", 0x000000, 0x0B0C10, 0x15171E),
         BgPreset("Graphit", 0x121316, 0x1C1E24, 0x272A32),

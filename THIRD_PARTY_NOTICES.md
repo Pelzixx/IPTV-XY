@@ -1,6 +1,6 @@
 # Third-party notices
 
-IPVIO Stream itself is licensed under the GNU General Public License v3 (see `LICENSE`). It uses the following third-party components.
+IPTV-XY itself is licensed under the GNU General Public License v3 (see `LICENSE`). It uses the following third-party components.
 
 ## Libraries
 
@@ -33,4 +33,4 @@ The font files in `app/src/main/res/font/` are subsets/copies of the original fo
 | OMDb API | IMDb and Rotten Tomatoes ratings | Users must provide their own API key. |
 | TheIntroDB | intro, recap and credits times | Read access without a key. |
 
-IMDb, Rotten Tomatoes, TMDB, Android TV, Google TV and Fire TV are trademarks of their respective owners. IPVIO Stream is not affiliated with or endorsed by them.
+IMDb, Rotten Tomatoes, TMDB, Android TV, Google TV and Fire TV are trademarks of their respective owners. IPTV-XY is not affiliated with or endorsed by them.

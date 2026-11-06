@@ -20,3 +20,6 @@ keystore.properties
 
 # Full-size screenshot originals (the repository uses the smaller .jpg copies)
 docs/screenshots/*.png
+
+# Built APKs are published as GitHub Actions artifacts / releases, not committed
+*.apk

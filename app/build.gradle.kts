@@ -21,7 +21,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.ipvio.stream"
+        applicationId = "com.pelzixx.iptvxy"
         minSdk = 24
         targetSdk = 37
         versionCode = 1

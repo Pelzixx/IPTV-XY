@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased - IPTV-XY
+- Renamed to IPTV-XY with its own logo and app ID (com.pelzixx.iptvxy), based on IPVIO Stream 1.0
+- Prebuilt APK removed from the repository; builds come from GitHub Actions
+
 ## 1.0 - first open-source release
 - Android TV / Google TV / Fire TV IPTV player for Xtream Codes and M3U playlists
 - Home, Movies, Series, Live TV with TV guide and catch-up

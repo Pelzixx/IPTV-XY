@@ -1,12 +1,12 @@
-# IPVIO Stream
+# IPTV-XY
 
-DOWNLOADER CODE: 7151796
+IPTV-XY is based on [IPVIO Stream](https://github.com/Emrodev/IPVIO-Stream) by Emrodev and continues it under the GPL-3.0 with its own name and logo.
 
 A free, open-source IPTV player for **Android TV, Google TV and Amazon Fire TV**, built with Kotlin and Jetpack Compose and designed for the remote control.
 
-![IPVIO Stream home screen](docs/screenshots/homescreen.jpg)
+![Home screen](docs/screenshots/homescreen.jpg)
 
-> **IPVIO Stream does not provide any content.** It contains no channels, playlists, films or series. It is only a player for playlists that **you** add yourself (Xtream Codes login or M3U address). Only use sources that you are legally allowed to use.
+> **IPTV-XY does not provide any content.** It contains no channels, playlists, films or series. It is only a player for playlists that **you** add yourself (Xtream Codes login or M3U address). Only use sources that you are legally allowed to use.
 
 ## Features
 
@@ -44,7 +44,7 @@ A free, open-source IPTV player for **Android TV, Google TV and Amazon Fire TV**
 - History, my list, favourites, backup and restore of settings
 
 **Look and feel**
-- IPVIO green on navy plus 12 colour themes, 5 backgrounds, custom colours
+- Green on navy plus 12 colour themes, 5 backgrounds, custom colours
 - Fonts Outfit, Inter or system; adjustable text and display size; animations off/subtle/normal
 - 9 languages: German, English, Turkish, Bosnian, Croatian, Serbian, Spanish, French, Italian
 
@@ -57,7 +57,7 @@ A free, open-source IPTV player for **Android TV, Google TV and Amazon Fire TV**
 | ![Player](docs/screenshots/player.jpg)<br>**Player** – skip intro, audio/subtitles, quality | ![TV guide](docs/screenshots/tvguide.jpg)<br>**TV guide** – timeline with preview |
 | ![Live TV](docs/screenshots/channel_list.jpg)<br>**Live TV** – now and next at a glance | ![Settings](docs/screenshots/settings.jpg)<br>**Settings** – grouped, remote-friendly |
 
-<sub>Screenshots taken on a TV. Film artwork, channel logos and programme data belong to their respective owners; provider categories are blurred.</sub>
+<sub>Screenshots taken on a TV with the original IPVIO Stream branding. Film artwork, channel logos and programme data belong to their respective owners; provider categories are blurred.</sub>
 
 ## Your own API keys (optional)
 
@@ -75,7 +75,7 @@ The app ships **without any API keys**. You can enter your own free keys in the 
 1. Create an account at https://www.themoviedb.org/signup and confirm the e-mail address.
 2. **Log in.** The API page shows "restricted" as long as you are not logged in.
 3. Open https://www.themoviedb.org/settings/api (or: profile picture > Settings > API) and click **Request an API key**.
-4. Choose **Developer**, accept the terms and fill in the form (application name e.g. "IPVIO Stream", type "Personal use", a short description; the URL can be your GitHub page).
+4. Choose **Developer**, accept the terms and fill in the form (application name e.g. "IPTV-XY", type "Personal use", a short description; the URL can be your GitHub page).
 5. Copy the **API Key** (the 32-character one, not the "API Read Access Token").
 
 ### Get a free OMDb key
@@ -92,8 +92,8 @@ Settings > **API keys**: paste the key into the field, press **Save and check** 
 Requirements: Android Studio (current version) with the Android SDK; the Gradle wrapper downloads everything else.
 
 ```
-git clone <this repository>
-cd IPVIO-Stream
+git clone https://github.com/Pelzixx/IPTV-XY.git
+cd IPTV-XY
 ./gradlew assembleDebug        # Windows: gradlew.bat assembleDebug
 ```
 
@@ -117,10 +117,11 @@ licenses/                             font licences
 ## License
 
 Copyright (C) 2026 IPVIO Stream contributors
+Copyright (C) 2026 IPTV-XY contributors
 
-IPVIO Stream is free software: you can redistribute it and/or modify it under the terms of the **GNU General Public License version 3** (see [LICENSE](LICENSE)). The GPL is required because the app includes the GPL-3.0 licensed FFmpeg audio decoder. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the libraries, fonts and services used.
+IPTV-XY is free software: you can redistribute it and/or modify it under the terms of the **GNU General Public License version 3** (see [LICENSE](LICENSE)). The GPL is required because the app includes the GPL-3.0 licensed FFmpeg audio decoder. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the libraries, fonts and services used.
 
-The name "IPVIO" and the IPVIO logo identify the original project. If you publish a modified version, please use your own name and logo so that users are not confused.
+The name "IPVIO" and the IPVIO logo identify the original project, IPTV-XY therefore uses its own name and logo. If you publish a modified version of IPTV-XY, please do the same.
 
 ## Disclaimer
 

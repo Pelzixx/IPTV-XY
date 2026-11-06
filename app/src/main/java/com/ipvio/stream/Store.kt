@@ -132,7 +132,7 @@ object AppSettings {
         searchHistory.clear()
         searchHistory.addAll((p.getString("search_hist", "") ?: "").split("\n").filter { it.isNotBlank() })
         if (p.getInt("look_ver", 1) < 2) {
-            // Einmalig: Firmenfarben (IPVIO-Grün auf Navy) als neues Standard-Design setzen. Eigene Farbe bleibt erhalten.
+            // Einmalig: Firmenfarben (IPTV-XY-Grün auf Navy) als neues Standard-Design setzen. Eigene Farbe bleibt erhalten.
             p.edit().putInt("look_accent", 0).putInt("look_bg", 0).putInt("look_ver", 2).commit()
         }
         if (p.getInt("look_ver", 1) < 4) {
@@ -152,7 +152,7 @@ object AppSettings {
             e.putInt("look_accent", 12).putInt("look_bg", 5).commit()
         }
         if (p.getInt("look_ver", 1) < 6) {
-            // Einmalig (Runde 13e): zurück zu den Standard-Farben (IPVIO-Grün auf Navy). Die Entwurfs-Vorgaben gibt es nicht mehr,
+            // Einmalig (Runde 13e): zurück zu den Standard-Farben (IPTV-XY-Grün auf Navy). Die Entwurfs-Vorgaben gibt es nicht mehr,
             // die eigene Farbe steht wieder an Stelle 12. Wer vorher die eigene Farbe hatte, bekommt sie zurück.
             val e = p.edit().putInt("look_ver", 6)
             val acc = p.getInt("look_accent", 0)

@@ -38,7 +38,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 
 /*
- * Runde 17b – „Cinematic Remake“ der Startseite (Entwurf „IPVIO Cinematic Remake“, Bild 1):
+ * Runde 17b – „Cinematic Remake“ der Startseite (Entwurf „IPTV-XY Cinematic Remake“, Bild 1):
  *  - Der ganze Bildschirm zeigt das Szenenbild des markierten Titels (weiche Überblendung, langsamer Zoom).
  *  - Oben links stehen Titel, Wertungen, Jahr, Genre, Länge und Beschreibung dieses Titels (Billboard).
  *  - Die markierte Reihe bleibt in der unteren Hälfte stehen (PivotSpec), Reihen darüber verschwinden.

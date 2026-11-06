@@ -51,14 +51,14 @@ val Surf: Color get() = Look.surf
 val Surf2: Color get() = Look.surf2
 val Accent1: Color get() = Look.accent1
 val Accent2: Color get() = Look.accent2
-/** Schriftfarbe auf Accent1-Flächen (bei sehr hellen Farben wie IPVIO-Grün dunkel). */
+/** Schriftfarbe auf Accent1-Flächen (bei sehr hellen Farben wie IPTV-XY-Grün dunkel). */
 val OnAccent: Color get() = Look.onAccent
 /** Metadaten-Grau (Runde 17 heller: Kontrast ≥ 6:1 auf allen Flächen, auch auf Glas über Bildern lesbar). */
 val Muted = Color(0xFFA0A6B8)
 
 /**
  * Farb-Tokens (Runde 17). Neutrale Text-Stufen gelten in jedem Design; Flächen leiten sich aus dem gewählten Design (Look) ab.
- * Kontrast auf IPVIO Navy #0B0F19 (WCAG): TextHi 17:1, TextMid 12:1, TextLow/Muted 7,9:1; auf der hellsten Fläche immer ≥ 5,9:1.
+ * Kontrast auf IPTV-XY Navy #0B0F19 (WCAG): TextHi 17:1, TextMid 12:1, TextLow/Muted 7,9:1; auf der hellsten Fläche immer ≥ 5,9:1.
  * Fokus: Knöpfe weiß mit dunkler Schrift, Karten weißer Rahmen mit Schatten.
  */
 object Tok {

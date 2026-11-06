@@ -138,7 +138,7 @@ object PlaylistStore {
     private val client = Net.withTimeouts(20, 120)
 
     private val XTREAM = Regex("""^(https?://[^/]+)/get\.php\?.*?username=([^&]+).*?password=([^&]+)""")
-    private const val UA = "IPVIOStream/1.0"
+    private const val UA = "IPTV-XY/1.0"
     /** Eine fertig heruntergeladene, aber noch nicht eingelesene Liste wird so lange wiederverwendet. */
     private const val RAW_MAX_AGE = 12 * 3_600_000L
     /** Freier Platz, der nach dem Download mindestens bleiben soll. */
