@@ -62,6 +62,7 @@ class OpenTvApp : Application(), ImageLoaderFactory {
         SyncWorker.schedule(this)
         // XY IPTV: feste Server sofort, Fernkonfiguration (Gist) im Hintergrund
         app.opentv.xy.XyPresets.init(this)
+        app.opentv.xy.XyEpgAssign.init(this)
         appScope.launch { runCatching { app.opentv.xy.XyPresets.refresh(this@OpenTvApp) } }
 
         // When the normaliser has moved on since the catalogue was last processed, re-clean

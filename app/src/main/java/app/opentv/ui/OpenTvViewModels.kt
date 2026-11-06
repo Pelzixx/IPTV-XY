@@ -387,7 +387,7 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
                 // rows) can take longer than 60s, and a tick landing mid-build would cancel and
                 // restart it via flatMapLatest so it would never finish. "Now" is captured per
                 // build instead; the guide's live progress bars advance off the screen's clock.
-                combine(channelFlow, programmeIndex) { channels, byEpgChannel ->
+                combine(channelFlow, programmeIndex, app.opentv.xy.XyEpgAssign.state) { channels, byEpgChannel, assign ->
                     val now = System.currentTimeMillis()
                     // Scope to the chosen provider. The "All" branch already fetched only this source
                     // in SQL, so this is a no-op there; for favourites/search/category (which don't
@@ -404,7 +404,7 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
                     // the one-time heavy load, and leaking it per-category read as a stuck "100%".
                     val firstBuild = !guideBuilt
                     if (firstBuild) StatusBus.set(sizeMessage(visible.size), 0f)
-                    buildRows(visible, byEpgChannel, now, reportProgress = firstBuild)
+                    buildRows(visible, byEpgChannel, now, reportProgress = firstBuild, assign = assign)
                 }
             }
             // Grouping thousands of channels against a 12-hour, all-feeds programme window is heavy
@@ -421,6 +421,7 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
         byEpgChannel: Map<String, List<Programme>>,
         now: Long,
         reportProgress: Boolean = false,
+        assign: Map<Long, List<Long>> = emptyMap(),
     ): List<Row> {
         // The programme→channel grouping is done once upstream (see [programmeIndex]) and passed
         // in ready-made, rather than regrouping the whole EPG on every category tap. Grouping is
@@ -444,11 +445,11 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
             // Walk every variant's guide-id candidates (override → provider → matched)
             // and use the first that actually has programmes. An id that never lights up
             // must not shadow a sibling variant whose id does.
-            val list = variants
-                .flatMap { it.epgCandidates }
-                .firstNotNullOfOrNull { id -> byEpgChannel[id] }
-                ?.sortedBy { it.startUtcMillis }
-                .orEmpty()
+            // XY IPTV: nur die dem Anbieter zugewiesenen Guide-Quellen, in seiner Reihenfolge (XyEpgAssign)
+            val list = app.opentv.xy.XyEpgAssignLogic.pick(
+                variants.flatMap { it.epgCandidates }.mapNotNull { id -> byEpgChannel[id] },
+                assign[primary.sourceId],
+            ).sortedBy { it.startUtcMillis }
 
             // Feed the progress bar as rows come together — this is the slow part on a big
             // provider, so it's what the percentage should actually track.
