@@ -972,7 +972,7 @@ private fun LivePage(ctx: Context) {
             }
             Xmltv.start(ctx, PlaylistStore.epgUrls, PlaylistStore.channels)
         }
-        PillButton("Neu laden") { Xmltv.start(ctx, PlaylistStore.epgUrls, PlaylistStore.channels) }
+        PillButton("Neu laden") { Xmltv.start(ctx, PlaylistStore.epgUrls, PlaylistStore.channels, force = true) }
     }
     Spacer(Modifier.height(4.dp))
     Text("Favoriten: ${Library.favs.size} Sender · ${CatFavs.list.size} Kategorien", color = Color.White, fontSize = 17.sp)

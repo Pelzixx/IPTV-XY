@@ -93,15 +93,36 @@ object Xmltv {
      * Gespeichert wird nur das Nötige: Fenster −1 h bis +36 h, höchstens 80 Sendungen je Sender, Beschreibung gekürzt,
      * gleiche Titel nur einmal. Wird der Speicher knapp, hört das Einlesen auf und behält das bis dahin Gelesene.
      */
-    fun start(c: Context, urls: List<String>, items: List<Item>) {
+    /** Gespeichertes Programm gilt so lange als frisch; danach wird im Hintergrund neu geladen. */
+    private const val FRESH_SEC = 6 * 3600L
+
+    /**
+     * [force] = true („Neu laden“): gespeichertes Programm nicht verwenden, sondern frisch laden.
+     * Ablauf: gespeichertes Programm sofort zeigen; ist es älter als 6 h, im Hintergrund neu laden. Nach jeder fertigen
+     * Quelle wird das bisher Gelesene angezeigt, damit man bei großen Dateien nicht bis zum Ende warten muss.
+     */
+    fun start(c: Context, urls: List<String>, items: List<Item>, force: Boolean = false) {
         // Reihenfolge: Playlist/Xtream, fest eingebaute Quellen, eigene Quellen. Spätere ergänzen Sender, die vorher fehlten.
         val all = (urls + Presets.epg + customUrls(c)).filter { it.startsWith("http") }.distinct()
         if (all.isEmpty()) { status = "Keine EPG-Adresse gefunden"; return }
         val wanted = items.filter { it.kind == Kind.LIVE }.mapNotNull { it.tvgId?.lowercase() }.toSet()
         if (wanted.isEmpty()) { status = "Playlist enthält keine Sender-IDs (tvg-id)"; return }
         job?.cancel()
+        val file = java.io.File(c.cacheDir, "xmltv.bin")
+        val key = XmltvCache.key(all)
         job = scope.launch {
-            status = "Wird geladen …"
+            val now = System.currentTimeMillis() / 1000
+            var age = Long.MAX_VALUE
+            if (!force) runCatching { XmltvCache.read(file, key, now) }.getOrNull()?.let { (savedAt, saved) ->
+                progs.clear()
+                for ((k, v) in saved) if (k in wanted) progs[k] = v
+                channelCount = progs.size
+                age = now - savedAt
+                status = "Geladen: ${progs.size} Sender mit Programm (gespeichert)"
+            }
+            if (age < FRESH_SEC && progs.isNotEmpty()) return@launch
+            val hadSaved = progs.isNotEmpty()
+            if (!hadSaved) status = "Wird geladen …"
             val map = HashMap<String, MutableList<EpgEntry>>()
             var err: String? = null
             truncated = false
@@ -113,15 +134,32 @@ object Xmltv {
                 val k = id.lowercase()
                 past[k] = maxOf(past[k] ?: 0, d.coerceAtMost(7))
             }
-            for (u in all) {
-                try { parse(u, wanted, map, past) } catch (e: Exception) { err = if (e is PlaylistError) e.message else e.javaClass.simpleName }
+            for ((i, u) in all.withIndex()) {
+                val src = if (all.size > 1) "${i + 1}/${all.size}" else ""
+                try {
+                    parse(u, wanted, map, past) { mb ->
+                        if (!hadSaved) status = "Wird geladen … (" + listOf(src, "$mb MB").filter { it.isNotEmpty() }.joinToString(" · ") + ")"
+                    }
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    err = if (e is PlaylistError) e.message else e.javaClass.simpleName
+                }
+                // Zwischenstand zeigen: was bisher gelesen ist, steht sofort im Programm
+                for ((k, v) in map) progs[k] = v.sortedBy { it.start }
+                channelCount = progs.size
             }
-            progs.clear()
-            for ((k, v) in map) progs[k] = v.sortedBy { it.start }
-            channelCount = progs.size
-            status = if (progs.isEmpty()) "Keine Programmdaten erhalten (${err ?: "leer"})"
-            else if (truncated) "Geladen: ${progs.size} Sender mit Programm (gekürzt, Speicher knapp)"
-            else "Geladen: ${progs.size} Sender mit Programm"
+            if (map.isNotEmpty()) {
+                // Frischer Stand ersetzt den gespeicherten ganz (Sender ohne neue Daten fallen heraus)
+                progs.keys.retainAll(map.keys)
+                channelCount = progs.size
+                runCatching { XmltvCache.write(file, key, now, progs) }
+            }
+            status = when {
+                progs.isEmpty() -> "Keine Programmdaten erhalten (${err ?: "leer"})"
+                map.isEmpty() -> "Geladen: ${progs.size} Sender mit Programm (gespeichert, Aktualisieren fehlgeschlagen)"
+                truncated -> "Geladen: ${progs.size} Sender mit Programm (gekürzt, Speicher knapp)"
+                else -> "Geladen: ${progs.size} Sender mit Programm"
+            }
         }
     }
 
@@ -134,10 +172,21 @@ object Xmltv {
     private fun shortDesc(d: String): String =
         if (d.length <= MAX_DESC) d else d.substring(0, d.lastIndexOf(' ', MAX_DESC).takeIf { it > MAX_DESC / 2 } ?: MAX_DESC) + " …"
 
-    private fun parse(url: String, wanted: Set<String>, out: HashMap<String, MutableList<EpgEntry>>, past: Map<String, Int> = emptyMap()) {
+    private fun parse(
+        url: String, wanted: Set<String>, out: HashMap<String, MutableList<EpgEntry>>, past: Map<String, Int> = emptyMap(),
+        onProgress: (Long) -> Unit = {}
+    ) {
         client.newCall(Request.Builder().url(url).build()).execute().use { r ->
             if (!r.isSuccessful) throw PlaylistError("HTTP ${r.code}")
-            var ins: InputStream = BufferedInputStream((r.body ?: throw PlaylistError("leer")).byteStream())
+            // Fortschritt in MB (heruntergeladene Bytes), höchstens einmal je MB gemeldet
+            val counting = object : java.io.FilterInputStream((r.body ?: throw PlaylistError("leer")).byteStream()) {
+                var n = 0L
+                var lastMb = -1L
+                private fun count(k: Int) { if (k > 0) { n += k; val mb = n shr 20; if (mb != lastMb) { lastMb = mb; onProgress(mb) } } }
+                override fun read(): Int = super.read().also { if (it >= 0) count(1) }
+                override fun read(b: ByteArray, off: Int, len: Int): Int = super.read(b, off, len).also { count(it) }
+            }
+            var ins: InputStream = BufferedInputStream(counting, 64 * 1024)
             ins.mark(2)
             val b1 = ins.read()
             val b2 = ins.read()
