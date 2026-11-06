@@ -85,6 +85,34 @@ fun PRoundButton(
     }
 }
 
+/**
+ * Knopf der Live-Leiste (Runde 20, TV-Stil): Symbol mit Beschriftung darunter – immer sichtbar, nicht nur beim markierten.
+ * Markiert = weißer Kreis hinter dem Symbol.
+ */
+@Composable
+fun PBarButton(
+    modifier: Modifier = Modifier,
+    label: String,
+    onLabel: (String) -> Unit = {},
+    onClick: () -> Unit,
+    content: @Composable (Color) -> Unit
+) {
+    var f by remember { mutableStateOf(false) }
+    androidx.compose.foundation.layout.Column(
+        modifier.width(118.dp)
+            .onFocusChanged { f = it.isFocused; if (it.isFocused) onLabel(label) }
+            .clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
+    ) {
+        Box(Modifier.size(58.dp).clip(CircleShape).background(if (f) Color.White else Color.Transparent), contentAlignment = Alignment.Center) {
+            content(if (f) PT.Ink else Color.White)
+        }
+        Text(label, color = if (f) Color.White else Color(0xCCFFFFFF), fontSize = 15.sp, lineHeight = 18.sp, maxLines = 2,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center, overflow = TextOverflow.Ellipsis)
+    }
+}
+
 /** Kleine Info-Marke, z. B. "4K", "HEVC", "Staffel 2". */
 @Composable
 fun PChip(text: String, modifier: Modifier = Modifier, filled: Boolean = false, icon: AIcon? = null, raw: Boolean = false) {

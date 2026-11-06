@@ -1212,11 +1212,31 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                     }
                 }
 
+                // Live (Runde 20, TV-Stil): oben links Playlist und Gruppe, oben rechts Datum und Uhrzeit
+                if (cur.live) {
+                    val plName = PlaylistStore.lists.getOrNull(PlaylistStore.active)?.name
+                    val group = ZapContext.key?.let { k ->
+                        when {
+                            k == FAV_CAT -> Lang.tr("Favoriten")
+                            k == "ALL" -> Lang.tr("Alle Sender")
+                            else -> ChannelLists.byKey(k)?.name ?: k
+                        }
+                    }
+                    Text(raw = true, text = listOfNotNull(plName, group).joinToString("  •  "), color = Color.White, fontSize = 20.sp,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.align(Alignment.TopStart).padding(start = PT.MarginX, top = PT.MarginY, end = 520.dp))
+                }
                 // Marken oben rechts
                 Row(
                     Modifier.align(Alignment.TopEnd).padding(end = PT.MarginX, top = PT.MarginY),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically
                 ) {
+                    if (cur.live) {
+                        val nowS by androidx.compose.runtime.produceState(System.currentTimeMillis() / 1000) {
+                            while (true) { kotlinx.coroutines.delay(15_000); value = System.currentTimeMillis() / 1000 }
+                        }
+                        Text(raw = true, text = longDay(nowS) + ", " + hhmm(nowS), color = Color.White, fontSize = 20.sp, maxLines = 1)
+                    }
                     if (cur.live) PLiveChip(behindSec = behindSec)
                     else badges.forEachIndexed { i, b -> PChip(b, filled = i == 0 && b == "4K") }
                 }
@@ -1235,15 +1255,15 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                             Modifier.onPreviewKeyEvent { e ->
                                 if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionDown) { controls = false; true } else false
                             },
-                            horizontalArrangement = Arrangement.spacedBy(PT.BtnGap), verticalAlignment = Alignment.CenterVertically
+                            horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Top
                         ) {
-                            PRoundButton(Modifier.focusRequester(liveFirst), label = "Senderliste", onLabel = setLabel, onClick = { openChannels() }) {
+                            PBarButton(Modifier.focusRequester(liveFirst), label = "Senderliste", onLabel = setLabel, onClick = { openChannels() }) {
                                 PlayerIcon(PIcon.Channels, it)
                             }
-                            PRoundButton(label = "TV-Guide", onLabel = setLabel, onClick = { controls = false; showGuide = true }) {
+                            PBarButton(label = "TV-Guide", onLabel = setLabel, onClick = { controls = false; showGuide = true }) {
                                 PlayerIcon(PIcon.Guide, it)
                             }
-                            PRoundButton(label = "Zurück zu Live", onLabel = setLabel, onClick = {
+                            PBarButton(label = "Zurück zu Live", onLabel = setLabel, onClick = {
                                 if (player.isCurrentMediaItemSeekable) player.seekToDefaultPosition()
                                 else { player.stop(); player.prepare() }
                                 player.play()
@@ -1254,42 +1274,38 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                                 PlayerIcon(PIcon.Play, it)
                             }
                             if (Catchup.has(curItem)) {
-                                PRoundButton(label = "Von Anfang an", onLabel = setLabel, onClick = {
+                                PBarButton(label = "Von Anfang an", onLabel = setLabel, onClick = {
                                     val ch = curItem
                                     val e = Epg.current(epg)
                                     if (ch != null && e != null) playArchive(ch, e) else flash = Flash(null, "Kein Programm bekannt")
                                 }) { AppIcon(AIcon.Catchup, it, size = 26.dp) }
-                                PRoundButton(Modifier.focusRequester(btn.getValue(Panel.ARCHIVE)), label = "Archiv: verpasste Sendungen", onLabel = setLabel, onClick = { openPanel(Panel.ARCHIVE) }) {
+                                PBarButton(Modifier.focusRequester(btn.getValue(Panel.ARCHIVE)), label = "Archiv: verpasste Sendungen", onLabel = setLabel, onClick = { openPanel(Panel.ARCHIVE) }) {
                                     AppIcon(AIcon.History, it, size = 26.dp)
                                 }
                             }
                             // Mit eigenen Senderlisten: Auswahl, wohin (Favoriten oder eine eigene Liste); sonst direkt Favorit an/aus
                             Box {
                                 var favMenu by remember { mutableStateOf(false) }
-                                PRoundButton(
+                                PBarButton(
                                     label = if (ChannelLists.lists.isNotEmpty()) "Favoriten & Listen" else if (fav) "Aus Favoriten entfernen" else "Zu Favoriten hinzufügen", onLabel = setLabel,
                                     onClick = { if (ChannelLists.lists.isNotEmpty() && curItem != null) favMenu = true else Library.toggleFav(ctx, cur.itemId) }
                                 ) { c -> PlayerIcon(if (fav) PIcon.StarOn else PIcon.StarOff, if (fav && c == Color.White) PT.Gold else c) }
                                 val ci = curItem
                                 if (favMenu && ci != null) ChannelMenu(ci, null, null) { favMenu = false }
                             }
-                            PRoundButton(Modifier.focusRequester(btn.getValue(Panel.TRACKS)), label = "Audio & Untertitel", onLabel = setLabel, onClick = { openPanel(Panel.TRACKS) }) {
+                            PBarButton(Modifier.focusRequester(btn.getValue(Panel.TRACKS)), label = "Audio & Untertitel", onLabel = setLabel, onClick = { openPanel(Panel.TRACKS) }) {
                                 PlayerIcon(PIcon.AudioSubs, it)
                             }
-                            PRoundButton(Modifier.focusRequester(btn.getValue(Panel.ASPECT)), label = "Bildformat", onLabel = setLabel, onClick = { openPanel(Panel.ASPECT) }) {
+                            PBarButton(Modifier.focusRequester(btn.getValue(Panel.ASPECT)), label = "Bildformat", onLabel = setLabel, onClick = { openPanel(Panel.ASPECT) }) {
                                 PlayerIcon(PIcon.Aspect, it)
                             }
-                            PRoundButton(label = "Extern öffnen", onLabel = setLabel, onClick = { player.pause(); openExternal(ctx, cur.url, cur.title) }) {
+                            PBarButton(label = "Extern öffnen", onLabel = setLabel, onClick = { player.pause(); openExternal(ctx, cur.url, cur.title) }) {
                                 PlayerIcon(PIcon.External, it)
                             }
                         }
-                        Row(
-                            Modifier.fillMaxWidth().padding(top = 12.dp).height(20.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(ctrlLabel.ifEmpty { "Senderliste" }, color = Muted, fontSize = 14.sp, maxLines = 1)
-                            Text("Hoch und Runter wechseln den Sender", color = Muted, fontSize = 14.sp, maxLines = 1)
-                        }
+                        // Beschriftungen stehen jetzt unter den Knöpfen; hier nur noch der Hinweis zum Umschalten
+                        Text("Hoch und Runter wechseln den Sender", color = Muted, fontSize = 14.sp, maxLines = 1,
+                            modifier = Modifier.align(Alignment.End).padding(top = 8.dp))
                     } else {
                         val stepS = (step / 1000).toString()
                         PSeekBar(
