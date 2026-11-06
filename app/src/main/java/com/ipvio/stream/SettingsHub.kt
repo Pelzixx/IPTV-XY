@@ -1177,34 +1177,38 @@ private fun UpdateSection(ctx: Context) {
     var status by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var info by remember { mutableStateOf<UpdateInfo?>(null) }
+    // Schon heruntergeladen (z. B. wenn erst „Apps installieren“ erlaubt werden musste): beim nächsten Klick nur installieren
+    var apk by remember { mutableStateOf<java.io.File?>(null) }
     val scope = rememberCoroutineScope()
-    run {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            PillButton(if (busy) "Bitte warten …" else "Nach Update suchen") {
-                if (busy) return@PillButton
-                busy = true; status = "Suche …"; info = null
-                scope.launch {
-                    AppUpdate.check(ctx)
-                        .onSuccess { r -> info = r; status = if (r == null) "Du hast die neueste Version." else "Neu: Version ${r.name}" + (if (r.notes.isNotBlank()) " – " + r.notes else "") }
-                        .onFailure { status = it.message ?: "Fehler" }
-                    busy = false
-                }
-            }
-            info?.let { u ->
-                PillButton("Herunterladen und installieren") {
-                    if (busy) return@PillButton
-                    busy = true
-                    scope.launch {
-                        AppUpdate.download(ctx, u) { p -> status = if (p >= 0) "Lade … $p %" else "Lade …" }
-                            .onSuccess { f -> status = if (AppUpdate.install(ctx, f)) "Installation gestartet" else "Erlaube der App einmal „Apps installieren“ und tippe dann erneut." }
-                            .onFailure { status = it.message ?: "Fehler" }
-                        busy = false
-                    }
-                }
-            }
+    fun check() {
+        busy = true; status = "Suche …"; info = null; apk = null
+        scope.launch {
+            AppUpdate.check(ctx)
+                .onSuccess { r -> info = r; status = if (r == null) "Du hast die neueste Version." else if (r.notes.isNotBlank()) r.notes else "" }
+                .onFailure { status = it.message ?: "Fehler" }
+            busy = false
         }
-        if (status.isNotBlank()) Text(status, color = Muted, fontSize = 16.sp)
     }
+    fun install(f: java.io.File) {
+        status = if (AppUpdate.install(ctx, f)) "Installation gestartet" else "Erlaube der App einmal „Apps installieren“ und tippe dann erneut."
+    }
+    // Beim Öffnen gleich nachsehen: gibt es eine neue Version, reicht danach ein Klick
+    LaunchedEffect(Unit) { check() }
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        val u = info
+        if (u != null) PillButton(if (busy) "Bitte warten …" else "Jetzt aktualisieren auf ${u.name}", light = true) {
+            if (busy) return@PillButton
+            apk?.let { install(it); return@PillButton }
+            busy = true
+            scope.launch {
+                AppUpdate.download(ctx, u) { p -> status = if (p >= 0) "Lade … $p %" else "Lade …" }
+                    .onSuccess { f -> apk = f; install(f) }
+                    .onFailure { status = it.message ?: "Fehler" }
+                busy = false
+            }
+        } else PillButton(if (busy) "Bitte warten …" else "Nach Update suchen") { if (!busy) check() }
+    }
+    if (status.isNotBlank()) Text(status, color = Muted, fontSize = 16.sp)
     Hint("Sucht nach einer neuen Version von IPTV-XY und installiert sie. Deine Einstellungen und Playlists bleiben erhalten.")
 }
 
