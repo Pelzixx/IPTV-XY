@@ -83,7 +83,7 @@ fun HeaderBar(
         }
         BellButton(onReminder, onNewEpisode)
         Spacer(Modifier.width(dpx(14)))
-        ProfileCircle(onProfile)
+        // Profile ausgeblendet (schlanke App)
     }
 }
 

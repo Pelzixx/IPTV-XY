@@ -105,7 +105,8 @@ object Profiles {
         val m = meta(c)
         val skip = m.getBoolean("skip", false)
         if (skip) m.edit().putBoolean("skip", false).commit()
-        return list.size > 1 && askAtStart && !skip
+        // Profile ausgeblendet (schlanke App): nie „Wer schaut?“ beim Start
+        return false
     }
 
     fun add(c: Context): Boolean {

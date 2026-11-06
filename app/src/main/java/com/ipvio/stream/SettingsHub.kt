@@ -43,6 +43,9 @@ import androidx.compose.ui.input.key.type
 
 private class Cat(val icon: AIcon, val title: String, val sub: String)
 
+/** Ausgeblendete Bereiche (Index in CATS): 3 Design, 10 Profile, 11 API-Schlüssel. */
+private val HIDDEN_CATS = setOf(3, 10, 11)
+
 private val CATS = listOf(
     Cat(AIcon.Gear, "Allgemein", "Start, Beenden, Autostart"),
     Cat(AIcon.Globe, "Sprache & Region", "Sprache, Uhrzeit, Zeitzone"),
@@ -93,10 +96,10 @@ fun SettingsHub(onAdd: () -> Unit, reload: () -> Unit) {
                 Text("Einstellungen", color = Color.White, fontSize = spx(38), fontWeight = FontWeight.ExtraBold)
                 Text("Alles rund um Aussehen, Wiedergabe und Konto", color = Tok.TextLow, fontSize = spx(16))
             }
-            CATS.chunked(3).forEachIndexed { r, row ->
+            // Schlanke App: Design-Auswahl, Profile und API-Schlüssel ausgeblendet
+            CATS.withIndex().filter { it.index !in HIDDEN_CATS }.chunked(3).forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(dpx(16))) {
-                    row.forEachIndexed { c, cat ->
-                        val idx = r * 3 + c
+                    row.forEach { (idx, cat) ->
                         SettingsCard(cat, idx, Modifier.weight(1f).focusRequester(cardFocus[idx])) { last = idx; page = idx }
                     }
                     repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }

@@ -377,7 +377,7 @@ fun HomeScreen(
     val reload: () -> Unit = { PlaylistStore.savedUrl(ctx)?.let { u -> scope.launch { PlaylistStore.load(ctx, u, false) } } }
 
     // Runde 17b (Cinematic Remake): Hintergrund und Infos folgen dem markierten Titel, sobald das große Bild weggescrollt ist
-    val bbTab = tab in 0..2
+    val bbTab = tab in 1..2   // Startseite ohne großes Bild (schlank)
     val bbState = states[tab.coerceIn(0, states.lastIndex)]
     // Runde 18: Auch wenn das große Bild noch teilweise zu sehen ist (z. B. erste Reihe „Beliebte Serien“), zeigt der Hintergrund
     // die Infos des markierten Titels – und das große Bild (Slideshow) pausiert.
@@ -464,42 +464,13 @@ fun HomeScreen(
                 }, state = states[tab], contentPadding = PaddingValues(bottom = dpx(420))) {
                     when (tab) {
                         0 -> {
-                            if (ready.isNotEmpty()) item(key = "hero") { Hero(ready.toList(), heroH, true, onOpen, onPlayNow, header, { heroScroll(states[0]) }) { scope.launch { states[0].animateScrollToItem(0) } } }
-                            else item(key = "top") { header(Modifier) }
-                            // Info-Zeile ganz oben: Zugang, Mitteilung, QR-Code (ohne Inhalte unsichtbar)
+                            // Schlanke Startseite: Infos (Zugang, Mitteilungen/Angebote, QR-Code), Weiterschauen, Sender
+                            item(key = "top") { header(Modifier) }
                             item(key = "info") { HomeInfoRow(Modifier.padding(vertical = 8.dp)) }
-                            item(key = "tiles") { QuickTiles(tiles) }
-                            // Weiterschauen ganz oben, direkt unter den Kacheln: wer viel schaut, will mit wenigen Klicks weiter
                             if (resumeList.isNotEmpty()) item(key = "resume") { ResumeRow(resumeList, cardW, onResume) }
-                            if (nowChannels.isNotEmpty()) item(key = "chnow") { ChannelNowRow("Live TV", nowChannels, onOpen) { onTab(3) } }
-                            // Top 10 immer als ganze Cover (unabhängig von der Bild-Einstellung)
-                            if (trendItems.size >= 3) item(key = "trend") {
-                                ItemsRow("Top 10 heute", trendItems.take(10), cardW, onOpen, style = CARD_TOP10) { onBrowse(BrowseReq("Im Trend", trendItems, SORT_PLAYLIST)) }
+                            if (nowChannels.isNotEmpty()) item(key = "chnow") {
+                                ChannelNowRow(if (favLive.isNotEmpty()) "Favoriten" else "Live TV", nowChannels, onOpen) { onTab(3) }
                             }
-                            because?.let { (src, l) ->
-                                item(key = "because") { ItemsRow("Weil du „" + src.title + "“ geschaut hast", l, cardW, onOpen) { onBrowse(BrowseReq("Ähnlich wie " + src.title, l, SORT_PLAYLIST)) } }
-                            }
-                            val wl = watchList.filter { it.kind != Kind.LIVE }
-                            if (wl.isNotEmpty()) item(key = "wl") { ItemsRow("Meine Liste", wl, cardW, onOpen) { onTab(MenuLogic.MYLIST) } }
-                            if (movies.isNotEmpty()) item(key = "newm") {
-                                ItemsRow("Neu hinzugefügt · Filme", movies.takeLast(40).reversed(), cardW, onOpen) { onBrowse(BrowseReq("Neu hinzugefügt · Filme", movies, SORT_NEW)) }
-                            }
-                            if (topM.size >= 8) item(key = "topm") {
-                                ItemsRow("Top bewertet · Filme", topM, cardW, onOpen) { onBrowse(BrowseReq("Top bewertet · Filme", topM, SORT_RATING)) }
-                            }
-                            if (series.isNotEmpty()) item(key = "news") {
-                                ItemsRow("Neu hinzugefügt · Serien", series.takeLast(40).reversed(), cardW, onOpen) { onBrowse(BrowseReq("Neu hinzugefügt · Serien", series, SORT_NEW)) }
-                            }
-                            if (topS.size >= 8) item(key = "tops") {
-                                ItemsRow("Top bewertet · Serien", topS, cardW, onOpen) { onBrowse(BrowseReq("Top bewertet · Serien", topS, SORT_RATING)) }
-                            }
-                            seriesG.entries.take(3).forEach { (g, l) ->
-                                item(key = "s$g") { ItemsRow("Serien · $g", l, cardW, onOpen) { onBrowse(BrowseReq("Serien · $g", l, SORT_NEW)) } }
-                            }
-                            movieG.entries.take(3).forEach { (g, l) ->
-                                item(key = "m$g") { ItemsRow("Filme · $g", l, cardW, onOpen) { onBrowse(BrowseReq("Filme · $g", l, SORT_NEW)) } }
-                            }
-                            if (movies.isEmpty() && series.isEmpty()) item { EmptyHint("Diese Playlist enthält keine Filme oder Serien. Live TV findest du links.") }
                         }
                         1, 2 -> {
                             val isM = tab == 1

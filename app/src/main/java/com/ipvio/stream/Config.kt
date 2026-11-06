@@ -16,9 +16,11 @@ import androidx.compose.runtime.setValue
  * Without keys the app works normally and only hides the extra information.
  */
 object Config {
-    @Volatile var TMDB_KEY: String = clean(BuildConfig.TMDB_KEY)
+    /** Film-Extras (TMDB/OMDb: Bewertungen, Trailer, Darsteller, Top 10 …) aus: schlanke App, nur Angaben des Anbieters. */
+    const val EXTRAS = false
+    @Volatile var TMDB_KEY: String = if (EXTRAS) clean(BuildConfig.TMDB_KEY) else ""
         private set
-    @Volatile var OMDB_KEY: String = clean(BuildConfig.OMDB_KEY)
+    @Volatile var OMDB_KEY: String = if (EXTRAS) clean(BuildConfig.OMDB_KEY) else ""
         private set
     /** true, wenn der Schlüssel in der App eingetragen wurde (nicht aus secrets.properties). */
     var tmdbOwn by androidx.compose.runtime.mutableStateOf(false)
@@ -36,6 +38,7 @@ object Config {
     fun init(c: Context) {
         if (inited) return
         inited = true
+        if (!EXTRAS) return
         val p = prefs(c)
         val t = clean(p.getString("tmdb", "").orEmpty())
         val o = clean(p.getString("omdb", "").orEmpty())
@@ -45,6 +48,7 @@ object Config {
 
     /** Speichert die eingetragenen Schlüssel; leer = Schlüssel entfernen (dann gilt ggf. wieder secrets.properties). */
     fun save(c: Context, tmdb: String, omdb: String) {
+        if (!EXTRAS) return
         val t = clean(tmdb); val o = clean(omdb)
         prefs(c).edit().putString("tmdb", t).putString("omdb", o).apply()
         TMDB_KEY = t.ifEmpty { clean(BuildConfig.TMDB_KEY) }; tmdbOwn = t.isNotEmpty()
