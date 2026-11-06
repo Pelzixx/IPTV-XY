@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Nur für die App-Aktualisierung (Updater.kt): der Ordner, in den die neue APK heruntergeladen wird -->
+<!--
+  This file is part of OpenTV.
+  Copyright (C) 2026 The OpenTV Contributors
+  Licensed under the GNU General Public License v3.0 or later.
+-->
 <paths>
-    <cache-path name="updates" path="updates/" />
+    <!-- Where ApkInstaller writes the downloaded update: <cacheDir>/updates. -->
+    <cache-path
+        name="updates"
+        path="updates/" />
 </paths>

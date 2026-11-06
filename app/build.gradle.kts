@@ -1,101 +1,160 @@
-import java.util.Properties
-
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
 }
-
-// Optional developer API keys from "secrets.properties" (ignored by Git) or environment variables.
-// Normal users enter their own keys in the app (Settings > API keys); without keys the build contains none.
-val secrets = Properties().apply {
-    val f = rootProject.file("secrets.properties")
-    if (f.exists()) f.inputStream().use { load(it) }
-}
-fun secret(name: String): String =
-    (secrets.getProperty(name) ?: System.getenv(name) ?: "").trim().filter { it.isLetterOrDigit() }
-
-// Fest eingebaute Server/EPG-Adressen (Secrets PRESET_SERVERS / PRESET_EPG), als Java-Text maskiert
-fun presetText(name: String): String =
-    (secrets.getProperty(name) ?: System.getenv(name) ?: "").trim()
-        .replace("\\", "\\\\").replace("\"", "\\\"").replace("\r", "").replace("\n", "\\n")
 
 android {
-    namespace = "com.ipvio.stream"
-    compileSdk {
-        version = release(37)
-    }
+    namespace = "app.opentv"
+    compileSdk = 35
 
     defaultConfig {
+        // XY IPTV (basiert auf OpenTV): gleiche App-ID wie die bisherige IPTV-XY-App, damit das Update darüber installiert
         applicationId = "com.pelzixx.iptvxy"
-        minSdk = 24
-        targetSdk = 37
-        // Release-Builds der GitHub-Action setzen Versionsnummer und -namen (siehe .github/workflows/release.yml)
+        minSdk = 23
+        targetSdk = 35
+        // Release-Builds der GitHub-Action setzen Versionsnummer und -namen (.github/workflows/release.yml)
         versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
-        versionName = System.getenv("VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "1.0"
-
-        buildConfigField("String", "TMDB_KEY", "\"${secret("TMDB_KEY")}\"")
-        buildConfigField("String", "OMDB_KEY", "\"${secret("OMDB_KEY")}\"")
-        buildConfigField("String", "PRESET_SERVERS", "\"${presetText("PRESET_SERVERS")}\"")
-        buildConfigField("String", "PRESET_EPG", "\"${presetText("PRESET_EPG")}\"")
-        buildConfigField("String", "PRESET_CONFIG_URL", "\"${presetText("PRESET_CONFIG_URL")}\"")
+        versionName = System.getenv("VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "0.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    // Signaturschlüssel für Releases kommt aus den GitHub-Secrets. Fehlt er (lokaler Build), bleibt die Release-APK unsigniert.
-    // Updates lassen sich nur installieren, wenn sie mit demselben Schlüssel signiert sind wie die installierte App.
-    val keystoreFile = System.getenv("KEYSTORE_FILE")?.let { file(it) }?.takeIf { it.exists() }
     signingConfigs {
-        if (keystoreFile != null) create("release") {
-            storeFile = keystoreFile
-            storePassword = System.getenv("KEYSTORE_PASSWORD")
-            keyAlias = "iptvxy"
-            keyPassword = System.getenv("KEYSTORE_PASSWORD")
+        create("upload") {
+            // Populated from environment variables in CI. Absent locally, which is why the
+            // release build type falls back to the debug key below.
+            // Schlüssel aus den GitHub-Secrets (KEYSTORE_BASE64/KEYSTORE_PASSWORD, Alias "iptvxy"), derselbe wie bisher
+            val storePath = providers.environmentVariable("KEYSTORE_FILE").orNull?.takeIf { file(it).exists() }
+            if (storePath != null) {
+                storeFile = file(storePath)
+                storePassword = providers.environmentVariable("KEYSTORE_PASSWORD").orNull
+                keyAlias = "iptvxy"
+                keyPassword = providers.environmentVariable("KEYSTORE_PASSWORD").orNull
+            }
         }
     }
 
     buildTypes {
         release {
-            if (keystoreFile != null) signingConfig = signingConfigs.getByName("release")
-            optimization {
-                // Aus, bis die verkleinerte Release-Version auf einem Gerät getestet ist (R8 kann per Reflexion genutzte Klassen entfernen)
-                enable = false
-                packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
-            }
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+
+            /*
+             * Falls back to the debug key when no keystore is configured.
+             *
+             * An *unsigned* APK cannot be installed on Android at all — it is rejected before
+             * the user sees anything, with an error that explains nothing. For an early
+             * project that means every tester is blocked on the maintainer setting up signing
+             * infrastructure first.
+             *
+             * The trade-off is real and is written up in docs/RELEASING.md: moving to a
+             * proper keystore later changes the signature, and Android will refuse to upgrade
+             * over a debug-signed install. Set up real signing before announcing publicly.
+             */
+            signingConfig =
+                if (providers.environmentVariable("KEYSTORE_FILE").orNull?.let { file(it).exists() } == true) {
+                    signingConfigs.getByName("upload")
+                } else {
+                    signingConfigs.getByName("debug")
+                }
+        }
+        debug {
+            applicationIdSuffix = ".debug"
+            isMinifyEnabled = false
         }
     }
+
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
     }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true
     }
 
-    lint {
-        disable += "UnsafeOptInUsageError"
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            isReturnDefaultValues = true
+        }
     }
 }
 
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
-    implementation(platform("androidx.compose:compose-bom:2026.09.00"))
-    implementation("androidx.activity:activity-compose:1.13.0")
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.foundation:foundation")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.3")
 
-    implementation("androidx.media3:media3-exoplayer:1.11.1")
-    implementation("androidx.media3:media3-exoplayer-hls:1.11.1")
-    implementation("androidx.media3:media3-ui:1.11.1")
-    // Software audio decoder (AC3/E-AC3/DTS ...) for headphones/Bluetooth, see SoftAudio.kt. GPL-3.0 – the reason the app is GPL-3.0.
-    implementation("org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1")
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.activity.compose)
 
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    // QR-Code auf der Startseite (HomeInfo.kt)
-    implementation("com.google.zxing:core:3.5.3")
-    implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.ui.graphics)
+    implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material.icons)
+    debugImplementation(libs.androidx.compose.ui.tooling)
 
-    implementation("androidx.work:work-runtime-ktx:2.10.0")
+    implementation(libs.androidx.tv.material)
+    implementation(libs.androidx.navigation.compose)
 
-    testImplementation("junit:junit:4.13.2")
-    // Echtes org.json für Unit-Tests (im Android-Stub sind die Methoden leer)
-    testImplementation("org.json:json:20240303")
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.exoplayer.hls)
+    implementation(libs.media3.exoplayer.dash)
+    implementation(libs.media3.exoplayer.rtsp)
+    implementation(libs.media3.ui)
+    implementation(libs.media3.session)
+    implementation(libs.media3.datasource.okhttp)
+
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    ksp(libs.room.compiler)
+
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.androidx.work.runtime)
+    implementation(libs.androidx.datastore.preferences)
+    // Storage Access Framework helpers - write recordings to a plugged-in USB / external
+    // drive via a user-granted tree URI, with no storage permission.
+    implementation(libs.androidx.documentfile)
+    implementation(libs.coil.compose)
+    implementation(libs.zxing.core)
+
+    // SMB/CIFS client for recording to a NAS (Synology etc.) and playing those recordings
+    // back in-app over the network. Pure-Java SMB2/3, no native bits.
+    implementation("com.hierynomus:smbj:0.12.2")
+
+    testImplementation(libs.junit)
+    testImplementation(libs.truth)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.room.testing)
+    testImplementation(libs.androidx.test.ext.junit)
 }

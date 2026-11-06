@@ -1,25 +1,18 @@
-# Build
 *.iml
 .gradle/
-.kotlin/
-build/
-/captures
-.externalNativeBuild
-.cxx
-
-# Android Studio
+local.properties
 .idea/
 .DS_Store
-
-# Local machine and private data – never commit
-local.properties
-secrets.properties
-*.jks
-*.keystore
-keystore.properties
-
-# Full-size screenshot originals (the repository uses the smaller .jpg copies)
-docs/screenshots/*.png
-
-# Built APKs are published as GitHub Actions artifacts / releases, not committed
+build/
+captures/
+.externalNativeBuild
+.cxx
 *.apk
+*.aab
+*.keystore
+!debug.keystore
+
+.claude/
+
+# Kotlin compiler transient logs
+.kotlin/

@@ -1,140 +1,164 @@
-# IPTV-XY
+# OpenTV
 
-IPTV-XY is based on [IPVIO Stream](https://github.com/Emrodev/IPVIO-Stream) by Emrodev and continues it under the GPL-3.0 with its own name and logo.
+**A free, open-source IPTV player for Android TV, Fire TV, phones and tablets.**
 
-A free, open-source IPTV player for **Android TV, Google TV and Amazon Fire TV**, built with Kotlin and Jetpack Compose and designed for the remote control.
+No account. No subscription. No server of ours between you and your provider.
 
-![Home screen](docs/screenshots/homescreen.jpg)
+[![Build](https://github.com/opentvproject/opentv/actions/workflows/build.yml/badge.svg)](https://github.com/opentvproject/opentv/actions/workflows/build.yml)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![GitHub Sponsors](https://img.shields.io/badge/GitHub-Sponsors-ea4aaa.svg)](https://github.com/sponsors/legionnaireneyland)
 
-> **IPTV-XY does not provide any content.** It contains no channels, playlists, films or series. It is only a player for playlists that **you** add yourself (Xtream Codes login or M3U address). Only use sources that you are legally allowed to use.
+---
 
-## Installation on Fire TV / Android TV
+> **Support OpenTV** — it's free and always will be. If it saved you from a dead "lifetime"
+> app, you can chip in via **[GitHub Sponsors](https://github.com/sponsors/legionnaireneyland)**
+> or **[PayPal](https://www.paypal.com/donate/?business=leetobin1982@gmail.com&item_name=Support+OpenTV&no_recurring=0&currency_code=GBP)**.
+> Entirely optional; the app is never paywalled.
 
-**Downloader code: `6420457`** (or http://aftv.news/6420457)
+## Why this exists
 
-1. Install the free app **Downloader** (by AFTVnews) from the Amazon Appstore or Google Play.
-2. Allow Downloader to install apps: Fire TV *Settings > My Fire TV > Developer options > Install unknown apps > Downloader: On*.
-3. Open Downloader, enter the code above (or the address below) and press *Go*. Install the APK.
+There is a recurring pattern in this corner of the app world. A promising IPTV player appears.
+It looks good. It sells a "lifetime" subscription. The lifetime turns out to be shorter than
+the buyer's — the developer burns out, or moves on, or simply stops replying, and everyone who
+paid is left with an app that no longer works and no way to fix it.
 
-Direct link to the latest version: https://github.com/Pelzixx/IPTV-XY-Releases/releases/latest/download/iptv-xy.apk
+The people affected are not helpless. They are often technical. What they lack is not skill
+but *access*: the code is closed, so nobody else can pick it up.
 
-**Updates:** in the app under *Settings > About > App update > Check for update*. The first time, Android asks once to allow IPTV-XY to install apps.
+OpenTV is the same category of app built so that cannot happen. The source is public and
+GPL-licensed. If the current maintainers vanish tomorrow, anyone can fork it, build it and
+keep it alive. That is the entire point.
 
-## Features
+**OpenTV is not a fork or a decompilation of any existing app.** It is written from scratch.
 
-**Playlists**
-- Xtream Codes login (server, user name, password) or an M3U address, several playlists, input from your phone over Wi-Fi
-- Handles very large playlists: language filter while loading, resumable downloads, compact storage
-- Automatic background refresh (interval or fixed time, waits during playback)
+## What it does
 
-**Home screen**
-- Home, Movies and Series with a large rotating header image
-- The background follows the selected title and shows its title, ratings and description
-- Rows: Continue watching, Live now, Top 10 today, Because you watched …, My list, New, Top rated, genres
-
-**Browse and details**
-- Grid or cinema view, filters by sort order, rating, year, genre and country
-- "Top rated" and sorting by rating use IMDb first, then Rotten Tomatoes, TMDB and finally the provider's rating
-- Provider categories or automatic genres, search with typo tolerance
-- Detail page with resume, trailer, my list, favourites, choice of source/quality
-- Series: seasons on the left, episodes on the right with picture, rating and description; sections and "go to episode" for very long series
-
-**Live TV**
-- Categories, favourites and your own channel lists
-- TV guide, catch-up/archive ("from the beginning"), reminders with notification
-
-**Player** (Media3 / ExoPlayer)
-- Audio and subtitle selection (remembered per title), preferred languages, subtitle style
-- FFmpeg audio decoder for AC3/E-AC3/DTS (also over Bluetooth headphones)
-- Skip intro and credits (TheIntroDB), next episode automatically
-- Quality selection with 4K check, fallback to another source on errors or stuttering
-- Buffer levels, connection watchdog, reconnect after network change and standby
-- Aspect ratio/zoom, frame-rate matching, technical info, clock overlay, sleep timer
-
-**Personal**
-- Profiles ("Who's watching?"), parental controls with PIN
-- History, my list, favourites, backup and restore of settings
-
-**Look and feel**
-- Green on navy plus 12 colour themes, 5 backgrounds, custom colours
-- Fonts Outfit, Inter or system; adjustable text and display size; animations off/subtle/normal
-- 9 languages: German, English, Turkish, Bosnian, Croatian, Serbian, Spanish, French, Italian
+- **Live TV** from Xtream Codes logins and plain M3U/M3U8 playlists
+- **A guide that stays put** — XMLTV EPG that survives restarts, refreshes incrementally, and
+  never wipes itself
+- **Recording (DVR)** — record to the box, a USB drive or your NAS (SMB); schedule from the
+  guide; series-link a whole show; play back in-app with full seeking
+- **Catch-up / archive** where your provider offers it, plus **programme reminders**
+- **Movies and series** with resume and per-profile watch history
+- **Favourites, categories, hide channels, search**, picture-in-picture, aspect control, and
+  hand-off to an external player
+- **Free sync between your own devices** — favourites, watch history and NAS recordings, over
+  your wifi or Tailscale, with no server of ours
+- **Multiple languages** (fully translated to Spanish), a parental PIN, profiles, and self-updates
+- **D-pad first** — designed for a remote, works with a touchscreen
+- **One APK** for Android TV, Fire TV, phones and tablets
 
 ## Screenshots
 
-| | |
-|---|---|
-| ![Home screen](docs/screenshots/homescreen.jpg)<br>**Home** – rotating header, quick tiles, live TV now | ![Series details](docs/screenshots/details_series.jpg)<br>**Series details** – seasons, episodes with ratings, director |
-| ![Categories](docs/screenshots/categories_list.jpg)<br>**Automatic genres** – detected in the background | ![Director page](docs/screenshots/producer.jpg)<br>**Cast and crew pages** – with the titles from your playlist |
-| ![Player](docs/screenshots/player.jpg)<br>**Player** – skip intro, audio/subtitles, quality | ![TV guide](docs/screenshots/tvguide.jpg)<br>**TV guide** – timeline with preview |
-| ![Live TV](docs/screenshots/channel_list.jpg)<br>**Live TV** – now and next at a glance | ![Settings](docs/screenshots/settings.jpg)<br>**Settings** – grouped, remote-friendly |
+The live TV guide — programme grid, favourites, and a live preview:
 
-<sub>Screenshots taken on a TV with the original IPVIO Stream branding. Film artwork, channel logos and programme data belong to their respective owners; provider categories are blurred.</sub>
+![OpenTV live TV guide](docs/screenshots/01-guide.png)
 
-## Your own API keys (optional)
+| Recordings &amp; reminders | Free cloud sync — your own NAS, no server |
+| :---: | :---: |
+| ![Recordings and reminders](docs/screenshots/02-recordings.png) | ![NAS cloud sync](docs/screenshots/03-cloud-sync.png) |
+| Movies &amp; series | Settings |
+| ![Movies](docs/screenshots/04-movies.png) | ![Settings](docs/screenshots/05-settings.png) |
 
-The app ships **without any API keys**. You can enter your own free keys in the app under **Settings > API keys**:
+Open-source through and through — the About screen carries the licence, the links, and a donation QR:
 
-| Service | Used for | Key |
-|---|---|---|
-| TMDB | posters, descriptions in your language, cast, trailers, automatic genres, episode info, similar titles | free, see below |
-| OMDb | IMDb and Rotten Tomatoes ratings | free, see below |
-| TheIntroDB | intro/recap/credits times | no key needed |
+![About](docs/screenshots/06-about.png)
 
-**Without keys** the app still works. With an Xtream Codes playlist it takes description, cover, rating, genres, running time and trailer **directly from your provider** (`player_api.php`). With a TMDB key it uses TMDB first and falls back to the provider when a title is not found. Keys are stored only on the device.
+## What it deliberately does not do
 
-### Get a free TMDB key
-1. Create an account at https://www.themoviedb.org/signup and confirm the e-mail address.
-2. **Log in.** The API page shows "restricted" as long as you are not logged in.
-3. Open https://www.themoviedb.org/settings/api (or: profile picture > Settings > API) and click **Request an API key**.
-4. Choose **Developer**, accept the terms and fill in the form (application name e.g. "IPTV-XY", type "Personal use", a short description; the URL can be your GitHub page).
-5. Copy the **API Key** (the 32-character one, not the "API Read Access Token").
+- **No servers of ours, no web dashboard, no account.** Your provider credentials never leave
+  your device, and syncing happens directly between your devices — or through your own NAS —
+  never through a machine we run. This is a feature, not a gap — see
+  [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the reasoning, and note that "sync your
+  channel list to *our* servers" is precisely the feature whose hosting bill makes a one-off
+  payment unsustainable.
+- **No content.** OpenTV is a player. You bring a service you already pay for. The project has
+  no affiliation with any provider and does not help you find one.
 
-### Get a free OMDb key
-1. Open https://www.omdbapi.com/apikey.aspx, choose **FREE** (1,000 requests per day), enter your e-mail address and a short reason (e.g. "personal media player").
-2. You receive an e-mail with an 8-character key and an **activation link**. Click the link, otherwise the key does not work.
+## Install
 
-### Enter the keys in the app
-Settings > **API keys**: paste the key into the field, press **Save and check** (a green "Key valid" confirms it) and restart the app once. Tip: type long keys with the phone import or an USB keyboard instead of the remote.
+**→ [Install page](https://opentvproject.github.io/opentv/)** — step-by-step for Chromecast with
+Google TV, Android TV boxes, Fire TV Sticks, and phones.
 
-*This product uses the TMDB API but is not endorsed or certified by TMDB.*
-
-## Building
-
-Requirements: Android Studio (current version) with the Android SDK; the Gradle wrapper downloads everything else.
+On a TV, the quickest route is the **[Downloader app](https://www.aftvnews.com/downloader/)** —
+enter the code:
 
 ```
-git clone https://github.com/Pelzixx/IPTV-XY.git
-cd IPTV-XY
-./gradlew assembleDebug        # Windows: gradlew.bat assembleDebug
+6398449
 ```
 
-The APK is then in `app/build/outputs/apk/debug/`. For a release build, sign it with your own key (Android Studio: *Build > Generate Signed App Bundle / APK*).
+That code (or `aftv.news/6398449` in a browser) always points at the newest APK, so it never
+goes stale. On a phone, the [install page](https://opentvproject.github.io/opentv/) is a
+one-tap download. Or grab the APK straight from [Releases](../../releases).
 
-Developers can optionally copy `secrets.properties.example` to `secrets.properties` (ignored by Git) and put their keys there; they are only used when no key was entered in the app.
+Every release is built by GitHub Actions from a tagged commit, and the workflow that built it
+is public — you can check the APK against the source, or rebuild it yourself, rather than
+trusting anyone's word.
 
-Unit tests for the pure logic: `./gradlew test`
+New to this? [SETUP.md](SETUP.md) walks through getting the repo, the install page and the
+first build running.
 
-## Project layout
+## Build it yourself
 
+```bash
+git clone https://github.com/opentvproject/opentv.git
+cd opentv
+./gradlew assembleDebug
 ```
-app/src/main/java/com/ipvio/stream/   all Kotlin sources (one package)
-  *Logic.kt                           pure, Android-free logic (covered by unit tests)
-  Dict*.kt                            translations (one row per text: de¦en¦tr¦bs¦hr¦sr¦es¦fr¦it)
-app/src/test/java/com/ipvio/stream/   JUnit tests
-app/src/main/res/font/                Outfit and Inter (SIL Open Font License)
-licenses/                             font licences
+
+You need JDK 17+ and the Android SDK (API 35). Android Studio will fetch it for you. The debug
+APK lands in `app/build/outputs/apk/debug/`.
+
+Run the tests:
+
+```bash
+./gradlew test
 ```
 
-## License
+## How it was built
 
-Copyright (C) 2026 IPVIO Stream contributors
-Copyright (C) 2026 IPTV-XY contributors
+OpenTV was written with **Claude**, Anthropic's AI assistant, working from a human's
+direction — the design decisions, the priorities, the "no server, ever" rule, and every
+review of what shipped were the maintainer's; Claude did the bulk of the drafting, wiring and
+debugging against that direction.
 
-IPTV-XY is free software: you can redistribute it and/or modify it under the terms of the **GNU General Public License version 3** (see [LICENSE](LICENSE)). The GPL is required because the app includes the GPL-3.0 licensed FFmpeg audio decoder. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the libraries, fonts and services used.
+That is relevant here for one specific reason: **it kept the project genuinely clean-room.**
+Nothing was decompiled or copied from any existing IPTV app. The code was written from public
+specifications (the Xtream Codes request format, the XMLTV and M3U formats, the Kodi catch-up
+tags) and from describing how other apps *behave* as a user — never from their source. That is
+the legal footing that lets anyone fork this and keep it alive, which is the whole point.
 
-The name "IPVIO" and the IPVIO logo identify the original project, IPTV-XY therefore uses its own name and logo. If you publish a modified version of IPTV-XY, please do the same.
+## Contributing
 
-## Disclaimer
+Please do. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-This software is provided "as is", without warranty of any kind. The authors do not provide, host, sell or link to any streams or playlists and are not responsible for how the app is used. Using playlists without the rights holders' permission may be illegal in your country.
+The project is explicitly looking for people who own devices the maintainers do not. Most
+"works for me" bugs in this category are device-specific — an Ugoos box, a first-gen ONN, a
+Fire Stick Lite — and a bug report from someone who owns one is worth more than a week of
+guessing. If a channel fails on your setup, [open an issue](../../issues/new/choose).
+
+## Supporting the project
+
+OpenTV is free and always will be. There is nothing to buy, no premium tier, and no lifetime
+subscription — the failure mode this project was built in response to is a promise nobody
+could keep, so we are not making one.
+
+If it saves you money or annoyance and you want to say thanks, you can sponsor the project via
+[GitHub Sponsors](https://github.com/sponsors/legionnaireneyland) or
+[PayPal](https://www.paypal.com/donate/?business=leetobin1982@gmail.com&item_name=Support+OpenTV&no_recurring=0&currency_code=GBP)
+— see [.github/FUNDING.yml](.github/FUNDING.yml). Tips fund nothing except spare-evening development;
+nobody is owed a feature for one, and nothing is gated behind one.
+
+## Licence
+
+[GPL-3.0-or-later](LICENSE).
+
+Chosen deliberately. GPL means anyone can take this code, but if they ship it they must ship
+their source too. Nobody gets to close it, rebrand it, and sell a lifetime subscription on top
+of work the community did for free.
+
+## Legal
+
+OpenTV is a media player, comparable to VLC. It ships with no channels, no playlists, and no
+links to any. What you point it at, and whether you are entitled to, is between you and your
+provider.
