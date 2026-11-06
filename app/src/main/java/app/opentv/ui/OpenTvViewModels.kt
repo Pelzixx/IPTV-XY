@@ -5,6 +5,8 @@
  */
 package app.opentv.ui
 
+import app.opentv.xy.XyEpgAssign
+import app.opentv.xy.XyEpgAssignLogic
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -387,7 +389,7 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
                 // rows) can take longer than 60s, and a tick landing mid-build would cancel and
                 // restart it via flatMapLatest so it would never finish. "Now" is captured per
                 // build instead; the guide's live progress bars advance off the screen's clock.
-                combine(channelFlow, programmeIndex, app.opentv.xy.XyEpgAssign.state) { channels, byEpgChannel, assign ->
+                combine(channelFlow, programmeIndex, XyEpgAssign.state) { channels, byEpgChannel, assign ->
                     val now = System.currentTimeMillis()
                     // Scope to the chosen provider. The "All" branch already fetched only this source
                     // in SQL, so this is a no-op there; for favourites/search/category (which don't
@@ -446,7 +448,7 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
             // and use the first that actually has programmes. An id that never lights up
             // must not shadow a sibling variant whose id does.
             // XY IPTV: nur die dem Anbieter zugewiesenen Guide-Quellen, in seiner Reihenfolge (XyEpgAssign)
-            val list = app.opentv.xy.XyEpgAssignLogic.pick(
+            val list = XyEpgAssignLogic.pick(
                 variants.flatMap { it.epgCandidates }.mapNotNull { id -> byEpgChannel[id] },
                 assign[primary.sourceId],
             ).sortedBy { it.startUtcMillis }
