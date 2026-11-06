@@ -100,10 +100,8 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
             Modifier.weight(1.1f).verticalScroll(rememberScrollState()).padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                BrandMark(Modifier.size(48.dp))
-                Text("IPTV-XY", color = Color.White, fontSize = 38.sp, fontWeight = FontWeight.ExtraBold)
-            }
+            // Das Logo enthält den Namen schon
+            BrandMark(Modifier.size(110.dp))
             if (!manual) {
                 PresetLogin(
                     servers, sel, { sel = it }, user, { user = it }, pass, { pass = it }, showPass, { showPass = !showPass },

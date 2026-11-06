@@ -7,8 +7,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.runtime.Composable
 
 /**
- * Das IPTV-XY-Zeichen (Play-Symbol mit Farbverlauf) als Bild: res/drawable/ic_brand_mark.png.
- * Der Schriftzug "IPTV-XY" wird daneben als weißer Text gesetzt.
+ * Das Logo (weißer Fernseher „XY IPTV“, durchsichtig) als Bild: res/drawable/ic_brand_mark.png.
  */
 @Composable
 fun BrandMark(modifier: Modifier = Modifier) {
