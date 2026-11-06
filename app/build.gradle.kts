@@ -88,9 +88,13 @@ dependencies {
     implementation("org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1")
 
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    // QR-Code auf der Startseite (HomeInfo.kt)
+    implementation("com.google.zxing:core:3.5.3")
     implementation("io.coil-kt:coil-compose:2.7.0")
 
     implementation("androidx.work:work-runtime-ktx:2.10.0")
 
     testImplementation("junit:junit:4.13.2")
+    // Echtes org.json für Unit-Tests (im Android-Stub sind die Methoden leer)
+    testImplementation("org.json:json:20240303")
 }

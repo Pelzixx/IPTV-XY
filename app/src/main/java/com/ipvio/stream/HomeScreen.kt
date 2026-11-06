@@ -467,6 +467,8 @@ fun HomeScreen(
                             if (ready.isNotEmpty()) item(key = "hero") { Hero(ready.toList(), heroH, true, onOpen, onPlayNow, header, { heroScroll(states[0]) }) { scope.launch { states[0].animateScrollToItem(0) } } }
                             else item(key = "top") { header(Modifier) }
                             item(key = "tiles") { QuickTiles(tiles) }
+                            // Info-Zeile: Zugang, Mitteilung, QR-Code (ohne Inhalte unsichtbar)
+                            item(key = "info") { HomeInfoRow(Modifier.padding(vertical = 8.dp)) }
                             // Weiterschauen ganz oben, direkt unter den Kacheln: wer viel schaut, will mit wenigen Klicks weiter
                             if (resumeList.isNotEmpty()) item(key = "resume") { ResumeRow(resumeList, cardW, onResume) }
                             if (nowChannels.isNotEmpty()) item(key = "chnow") { ChannelNowRow("Live TV", nowChannels, onOpen) { onTab(3) } }
