@@ -6,6 +6,11 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+// Fest hinterlegte Server / Fernkonfiguration aus GitHub-Secrets (PRESET_SERVERS, PRESET_CONFIG_URL), als Java-Text maskiert
+fun presetText(name: String): String =
+    (System.getenv(name) ?: "").trim()
+        .replace("\\", "\\\\").replace("\"", "\\\"").replace("\r", "").replace("\n", "\\n")
+
 android {
     namespace = "app.opentv"
     compileSdk = 35
@@ -19,6 +24,8 @@ android {
         versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
         versionName = System.getenv("VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "PRESET_SERVERS", "\"${presetText("PRESET_SERVERS")}\"")
+        buildConfigField("String", "PRESET_CONFIG_URL", "\"${presetText("PRESET_CONFIG_URL")}\"")
     }
 
     signingConfigs {

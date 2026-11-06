@@ -122,7 +122,9 @@ private fun ProviderRow(
                 Column(Modifier.weight(1f)) {
                     Text(source.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Text(
-                        "${source.kind.name} · ${hostOf(source.url)}",
+                        // XY IPTV: Server-Adresse fester Server nicht anzeigen
+                        if (app.opentv.xy.XyPresets.servers.value.any { app.opentv.xy.XyPresetLogic.sameHost(it.url, source.url) }) source.kind.name
+                        else "${source.kind.name} · ${hostOf(source.url)}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

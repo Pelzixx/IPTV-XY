@@ -33,6 +33,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -49,6 +50,8 @@ import app.opentv.data.model.SourceKind
 import app.opentv.isRunningOnTelevision
 import app.opentv.ui.SourcesViewModel
 import app.opentv.ui.channels.readClipboardText
+import app.opentv.xy.XyPresetLogic
+import app.opentv.xy.XyPresets
 
 /**
  * First-run setup.
@@ -107,23 +110,36 @@ fun AddSourceScreen(
     var showAdvanced by remember { mutableStateOf(false) }
     var userAgent by remember(existing?.id) { mutableStateOf(existing?.userAgent ?: Source.DEFAULT_USER_AGENT) }
 
+    // XY IPTV: fest hinterlegte Server (XY TV, XY Backup, XY Radio) – Auswahl per Knopf, Adresse wird nicht angezeigt.
+    // -1 = eigener Server (Adresse von Hand).
+    val presets by XyPresets.servers.collectAsState()
+    var preset by remember(existing?.id, presets.size) {
+        mutableIntStateOf(
+            if (existing != null) presets.indexOfFirst { XyPresetLogic.sameHost(it.url, existing.url) }
+            else if (presets.isNotEmpty()) 0 else -1,
+        )
+    }
+    val usePreset = kind == SourceKind.XTREAM && preset in presets.indices
+    fun effUrl(): String = if (usePreset) presets[preset].url else url
+
     // Editing copies onto the existing row, so id, enabled state, live format and last-sync stamp
     // are preserved; a fresh add starts from a blank Source (id 0, so save() inserts).
     fun draft(): Source = (existing ?: Source(name = "", kind = kind, url = "")).copy(
         name = name.ifBlank {
-            if (kind == SourceKind.M3U) context.getString(R.string.onboarding_default_playlist_name)
+            if (usePreset) presets[preset].name
+            else if (kind == SourceKind.M3U) context.getString(R.string.onboarding_default_playlist_name)
             else context.getString(R.string.onboarding_default_provider_name)
         },
         kind = kind,
-        url = url,
+        url = effUrl(),
         username = username.takeIf { it.isNotBlank() },
         password = password.takeIf { it.isNotBlank() },
         macAddress = mac.takeIf { it.isNotBlank() },
-        epgUrl = epgUrl.takeIf { it.isNotBlank() },
+        epgUrl = epgUrl.takeIf { it.isNotBlank() } ?: if (usePreset) presets[preset].epg else null,
         userAgent = userAgent.ifBlank { Source.DEFAULT_USER_AGENT },
     )
 
-    val canSubmit = url.isNotBlank() && when (kind) {
+    val canSubmit = effUrl().isNotBlank() && when (kind) {
         SourceKind.XTREAM -> username.isNotBlank() && password.isNotBlank()
         SourceKind.M3U -> true
         SourceKind.STALKER -> mac.isNotBlank()
@@ -182,6 +198,19 @@ fun AddSourceScreen(
             )
             Spacer(Modifier.height(12.dp))
 
+            if (kind == SourceKind.XTREAM && presets.isNotEmpty()) {
+                Text(stringResource(R.string.xy_choose_server), style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    presets.forEachIndexed { i, p ->
+                        FilterChip(selected = preset == i, onClick = { preset = i }, label = { Text(p.name) })
+                    }
+                    FilterChip(selected = preset < 0, onClick = { preset = -1 }, label = { Text(stringResource(R.string.xy_own_server)) })
+                }
+                Spacer(Modifier.height(12.dp))
+            }
+
+            if (!usePreset) {
             OutlinedTextField(
                 value = url,
                 onValueChange = { url = it },
@@ -208,6 +237,7 @@ fun AddSourceScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                 modifier = Modifier.fillMaxWidth(),
             )
+            }
 
             if (kind == SourceKind.XTREAM) {
                 Spacer(Modifier.height(12.dp))

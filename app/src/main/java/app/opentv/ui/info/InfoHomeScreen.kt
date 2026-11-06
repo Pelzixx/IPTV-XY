@@ -77,8 +77,8 @@ object InfoHome {
     const val NEWS_URL = "https://raw.githubusercontent.com/Pelzixx/IPTV-XY-Releases/main/news.json"
 
     fun parseNews(body: String): News? = runCatching {
-        val o = org.json.JSONObject(body)
-        fun s(k: String) = o.optString(k, "").trim()
+        val o = kotlinx.serialization.json.Json.parseToJsonElement(body) as kotlinx.serialization.json.JsonObject
+        fun s(k: String) = (o[k] as? kotlinx.serialization.json.JsonPrimitive)?.content?.trim().orEmpty()
         val n = News(s("title"), s("text"), s("image").takeIf { it.startsWith("http") }, s("qr").ifEmpty { null }, s("qrLabel"))
         if (n.title.isEmpty() && n.text.isEmpty() && n.image == null && n.qr == null) null else n
     }.getOrNull()

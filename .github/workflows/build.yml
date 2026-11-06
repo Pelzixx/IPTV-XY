@@ -34,6 +34,9 @@ jobs:
         run: ./gradlew test --stacktrace
 
       - name: Assemble debug APK
+        env:
+          PRESET_SERVERS: ${{ secrets.PRESET_SERVERS }}
+          PRESET_CONFIG_URL: ${{ secrets.PRESET_CONFIG_URL }}
         run: ./gradlew assembleDebug --stacktrace
 
       - name: Upload debug APK

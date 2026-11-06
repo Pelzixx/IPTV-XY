@@ -519,4 +519,6 @@
     <string name="info_expires_in">Expires in %1$d days</string>
     <string name="info_days_left">%1$d days left</string>
     <string name="info_connections">Connections: %1$d of %2$d</string>
+    <string name="xy_choose_server">Choose server</string>
+    <string name="xy_own_server">Own server</string>
 </resources>
