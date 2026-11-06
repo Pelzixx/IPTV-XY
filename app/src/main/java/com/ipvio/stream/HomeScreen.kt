@@ -584,7 +584,7 @@ fun HomeScreen(
                             }
                         }
                         else -> {
-                            item(key = "settop") { header(Modifier) }
+                            // Runde 20: Einstellungen ohne Such- und Mitteilungsleiste (schlichte Liste wie bei TV-Playern)
                             item { SettingsHub(onAdd, reload) }
                         }
                     }

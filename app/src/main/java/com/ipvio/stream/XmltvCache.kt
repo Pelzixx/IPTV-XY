@@ -90,9 +90,10 @@ object EpgSources {
         serverEpg.forEach { out.add(EpgSrc(it, EpgSrc.SERVER, playlistName)) }
         preset.forEach { out.add(EpgSrc(it, EpgSrc.FIXED, null)) }
         custom.forEach { out.add(EpgSrc(it, EpgSrc.OWN, null)) }
-        // Eigene EPG-Adresse der Playlist (in der App eingetragen) ersetzt die des Anbieters
-        if (playlistEpg.isNotBlank()) out.add(EpgSrc(playlistEpg.trim(), EpgSrc.PL_EPG, playlistName))
-        else provider.forEach { out.add(EpgSrc(it, EpgSrc.PROVIDER, playlistName)) }
+        // Eigene EPG-Quellen der Playlist (Runde 20: beliebig viele, zeilenweise gespeichert) in ihrer Reihenfolge zuerst;
+        // das EPG des Anbieters danach – es füllt nur Sender, die keine eigene Quelle liefert (frühere Quelle hat Vorrang)
+        PresetLogic.parseUrls(playlistEpg).forEach { out.add(EpgSrc(it, EpgSrc.PL_EPG, playlistName)) }
+        provider.forEach { out.add(EpgSrc(it, EpgSrc.PROVIDER, playlistName)) }
         if (!own) header.forEach { out.add(EpgSrc(it, EpgSrc.PLAYLIST, playlistName)) }
         return out.filter { it.url.startsWith("http://", true) || it.url.startsWith("https://", true) }.distinctBy { it.url }
     }

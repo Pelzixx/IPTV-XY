@@ -28,9 +28,18 @@ class EpgSourcesTest {
         assertEquals("fest", EpgSources.label(t[1]))
     }
 
-    @Test fun eigene_epg_der_playlist_ersetzt_anbieter() {
+    @Test fun eigene_epg_quellen_der_playlist_zuerst_dann_anbieter() {
+        val t = EpgSources.pickTagged(list, emptyList(), emptyList(), emptyList(), "XY TV", "https://meins/epg.xml.gz\nhttps://zwei/epg.xml")
+        assertEquals(
+            listOf("https://meins/epg.xml.gz", "https://zwei/epg.xml", "http://srv:80/xmltv.php?username=u&password=p"),
+            t.map { it.url }
+        )
+        assertEquals(listOf(EpgSrc.PL_EPG, EpgSrc.PL_EPG, EpgSrc.PROVIDER), t.map { it.kind })
+    }
+
+    @Test fun alte_einzelne_epg_adresse_bleibt_gueltig() {
         val t = EpgSources.pickTagged(list, emptyList(), emptyList(), emptyList(), "XY TV", "https://meins/epg.xml.gz")
-        assertEquals(listOf("https://meins/epg.xml.gz"), t.map { it.url })
+        assertEquals("https://meins/epg.xml.gz", t[0].url)
         assertEquals(EpgSrc.PL_EPG, t[0].kind)
     }
 }

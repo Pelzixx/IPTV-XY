@@ -65,6 +65,36 @@ private val CATS = listOf(
     Cat(AIcon.Info, "Über IPTV-XY", "Version, Quellen, Zurücksetzen")
 )
 
+/**
+ * Reihenfolge der Übersicht (Index in CATS): Playlists, Live-TV & Guide, Ansicht, Player, Ton & Untertitel, Jugendschutz,
+ * Menü, Allgemein, Sprache & Region, Genres, Speicher, Diagnose, Über.
+ */
+private val CAT_ORDER = listOf(9, 8, 2, 5, 6, 12, 4, 0, 1, 7, 13, 14, 15, 3, 10, 11)
+
+/** Zeile der Einstellungs-Übersicht: Symbol, Titel, Untertitel, Pfeil. */
+@Composable
+private fun SettingsRow(cat: Cat, modifier: Modifier, onClick: () -> Unit) {
+    var f by remember { mutableStateOf(false) }
+    val ink = if (f) DS.FocusInk else Color.White
+    Row(
+        modifier.fillMaxWidth().heightIn(min = dpx(72)).clip(RoundedCornerShape(DS.RadiusS))
+            .background(if (f) TvFocusFill else Color.Transparent)
+            .onFocusChanged { f = it.isFocused }
+            .trackFocus()
+            .clickable(onClick = onClick)
+            .padding(horizontal = dpx(20), vertical = dpx(10)),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(dpx(20))
+    ) {
+        AppIcon(cat.icon, if (f) DS.FocusInk else Tok.TextMid, size = dpx(26))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(dpx(2))) {
+            Text(cat.title, color = ink, fontSize = spx(20), fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(cat.sub, color = if (f) DS.FocusInk.copy(alpha = .65f) else Tok.TextLow, fontSize = spx(14), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        AppIcon(AIcon.Right, if (f) DS.FocusInk else Tok.TextLow, size = dpx(18))
+    }
+}
+
 /** Direkt eine Seite der Einstellungen öffnen (z. B. Profil-Kreis oben bei nur einem Profil: Seite „Profile“). */
 object SettingsNav {
     const val PROFILES = 10
@@ -81,7 +111,9 @@ fun SettingsHub(onAdd: () -> Unit, reload: () -> Unit) {
         val p = SettingsNav.openPage
         if (p >= 0) { SettingsNav.openPage = -1; last = p; page = p }
     }
-    val cardFocus = remember { List(CATS.size) { if (it == 0) ContentFocus.req else FocusRequester() } }
+    // Erster Eintrag der Liste (Playlists) bekommt den Fokus beim Hineingehen
+    val cardFocus = remember { List(CATS.size) { if (it == CAT_ORDER.first()) ContentFocus.req else FocusRequester() } }
+    LaunchedEffect(Unit) { if (last == 0) last = CAT_ORDER.first() }
     val backFocus = remember { FocusRequester() }
     BackHandler(enabled = page >= 0) { page = -1 }
     LaunchedEffect(page) {
@@ -91,18 +123,11 @@ fun SettingsHub(onAdd: () -> Unit, reload: () -> Unit) {
     // Kein eigenes verticalScroll: Der Einstellungs-Tab liegt in einer LazyColumn, die selbst scrollt.
     Column(Modifier.padding(horizontal = DS.PageX, vertical = dpx(20)), verticalArrangement = Arrangement.spacedBy(dpx(18))) {
         if (page < 0) {
-            // Runde 15: im Stil der Startseite (Kacheln mit eigener Farbe je Bereich, ruhige Schrift, weißer Fokus)
-            Column(verticalArrangement = Arrangement.spacedBy(dpx(4))) {
-                Text("Einstellungen", color = Color.White, fontSize = spx(38), fontWeight = FontWeight.ExtraBold)
-                Text("Alles rund um Aussehen, Wiedergabe und Konto", color = Tok.TextLow, fontSize = spx(16))
-            }
-            // Schlanke App: Design-Auswahl, Profile und API-Schlüssel ausgeblendet
-            CATS.withIndex().filter { it.index !in HIDDEN_CATS }.chunked(3).forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(dpx(16))) {
-                    row.forEach { (idx, cat) ->
-                        SettingsCard(cat, idx, Modifier.weight(1f).focusRequester(cardFocus[idx])) { last = idx; page = idx }
-                    }
-                    repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+            // Runde 20: schlichte Liste wie bei TV-Playern üblich – Playlists zuerst, markiert hell mit dunkler Schrift
+            Text("Einstellungen", color = Color.White, fontSize = spx(32), fontWeight = FontWeight.Bold)
+            Column(Modifier.widthIn(max = 900.dp), verticalArrangement = Arrangement.spacedBy(dpx(4))) {
+                CAT_ORDER.filter { it !in HIDDEN_CATS }.forEach { idx ->
+                    SettingsRow(CATS[idx], Modifier.focusRequester(cardFocus[idx])) { last = idx; page = idx }
                 }
             }
         } else {
@@ -1027,7 +1052,8 @@ private fun PlaylistEditor(pl: PL, onCancel: () -> Unit, onSave: (name: String, 
     var user by remember { mutableStateOf(parts?.second ?: "") }
     var pass by remember { mutableStateOf(parts?.third ?: "") }
     var m3u by remember { mutableStateOf(if (parts == null) pl.url else "") }
-    var epg by remember { mutableStateOf(pl.epg) }
+    // Mehrere EPG-Quellen je Playlist (Runde 20); gespeichert zeilenweise, eine alte einzelne Adresse wird übernommen
+    val epgs = remember { mutableStateListOf(*PresetLogic.parseUrls(pl.epg).toTypedArray()) }
     var showPass by remember { mutableStateOf(false) }
     var err by remember { mutableStateOf<String?>(null) }
     Column(
@@ -1049,17 +1075,29 @@ private fun PlaylistEditor(pl: PL, onCancel: () -> Unit, onSave: (name: String, 
             Field(pass, { pass = it }, "Passwort", password = !showPass)
             FocusButton(if (showPass) "Passwort verbergen" else "Passwort anzeigen") { showPass = !showPass }
         } else Field(m3u, { m3u = it }, "http://…/playlist.m3u")
-        Field(epg, { epg = it }, "EPG-Adresse (leer = automatisch vom Anbieter)")
-        Hint("Eine eigene EPG-Adresse ersetzt das TV-Programm des Anbieters für diese Playlist.")
+        SectionTitle("EPG-Quellen")
+        Hint("Die Quellen werden in dieser Reihenfolge gelesen: Für jeden Sender zählt die erste Quelle, die ein Programm hat. Das EPG des Anbieters füllt danach die Lücken.")
+        epgs.forEachIndexed { i, u ->
+            key(i) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Field(u, { epgs[i] = it }, "https://…/epg.xml.gz", modifier = Modifier.weight(1f))
+                    if (i > 0) SmallPill("Nach oben") { epgs.add(i - 1, epgs.removeAt(i)) }
+                    if (i < epgs.lastIndex) SmallPill("Nach unten") { epgs.add(i + 1, epgs.removeAt(i)) }
+                    SmallPill("Entfernen") { epgs.removeAt(i) }
+                }
+            }
+        }
+        FocusButton("+ EPG-Quelle hinzufügen") { epgs.add("") }
         err?.let { Text(it, color = DS.Danger, fontSize = 16.sp) }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             PillButton("Speichern", light = true) {
                 val url = if (parts != null) PlaylistStore.xtreamUrl(if (sel >= 0) servers[sel].url else host, user, pass) else m3u.trim()
-                val epgOk = epg.isBlank() || epg.trim().startsWith("http://") || epg.trim().startsWith("https://")
+                val list = epgs.map { it.trim() }.filter { it.isNotEmpty() }
+                val epgOk = list.all { it.startsWith("http://", true) || it.startsWith("https://", true) }
                 when {
                     url == null || url.isBlank() -> err = Lang.tr("Angaben unvollständig: Server, Benutzername und Passwort nötig.")
                     !epgOk -> err = Lang.tr("Ungültige Adresse.")
-                    else -> onSave(name, url, epg)
+                    else -> onSave(name, url, PresetLogic.joinUrls(list.distinct()))
                 }
             }
             PillButton("Abbrechen") { onCancel() }
@@ -1082,6 +1120,12 @@ private fun PlaylistPage(ctx: Context, onAdd: () -> Unit, reload: () -> Unit) {
         ) {
             Column(Modifier.weight(1f)) {
                 Text(pl.name + if (isActive) "  ·  aktiv" else "", color = if (isActive) Accent2 else Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                // Art und EPG-Quellen auf einen Blick
+                val nEpg = PresetLogic.parseUrls(pl.epg).size
+                Text(raw = true,
+                    text = (if (LoadLogic.xtreamParts(pl.url) != null) "Xtream" else "M3U") + "  ·  " +
+                        (if (nEpg == 0) Lang.tr("EPG vom Anbieter") else "$nEpg " + Lang.tr("EPG-Quellen") + " + " + Lang.tr("Anbieter")),
+                    color = Muted, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             if (!isActive) SmallPill("Aktivieren") {
                 PlaylistStore.activate(ctx, i)
