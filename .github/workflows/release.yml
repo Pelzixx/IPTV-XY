@@ -60,7 +60,7 @@ jobs:
       - run: chmod +x gradlew
 
       - name: Unit-Tests
-        run: ./gradlew --no-daemon testReleaseUnitTest
+        run: ./gradlew --no-daemon testDebugUnitTest
 
       - name: Release-APK bauen
         run: ./gradlew --no-daemon assembleRelease
