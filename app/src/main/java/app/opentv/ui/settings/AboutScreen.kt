@@ -122,45 +122,13 @@ fun AboutScreen(onBack: () -> Unit) {
 
         Spacer(Modifier.height(16.dp))
 
-        Section(stringResource(R.string.about_built_open_title)) {
+        // XY IPTV basiert auf OpenTV (GPL-3.0): Herkunft nennen (Lizenzpflicht), keine Spendenlinks des Originalprojekts
+        Section(stringResource(R.string.about_based_on_title)) {
             Text(
-                stringResource(R.string.about_built_open_body),
+                stringResource(R.string.about_based_on_body),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        Section(stringResource(R.string.about_support_title)) {
-            Text(
-                stringResource(R.string.about_support_body),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(12.dp))
-            LinkLine(stringResource(R.string.about_sponsor_github), "github.com/sponsors/legionnaireneyland")
-            Spacer(Modifier.height(12.dp))
-            LinkLine(
-                stringResource(R.string.about_donate_paypal),
-                "leetobin1982@gmail.com",
-                url = "https://www.paypal.com/donate/?business=leetobin1982@gmail.com&item_name=Support+OpenTV&no_recurring=0&currency_code=GBP",
-            )
-            Spacer(Modifier.height(12.dp))
-            val donateQr = remember { QrCodes.render("https://github.com/sponsors/legionnaireneyland", 400) }
-            donateQr?.let { bmp ->
-                Image(
-                    bitmap = bmp.asImageBitmap(),
-                    contentDescription = stringResource(R.string.about_scan_to_donate),
-                    modifier = Modifier.size(180.dp).clip(RoundedCornerShape(8.dp)),
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    stringResource(R.string.about_scan_to_donate),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
         }
 
         Spacer(Modifier.height(16.dp))
@@ -172,8 +140,6 @@ fun AboutScreen(onBack: () -> Unit) {
                 url = "https://www.gnu.org/licenses/gpl-3.0.html",
             )
             LinkLine(stringResource(R.string.about_source_code), "github.com/opentvproject/opentv")
-            LinkLine(stringResource(R.string.about_report_bug), "github.com/opentvproject/opentv/issues")
-            LinkLine(stringResource(R.string.about_install_page), "opentvproject.github.io/opentv")
         }
     }
 }

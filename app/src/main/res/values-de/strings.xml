@@ -436,4 +436,20 @@
     <string name="settings_tmdb_save">Schlüssel speichern</string>
     <string name="settings_tmdb_saved">TMDB-Schlüssel gespeichert</string>
     <string name="settings_tmdb_active">Aktiv</string>
+    <string name="about_based_on_title">Basiert auf OpenTV</string>
+    <string name="about_based_on_body">XY IPTV basiert auf OpenTV, einem freien IPTV-Player der OpenTV-Mitwirkenden, lizenziert unter der GNU GPL v3. Den Quellcode von XY IPTV gibt es auf Anfrage.</string>
+    <string name="nav_home">Start</string>
+    <string name="info_welcome">Willkommen bei XY IPTV</string>
+    <string name="info_subtitle">Dein Zugang, Mitteilungen und Angebote auf einen Blick</string>
+    <string name="info_access_title">Mein Zugang</string>
+    <string name="info_no_source">Noch kein Anbieter eingerichtet.</string>
+    <string name="info_add_source">Anbieter hinzufügen</string>
+    <string name="info_checking">Wird abgefragt …</string>
+    <string name="info_no_details">Für diese Art Anbieter gibt es keine Zugangsdaten</string>
+    <string name="info_unlimited">Unbegrenzt</string>
+    <string name="info_expired">Abgelaufen</string>
+    <string name="info_active_until">Aktiv bis %1$s</string>
+    <string name="info_expires_in">Läuft in %1$d Tagen ab</string>
+    <string name="info_days_left">noch %1$d Tage</string>
+    <string name="info_connections">Verbindungen: %1$d von %2$d</string>
 </resources>

@@ -503,4 +503,20 @@
     <string name="settings_tmdb_save">Save key</string>
     <string name="settings_tmdb_saved">TMDB key saved</string>
     <string name="settings_tmdb_active">Active</string>
+    <string name="about_based_on_title">Based on OpenTV</string>
+    <string name="about_based_on_body">XY IPTV is based on OpenTV, a free, open-source IPTV player by The OpenTV Contributors, licensed under the GNU GPL v3. The source code of XY IPTV is available on request.</string>
+    <string name="nav_home">Home</string>
+    <string name="info_welcome">Welcome to XY IPTV</string>
+    <string name="info_subtitle">Your access, news and offers at a glance</string>
+    <string name="info_access_title">My access</string>
+    <string name="info_no_source">No provider added yet.</string>
+    <string name="info_add_source">Add provider</string>
+    <string name="info_checking">Checking …</string>
+    <string name="info_no_details">No account details for this kind of provider</string>
+    <string name="info_unlimited">Unlimited</string>
+    <string name="info_expired">Expired</string>
+    <string name="info_active_until">Active until %1$s</string>
+    <string name="info_expires_in">Expires in %1$d days</string>
+    <string name="info_days_left">%1$d days left</string>
+    <string name="info_connections">Connections: %1$d of %2$d</string>
 </resources>

@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FiberManualRecord
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Person
@@ -77,6 +78,8 @@ import app.opentv.ui.vod.SeriesScreen
  * rather than pushing it, so expanding the menu never reflows the guide underneath.
  */
 enum class Tab(val labelRes: Int, val icon: ImageVector) {
+    /** XY IPTV: Info-Startseite (Zugang, Mitteilungen/Angebote, QR-Code). */
+    HOME(R.string.nav_home, Icons.Filled.Home),
     LIVE(R.string.nav_live_tv, Icons.Filled.LiveTv),
     MOVIES(R.string.nav_movies, Icons.Filled.Movie),
     SHOWS(R.string.nav_shows, Icons.Filled.Tv),
@@ -114,6 +117,7 @@ fun MainScreen(
     val seriesEnabled by settings.seriesEnabled.collectAsState()
     val visibleTabs = remember(liveEnabled, moviesEnabled, seriesEnabled) {
         buildList {
+            add(Tab.HOME)
             if (liveEnabled) add(Tab.LIVE)
             if (moviesEnabled) add(Tab.MOVIES)
             if (seriesEnabled) add(Tab.SHOWS)
@@ -173,6 +177,7 @@ fun MainScreen(
 
         Box(Modifier.weight(1f).fillMaxHeight()) {
             when (tab) {
+                Tab.HOME -> app.opentv.ui.info.InfoHomeScreen(hasSources = hasSources, onAddSource = onAddSource)
                 Tab.LIVE -> HomeScreen(
                     isTelevision = isTelevision,
                     hasSources = hasSources,
@@ -281,28 +286,16 @@ private fun NavRail(
             .padding(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        // Brand: the logo mark alone when collapsed, the mark + "OpenTV" wordmark when open. The
-        // name stays on purpose — it's what people search for.
-        Row(
-            Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        // XY IPTV: Logo (enthält den Namen), eingeklappt klein, aufgeklappt groß und mittig
+        Box(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+            contentAlignment = Alignment.Center,
         ) {
             Image(
-                painter = painterResource(R.drawable.ic_opentv_logo),
-                contentDescription = "OpenTV",
-                modifier = Modifier.size(34.dp),
+                painter = painterResource(R.drawable.ic_xy_logo),
+                contentDescription = "XY IPTV",
+                modifier = Modifier.size(if (expanded) 96.dp else 44.dp),
             )
-            if (expanded) {
-                Spacer(Modifier.width(12.dp))
-                Text(
-                    "OpenTV",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
         }
         Spacer(Modifier.height(8.dp))
 
