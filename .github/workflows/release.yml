@@ -1,7 +1,10 @@
 # Neue Version veröffentlichen: GitHub > Actions > "Release" > "Run workflow", Versionsnummer eintragen.
-# Baut die signierte APK und legt ein GitHub-Release mit iptv-xy.apk und update.json an.
-# Die App sucht ihre Updates unter .../releases/latest/download/update.json,
-# der Downloader-Code zeigt auf .../releases/latest/download/iptv-xy.apk.
+# Baut die signierte APK und legt im ÖFFENTLICHEN Repo Pelzixx/IPTV-XY-Releases ein Release mit
+# iptv-xy.apk und update.json an (der Code selbst liegt im privaten Repo; Downloads aus privaten Repos
+# gehen nur mit Anmeldung). Im Code-Repo wird nur der Tag vX.Y gesetzt.
+# Die App sucht ihre Updates unter .../IPTV-XY-Releases/releases/latest/download/update.json,
+# der Downloader-Code zeigt auf .../IPTV-XY-Releases/releases/latest/download/iptv-xy.apk.
+# Secret RELEASES_TOKEN: fein granularer Token mit "Contents: Read and write" nur für IPTV-XY-Releases.
 name: Release
 
 on:
@@ -27,6 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VERSION_NAME: ${{ inputs.version }}
+      RELEASES_REPO: Pelzixx/IPTV-XY-Releases
       KEYSTORE_FILE: ${{ github.workspace }}/release.jks
       KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
       # Fest eingebaute Server und EPG-Quellen (optional), siehe Presets.kt
@@ -36,13 +40,18 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Versionsnummer prüfen
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Secret RELEASES_TOKEN fehlt (Token mit Schreibrecht auf $RELEASES_REPO)"; exit 1
+          fi
           # versionCode muss bei jeder Version steigen: 100 + laufende Nummer dieses Workflows
           echo "VERSION_CODE=$((100 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
           if ! [[ "$VERSION_NAME" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]]; then
             echo "::error::Versionsnummer bitte im Format 1.1 oder 1.1.0 angeben"; exit 1
           fi
-          if git ls-remote --exit-code --tags origin "v$VERSION_NAME" >/dev/null; then
+          if git ls-remote --exit-code --tags origin "v$VERSION_NAME" >/dev/null || gh release view "v$VERSION_NAME" -R "$RELEASES_REPO" >/dev/null 2>&1; then
             echo "::error::Version v$VERSION_NAME gibt es schon"; exit 1
           fi
 
@@ -81,14 +90,19 @@ jobs:
             '{versionCode: $code, versionName: $name, apk: "iptv-xy.apk", notes: $notes}' > dist/update.json
           cat dist/update.json
 
-      - name: GitHub-Release anlegen
+      - name: GitHub-Release im öffentlichen Repo anlegen
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
           NOTES: ${{ inputs.notes }}
         run: |
           gh release create "v$VERSION_NAME" dist/iptv-xy.apk dist/update.json \
-            --target "$GITHUB_SHA" --title "IPTV-XY $VERSION_NAME" \
-            --notes "${NOTES:-Neue Version $VERSION_NAME}"$'\n\nInstallation auf dem Fire TV: siehe README.'
+            -R "$RELEASES_REPO" --title "IPTV-XY $VERSION_NAME" \
+            --notes "${NOTES:-Neue Version $VERSION_NAME}"
+
+      - name: Tag im Code-Repo setzen
+        run: |
+          git tag "v$VERSION_NAME" "$GITHUB_SHA"
+          git push origin "v$VERSION_NAME"
 
       - name: Schlüssel entfernen
         if: always()
