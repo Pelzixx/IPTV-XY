@@ -24,17 +24,32 @@ android {
         applicationId = "com.pelzixx.iptvxy"
         minSdk = 24
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        // Release-Builds der GitHub-Action setzen Versionsnummer und -namen (siehe .github/workflows/release.yml)
+        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
+        versionName = System.getenv("VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "1.0"
 
         buildConfigField("String", "TMDB_KEY", "\"${secret("TMDB_KEY")}\"")
         buildConfigField("String", "OMDB_KEY", "\"${secret("OMDB_KEY")}\"")
     }
 
+    // Signaturschlüssel für Releases kommt aus den GitHub-Secrets. Fehlt er (lokaler Build), bleibt die Release-APK unsigniert.
+    // Updates lassen sich nur installieren, wenn sie mit demselben Schlüssel signiert sind wie die installierte App.
+    val keystoreFile = System.getenv("KEYSTORE_FILE")?.let { file(it) }?.takeIf { it.exists() }
+    signingConfigs {
+        if (keystoreFile != null) create("release") {
+            storeFile = keystoreFile
+            storePassword = System.getenv("KEYSTORE_PASSWORD")
+            keyAlias = "iptvxy"
+            keyPassword = System.getenv("KEYSTORE_PASSWORD")
+        }
+    }
+
     buildTypes {
         release {
+            if (keystoreFile != null) signingConfig = signingConfigs.getByName("release")
             optimization {
-                enable = true
+                // Aus, bis die verkleinerte Release-Version auf einem Gerät getestet ist (R8 kann per Reflexion genutzte Klassen entfernen)
+                enable = false
                 packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
             }
         }

@@ -8,6 +8,18 @@ A free, open-source IPTV player for **Android TV, Google TV and Amazon Fire TV**
 
 > **IPTV-XY does not provide any content.** It contains no channels, playlists, films or series. It is only a player for playlists that **you** add yourself (Xtream Codes login or M3U address). Only use sources that you are legally allowed to use.
 
+## Installation on Fire TV / Android TV
+
+**Downloader code: _(follows)_**
+
+1. Install the free app **Downloader** (by AFTVnews) from the Amazon Appstore or Google Play.
+2. Allow Downloader to install apps: Fire TV *Settings > My Fire TV > Developer options > Install unknown apps > Downloader: On*.
+3. Open Downloader, enter the code above (or the address below) and press *Go*. Install the APK.
+
+Direct link to the latest version: https://github.com/Pelzixx/IPTV-XY/releases/latest/download/iptv-xy.apk
+
+**Updates:** in the app under *Settings > About > App update > Check for update*. The first time, Android asks once to allow IPTV-XY to install apps.
+
 ## Features
 
 **Playlists**

@@ -1,0 +1,92 @@
+# Neue Version veröffentlichen: GitHub > Actions > "Release" > "Run workflow", Versionsnummer eintragen.
+# Baut die signierte APK und legt ein GitHub-Release mit iptv-xy.apk und update.json an.
+# Die App sucht ihre Updates unter .../releases/latest/download/update.json,
+# der Downloader-Code zeigt auf .../releases/latest/download/iptv-xy.apk.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versionsnummer, z. B. 1.1"
+        required: true
+      notes:
+        description: "Was ist neu? (wird in der App beim Update angezeigt)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      VERSION_NAME: ${{ inputs.version }}
+      # Muss bei jeder Version steigen; 100 + laufende Nummer dieses Workflows
+      VERSION_CODE: ${{ 100 + github.run_number }}
+      KEYSTORE_FILE: ${{ github.workspace }}/release.jks
+      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Versionsnummer prüfen
+        run: |
+          if ! [[ "$VERSION_NAME" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]]; then
+            echo "::error::Versionsnummer bitte im Format 1.1 oder 1.1.0 angeben"; exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "v$VERSION_NAME" >/dev/null; then
+            echo "::error::Version v$VERSION_NAME gibt es schon"; exit 1
+          fi
+
+      - name: Signaturschlüssel einrichten
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "::error::Secrets KEYSTORE_BASE64 und KEYSTORE_PASSWORD fehlen (Settings > Secrets and variables > Actions)"; exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_FILE"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - run: chmod +x gradlew
+
+      - name: Unit-Tests
+        run: ./gradlew --no-daemon testReleaseUnitTest
+
+      - name: Release-APK bauen
+        run: ./gradlew --no-daemon assembleRelease
+
+      - name: Signatur prüfen und Dateien vorbereiten
+        env:
+          NOTES: ${{ inputs.notes }}
+        run: |
+          APK=app/build/outputs/apk/release/app-release.apk
+          test -f "$APK" || { echo "::error::Signierte APK fehlt"; ls -R app/build/outputs/apk; exit 1; }
+          "$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner" verify --print-certs "$APK" | grep -i 'SHA-256'
+          mkdir -p dist
+          cp "$APK" dist/iptv-xy.apk
+          jq -n --argjson code "$VERSION_CODE" --arg name "$VERSION_NAME" --arg notes "$NOTES" \
+            '{versionCode: $code, versionName: $name, apk: "iptv-xy.apk", notes: $notes}' > dist/update.json
+          cat dist/update.json
+
+      - name: GitHub-Release anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NOTES: ${{ inputs.notes }}
+        run: |
+          gh release create "v$VERSION_NAME" dist/iptv-xy.apk dist/update.json \
+            --target "$GITHUB_SHA" --title "IPTV-XY $VERSION_NAME" \
+            --notes "${NOTES:-Neue Version $VERSION_NAME}"$'\n\nInstallation auf dem Fire TV: siehe README.'
+
+      - name: Schlüssel entfernen
+        if: always()
+        run: rm -f "$KEYSTORE_FILE"
