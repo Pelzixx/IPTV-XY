@@ -101,7 +101,9 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     var ask by remember { mutableStateOf<NameAsk?>(null) }
     // Gruppenliste links: offen, solange man dort ist; beim Durchblättern der Sender eingeklappt (mehr Platz fürs Programm).
     // Links auf einem Sender klappt sie wieder auf.
-    var catOpen by remember { mutableStateOf(restoreId == null) }
+    // Runde 20: Start mit dem Fokus auf den Sendern (Gruppen zu), wie bei TV-Playern; Links öffnet die Gruppen
+    var catOpen by remember { mutableStateOf(false) }
+    val catSelReq = remember { FocusRequester() }
     var catFocusReq by remember { mutableIntStateOf(0) }
     val catW by androidx.compose.animation.core.animateDpAsState(
         if (catOpen) 270.dp else 0.dp,
@@ -111,7 +113,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
         if (catFocusReq == 0) return@LaunchedEffect
         repeat(10) {
             kotlinx.coroutines.delay(40)
-            if (runCatching { ContentFocus.req.requestFocus() }.isSuccess) return@LaunchedEffect
+            if (runCatching { catSelReq.requestFocus() }.isSuccess) return@LaunchedEffect
         }
     }
     SideEffect { ContentFocus.tab = 3 }
@@ -191,7 +193,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                     Box {
                         CatRow(
                             label, count, n == sel,
-                            if (n == sel) Modifier.focusRequester(ContentFocus.req) else Modifier,
+                            if (n == sel) Modifier.focusRequester(catSelReq).then(if (list.isEmpty()) Modifier.focusRequester(ContentFocus.req) else Modifier) else Modifier,
                             onFocus = { sel = n }, onRight = { runCatching { firstChan.requestFocus() } },
                             onFav = { if (ml != null) listMenu = true else if (n != FAV_CAT && n != "ALL" && n != HIDDEN_CAT) CatFavs.toggle(ctx, n) },
                             icon = icon, raw = ml != null
@@ -247,7 +249,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                     // In eigenen Listen wandert der Fokus beim Verschieben mit dem Sender mit (Schlüssel = Sender)
                     itemsIndexed(list, key = if (curList != null) { _, ch -> ch.id } else null) { i, ch ->
                         ChannelLine(
-                            ch, ws, nowSec, (if (i == 0) Modifier.focusRequester(firstChan) else Modifier)
+                            ch, ws, nowSec, (if (i == 0) Modifier.focusRequester(firstChan).focusRequester(ContentFocus.req) else Modifier)
                                 .then(if (ch.id == restoreId) Modifier.focusRequester(restoreReq) else Modifier), curList,
                             onNewList = { newList(ch.id) },
                             onRename = { ask = NameAsk("Sender umbenennen", ChannelEdit.title(ch)) { ChannelEdit.rename(ctx, ch.id, it) } },
@@ -370,7 +372,7 @@ private fun ChannelLine(
     // Markiert = hellere Fläche (kein Vergrößern, kein Schatten).
     // TV-Stil: markierte Zeile mit hellem Rahmen um Sender und Programm, Sendername in der Hervorhebungsfarbe
     Row(
-        modifier.fillMaxWidth().height(52.dp)
+        modifier.fillMaxWidth().height(46.dp)
             .border(2.dp, if (f) TvFocusFill else Color.Transparent, RoundedCornerShape(DS.RadiusXs))
             .padding(2.dp)
             .onFocusChanged { f = it.isFocused; if (it.isFocused) onFocus() }
@@ -386,11 +388,11 @@ private fun ChannelLine(
             Modifier.width(CH_W).fillMaxHeight().padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Box(Modifier.size(width = 60.dp, height = 36.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(width = 54.dp, height = 32.dp), contentAlignment = Alignment.Center) {
                 if (item.logo != null) AsyncImage(item.logo, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                 else Text(raw = true, text = item.title.take(2).uppercase(), color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
-            Text(raw = true, text = ChannelEdit.title(item), color = if (f) Accent2 else Color.White, fontSize = 18.sp, fontWeight = FontWeight.Medium,
+            Text(raw = true, text = ChannelEdit.title(item), color = if (f) Accent2 else Color.White, fontSize = 17.sp, fontWeight = FontWeight.Normal,
                 maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             if (Library.isFav(item.id)) AppIcon(AIcon.Star, DS.Gold, size = 14.dp)
             if (Catchup.version >= 0 && Catchup.has(item)) AppIcon(AIcon.Catchup, Accent2, size = 14.dp)
@@ -417,7 +419,7 @@ private fun ChannelLine(
                         .padding(horizontal = 14.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
-                    Text(raw = true, text = e.title, color = if (lit) DS.FocusInk else if (running) Color.White else Tok.TextMid, fontSize = 17.sp,
+                    Text(raw = true, text = e.title, color = if (lit) DS.FocusInk else if (running) Color.White else Tok.TextMid, fontSize = 16.sp,
                         maxLines = 1, overflow = TextOverflow.Clip)
                 }
             }

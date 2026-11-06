@@ -298,7 +298,8 @@ fun HomeScreen(
     LaunchedEffect(Unit) {
         if (AppNav.focusTab == tab && LastFocus.pending == null) {
             AppNav.focusTab = -1
-            repeat(10) {
+            // Beim App-Start lädt die Senderliste noch: länger versuchen (bis 6 s), sonst bleibt der Fokus in der Seitenleiste
+            repeat(40) {
                 delay(150)
                 if (runCatching { ContentFocus.req.requestFocus() }.isSuccess) return@LaunchedEffect
             }

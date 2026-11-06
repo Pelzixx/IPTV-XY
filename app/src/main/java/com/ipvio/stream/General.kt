@@ -125,7 +125,13 @@ object General {
         sys24 = android.text.format.DateFormat.is24HourFormat(c)
         // Neue Schriftliste (Runde 17): eigener Schlüssel. Wer früher eine andere Systemschrift als „Standard“ gewählt hatte, behält sie.
         fontIdx = if (p.contains("font2")) p.getInt("font2", 0).coerceIn(0, FONTS.lastIndex)
-            else p.getInt("font", 0).let { old -> if (old in 1..4) old + 2 else 0 }
+            else p.getInt("font", 0).let { old -> if (old in 1..4) old + 2 else 2 }
+        // Einmalig (Runde 20): Standard ist die Systemschrift des Geräts (auf Android TV Roboto) statt Outfit – schlichter,
+        // wie man es von TV-Playern kennt. Eine bewusst gewählte andere Schrift bleibt.
+        if (p.getInt("font_ver", 1) < 2) {
+            if (fontIdx == 0) fontIdx = 2
+            p.edit().putInt("font_ver", 2).putInt("font2", fontIdx).apply()
+        }
         textScaleIdx = p.getInt("text_scale", 1).coerceIn(0, TEXT_SCALES.lastIndex)
         defaultAspect = p.getInt("aspect", 0).coerceIn(0, ASPECT_NAMES.lastIndex)
         heroSec = p.getInt("hero_sec", 9).coerceIn(0, 60)

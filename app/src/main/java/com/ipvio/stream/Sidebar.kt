@@ -131,8 +131,9 @@ fun MenuIcon(id: Int, color: Color, modifier: Modifier = Modifier) {
 }
 
 // Seitenleiste (Runde 14): eingeklappt nur Symbole (immer sichtbar), mit Fokus klappt sie über den Inhalt auf und zeigt die Texte
-private val SidebarBg: Color get() = lerp(Look.bg, Color.Black, 0.25f)
-private val SidebarInk = Color(0xFFCFCFD6)
+// Runde 20: heller als der Inhalt (wie bei TV-Playern üblich), neutral grau
+private val SidebarBg: Color get() = Look.surf
+private val SidebarInk = Color(0xFFA9AEB4)
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -166,7 +167,7 @@ fun Sidebar(tab: Int, onTab: (Int) -> Unit, modifier: Modifier, activeFocus: Foc
         ) {
             // Logo mittig über die ganze Breite: eingeklappt so breit wie die Leiste, aufgeklappt groß.
             // Feste Höhe, damit die Menüpunkte beim Aufklappen nicht springen.
-            Box(Modifier.fillMaxWidth().height(dpx(130)), contentAlignment = Alignment.Center) { BrandMark(Modifier.fillMaxSize()) }
+            Box(Modifier.fillMaxWidth().height(dpx(130)), contentAlignment = Alignment.Center) { BrandMark(Modifier.size(if (expanded) dpx(96) else dpx(52))) }
             Spacer(Modifier.height(dpx(20)))
             Column(verticalArrangement = Arrangement.spacedBy(dpx(10))) {
                 visible.forEach { id ->
@@ -199,12 +200,12 @@ private fun SideItem(id: Int, label: String, active: Boolean, expanded: Boolean,
     var f by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(dpx(12))
     // Aktiv: Symbol in der Designfarbe auf getönter Fläche. Fokus: weiße Fläche, dunkle Schrift (eindeutig „markiert“).
-    val ink = if (f) DS.FocusInk else if (active) Accent1 else SidebarInk
+    val ink = if (f) DS.FocusInk else if (active) Color.White else SidebarInk
     Row(
         modifier.fillMaxWidth().height(dpx(56)).clip(shape)
             .background(
                 if (f) SolidColor(DS.FocusFill)
-                else if (active) SolidColor(Accent1.copy(alpha = .16f))
+                else if (active) SolidColor(Color(0x1FFFFFFF))
                 else SolidColor(Color.Transparent)
             )
             .onFocusChanged { f = it.isFocused }

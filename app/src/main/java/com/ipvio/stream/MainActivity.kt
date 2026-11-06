@@ -179,7 +179,9 @@ private fun AppContent() {
     var browse by remember { mutableStateOf<BrowseState?>(null) }
     var cats by remember { mutableStateOf<CatReq?>(null) }
     var playing by remember { mutableStateOf<PlayReq?>(null) }
-    var tab by remember { mutableStateOf(SettingsLogic.resolveStartTab(General.startTab, AppSettings.menuOrder.toList(), AppSettings.menuHidden.toList())) }
+    // Start-Bereich (Standard: TV). Runde 20: beim Start bekommt der Inhalt den Fokus (nicht die Seitenleiste)
+    val startTab = SettingsLogic.resolveStartTab(General.startTab, AppSettings.menuOrder.toList(), AppSettings.menuHidden.toList())
+    var tab by remember { mutableStateOf(startTab.also { AppNav.focusTab = it }) }
     val gridState = remember(browse) { LazyGridState() }
     val states = listOf(
         rememberLazyListState(), rememberLazyListState(), rememberLazyListState(),
@@ -200,10 +202,10 @@ private fun AppContent() {
     // Nach der Home-Taste zurück in der App: zur Startseite (eine laufende Wiedergabe und das Hinzufügen bleiben, wie sie sind)
     LaunchedEffect(AppNav.homeSignal) {
         if (AppNav.homeSignal > 0 && playing == null && !adding) {
-            val changed = top != null || browse != null || cats != null || tab != 0
+            val changed = top != null || browse != null || cats != null || tab != startTab
             top = null; trail.clear(); browse = null; cats = null
-            if (changed) AppNav.focusTab = 0
-            if (tab != 0) { tab = 0; CatMemory.reset() }
+            if (changed) AppNav.focusTab = startTab
+            if (tab != startTab) { tab = startTab; CatMemory.reset() }
         }
     }
 
