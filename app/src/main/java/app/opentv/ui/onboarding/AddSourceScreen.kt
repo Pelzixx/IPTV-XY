@@ -6,6 +6,15 @@
 package app.opentv.ui.onboarding
 
 import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -169,25 +178,55 @@ fun AddSourceScreen(
 
             Spacer(Modifier.height(24.dp))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                FilterChip(
-                    selected = kind == SourceKind.XTREAM,
-                    onClick = { kind = SourceKind.XTREAM },
-                    label = { Text(stringResource(R.string.onboarding_xtream_login)) },
-                )
-                FilterChip(
-                    selected = kind == SourceKind.M3U,
-                    onClick = { kind = SourceKind.M3U },
-                    label = { Text(stringResource(R.string.onboarding_m3u_url)) },
-                )
-                FilterChip(
-                    selected = kind == SourceKind.STALKER,
-                    onClick = { kind = SourceKind.STALKER },
-                    label = { Text(stringResource(R.string.onboarding_stalker_portal)) },
-                )
+            // XY IPTV: zuerst den Server wählen – große Kacheln, mit der Fernbedienung gut erreichbar.
+            // Die Adresse wird bei festen Servern nie angezeigt; „Eigener Server“ öffnet die freie Eingabe.
+            if (presets.isNotEmpty()) {
+                Text(stringResource(R.string.xy_choose_server), style = MaterialTheme.typography.titleLarge)
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    presets.forEachIndexed { i, p ->
+                        ServerTile(
+                            title = p.name,
+                            selected = kind == SourceKind.XTREAM && preset == i,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            // Name mitwechseln, solange er noch der eines festen Servers (oder leer) ist
+                            if (name.isBlank() || presets.any { it.name.equals(name.trim(), ignoreCase = true) }) name = p.name
+                            kind = SourceKind.XTREAM; preset = i
+                        }
+                    }
+                    ServerTile(
+                        title = stringResource(R.string.xy_own_server),
+                        selected = !usePreset,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        if (presets.any { it.name.equals(name.trim(), ignoreCase = true) }) name = ""
+                        preset = -1
+                    }
+                }
+                Spacer(Modifier.height(20.dp))
             }
 
-            Spacer(Modifier.height(20.dp))
+            if (!usePreset) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    FilterChip(
+                        selected = kind == SourceKind.XTREAM,
+                        onClick = { kind = SourceKind.XTREAM },
+                        label = { Text(stringResource(R.string.onboarding_xtream_login)) },
+                    )
+                    FilterChip(
+                        selected = kind == SourceKind.M3U,
+                        onClick = { kind = SourceKind.M3U },
+                        label = { Text(stringResource(R.string.onboarding_m3u_url)) },
+                    )
+                    FilterChip(
+                        selected = kind == SourceKind.STALKER,
+                        onClick = { kind = SourceKind.STALKER },
+                        label = { Text(stringResource(R.string.onboarding_stalker_portal)) },
+                    )
+                }
+                Spacer(Modifier.height(16.dp))
+            }
 
             OutlinedTextField(
                 value = name,
@@ -197,18 +236,6 @@ fun AddSourceScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(12.dp))
-
-            if (kind == SourceKind.XTREAM && presets.isNotEmpty()) {
-                Text(stringResource(R.string.xy_choose_server), style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    presets.forEachIndexed { i, p ->
-                        FilterChip(selected = preset == i, onClick = { preset = i }, label = { Text(p.name) })
-                    }
-                    FilterChip(selected = preset < 0, onClick = { preset = -1 }, label = { Text(stringResource(R.string.xy_own_server)) })
-                }
-                Spacer(Modifier.height(12.dp))
-            }
 
             if (!usePreset) {
             OutlinedTextField(
@@ -384,5 +411,34 @@ private fun PasteButton(onPaste: (String) -> Unit) {
         },
     ) {
         Icon(Icons.Filled.ContentPaste, contentDescription = stringResource(R.string.kbd_paste))
+    }
+}
+
+/** Große, fokussierbare Kachel für die Serverauswahl (Fernbedienung: Fokus = Rahmen, gewählt = gefüllt). */
+@Composable
+private fun ServerTile(title: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(14.dp)
+    val cs = MaterialTheme.colorScheme
+    Column(
+        modifier
+            .height(84.dp)
+            .clip(shape)
+            .background(if (selected) cs.primary else cs.surfaceVariant)
+            .border(3.dp, if (focused) cs.onSurface else Color.Transparent, shape)
+            .onFocusChanged { focused = it.isFocused }
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        if (selected) Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = cs.onPrimary)
+        Text(
+            title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = if (selected) cs.onPrimary else cs.onSurface,
+            maxLines = 1,
+        )
     }
 }

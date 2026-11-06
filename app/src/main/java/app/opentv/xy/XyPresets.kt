@@ -52,7 +52,8 @@ object XyPresets {
             for (s in graph.sourceRepository.enabled()) {
                 if (s.kind != SourceKind.XTREAM) continue
                 val target = list.firstOrNull { it.name.equals(s.name.trim(), ignoreCase = true) } ?: continue
-                if (XyPresetLogic.sameHost(target.url, s.url)) continue
+                // Bewusst auf einen anderen festen Server umgestellt: nicht zurücksetzen
+                if (list.any { XyPresetLogic.sameHost(it.url, s.url) }) continue
                 graph.sourceRepository.save(s.copy(url = target.url))
             }
         }
