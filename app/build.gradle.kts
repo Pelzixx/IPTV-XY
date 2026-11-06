@@ -37,6 +37,7 @@ android {
         buildConfigField("String", "OMDB_KEY", "\"${secret("OMDB_KEY")}\"")
         buildConfigField("String", "PRESET_SERVERS", "\"${presetText("PRESET_SERVERS")}\"")
         buildConfigField("String", "PRESET_EPG", "\"${presetText("PRESET_EPG")}\"")
+        buildConfigField("String", "PRESET_CONFIG_URL", "\"${presetText("PRESET_CONFIG_URL")}\"")
     }
 
     // Signaturschlüssel für Releases kommt aus den GitHub-Secrets. Fehlt er (lokaler Build), bleibt die Release-APK unsigniert.

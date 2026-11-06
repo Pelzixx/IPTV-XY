@@ -260,6 +260,24 @@ object PlaylistStore {
         runCatching { pending(c)?.let { writePending(c, it.copy(state = LoadLogic.FAILED, msg = msg)) } }
     }
 
+    /** Server umgezogen (Fernkonfiguration): gespeicherte Playlists auf die neue Adresse umstellen, die aktive neu laden. */
+    suspend fun retarget(c: Context, old: List<PresetServer>, new: List<PresetServer>) {
+        val reload = withContext(Dispatchers.Main) {
+            ensure(c)
+            var activeUrl: String? = null
+            var changed = false
+            for (i in lists.indices) {
+                val nu = PresetLogic.retarget(lists[i].url, lists[i].name, old, new) ?: continue
+                lists[i] = PL(lists[i].name, nu)
+                changed = true
+                if (i == active) activeUrl = nu
+            }
+            if (changed) persist(c)
+            activeUrl
+        }
+        if (reload != null && !loading) withContext(Dispatchers.Main) { load(c, reload, false) }
+    }
+
     /** Name einer neuen Playlist ohne Server-Adresse: Name des fest eingebauten Servers, sonst „Playlist 1“, „Playlist 2“ … */
     fun displayName(url: String, index: Int): String {
         val host = LoadLogic.xtreamParts(url)?.first

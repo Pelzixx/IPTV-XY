@@ -1,5 +1,13 @@
 package com.ipvio.stream
 
+import android.content.Context
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.Request
+
 /** Ein fest eingebauter Xtream-Server: angezeigter Name und Adresse (z. B. http://server.tld:8080). */
 data class PresetServer(val name: String, val url: String)
 
@@ -9,9 +17,46 @@ data class PresetServer(val name: String, val url: String)
  * Ohne Werte verhält sich die App wie bisher (freie Eingabe von M3U-Link oder Xtream-Server).
  */
 object Presets {
-    val servers: List<PresetServer> by lazy { PresetLogic.parseServers(BuildConfig.PRESET_SERVERS) }
-    val epg: List<String> by lazy { PresetLogic.parseUrls(BuildConfig.PRESET_EPG) }
+    private val builtServers: List<PresetServer> by lazy { PresetLogic.parseServers(BuildConfig.PRESET_SERVERS) }
+    private val builtEpg: List<String> by lazy { PresetLogic.parseUrls(BuildConfig.PRESET_EPG) }
+    /** Zuletzt geladene Fernkonfiguration (config.json, Adresse aus dem Secret PRESET_CONFIG_URL) oder null. */
+    private var remote by mutableStateOf<RemoteConfig?>(null)
+
+    /** Server: aus der Fernkonfiguration, sonst fest eingebaut. */
+    val servers: List<PresetServer> get() = remote?.servers?.takeIf { it.isNotEmpty() } ?: builtServers
+    /** EPG-Quellen: aus der Fernkonfiguration, sonst fest eingebaut. */
+    val epg: List<String> get() = remote?.epg?.takeIf { it.isNotEmpty() } ?: builtEpg
+
+    private fun prefs(c: Context) = c.getSharedPreferences("ipvio_config", Context.MODE_PRIVATE)
+
+    /** Beim Start: zuletzt geladene Fernkonfiguration sofort verwenden (ohne Netz). */
+    fun init(c: Context) {
+        if (remote == null) remote = prefs(c).getString("remote", null)?.let { PresetLogic.parseConfig(it) }
+    }
+
+    /**
+     * Fernkonfiguration neu laden. Haben sich Server-Adressen geändert, werden gespeicherte Playlists dieser Server
+     * auf die neue Adresse umgestellt (Benutzername und Passwort bleiben); die aktive wird neu geladen.
+     */
+    suspend fun refresh(c: Context) {
+        val url = BuildConfig.PRESET_CONFIG_URL
+        if (url.isBlank()) return
+        val body = withContext(Dispatchers.IO) {
+            runCatching {
+                Net.base.newCall(Request.Builder().url(url).header("Cache-Control", "no-cache").build()).execute()
+                    .use { if (it.isSuccessful) it.body?.string() else null }
+            }.getOrNull()
+        } ?: return
+        val cfg = PresetLogic.parseConfig(body) ?: return
+        val old = servers
+        prefs(c).edit().putString("remote", body).apply()
+        remote = cfg
+        PlaylistStore.retarget(c, old, servers)
+    }
 }
+
+/** Inhalt von config.json: {"servers":[{"name":"XY TV","url":"http://…:8080"}], "epg":["https://…/epg.xml.gz"]} */
+data class RemoteConfig(val servers: List<PresetServer>, val epg: List<String>)
 
 /** Reine Logik ohne Android (Unit-Tests). */
 object PresetLogic {
@@ -49,6 +94,37 @@ object PresetLogic {
     fun indexOf(host: String, servers: List<PresetServer>): Int {
         val h = normalize(host)?.lowercase() ?: return -1
         return servers.indexOfFirst { it.url.lowercase() == h }
+    }
+
+    /** config.json lesen; null, wenn die Datei kaputt ist (dann bleibt die bisherige Konfiguration). */
+    fun parseConfig(body: String): RemoteConfig? = runCatching {
+        val o = org.json.JSONObject(body)
+        val servers = ArrayList<PresetServer>()
+        o.optJSONArray("servers")?.let { a ->
+            for (i in 0 until a.length()) {
+                val s = a.optJSONObject(i) ?: continue
+                val url = normalize(s.optString("url", "")) ?: continue
+                servers.add(PresetServer(s.optString("name", "").trim().ifEmpty { "Server " + (servers.size + 1) }, url))
+            }
+        }
+        val epg = ArrayList<String>()
+        o.optJSONArray("epg")?.let { a -> for (i in 0 until a.length()) epg.add(a.optString(i, "")) }
+        RemoteConfig(servers, parseUrls(epg.joinToString("\n")))
+    }.getOrNull()
+
+    /**
+     * Neue Adresse einer gespeicherten Xtream-Playlist, wenn ihr Server umgezogen ist, sonst null.
+     * Zuordnung über den Namen der Playlist (= Name des Servers) oder über die bisherige Server-Adresse.
+     */
+    fun retarget(url: String, name: String, old: List<PresetServer>, new: List<PresetServer>): String? {
+        val i = url.indexOf("/get.php")
+        if (i <= 0) return null
+        val host = normalize(url.substring(0, i))?.lowercase() ?: return null
+        val byName = new.firstOrNull { it.name.equals(name.trim(), ignoreCase = true) }
+        val byOld = old.firstOrNull { it.url.lowercase() == host }?.let { o -> new.firstOrNull { it.name.equals(o.name, ignoreCase = true) } }
+        val target = byName ?: byOld ?: return null
+        if (target.url.lowercase() == host) return null
+        return target.url + url.substring(i)
     }
 
     /** Eigene EPG-Adressen werden zeilenweise gespeichert. */

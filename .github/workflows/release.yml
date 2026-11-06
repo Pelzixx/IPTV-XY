@@ -36,6 +36,7 @@ jobs:
       # Fest eingebaute Server und EPG-Quellen (optional), siehe Presets.kt
       PRESET_SERVERS: ${{ secrets.PRESET_SERVERS }}
       PRESET_EPG: ${{ secrets.PRESET_EPG }}
+      PRESET_CONFIG_URL: ${{ secrets.PRESET_CONFIG_URL }}
     steps:
       - uses: actions/checkout@v4
 

@@ -1,5 +1,7 @@
 package com.ipvio.stream
 
+import kotlinx.coroutines.launch
+
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -41,6 +43,9 @@ class MainActivity : ComponentActivity() {
         if (!pick) AppSettings.init(this)
         General.init(this)
         Config.init(this)
+        // Server-Adressen aus der Fernkonfiguration: gespeicherten Stand sofort, frischen im Hintergrund
+        Presets.init(this)
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch { Presets.refresh(applicationContext) }
         // Frischer Start (nicht nur gedrehter/neu erstellter Bildschirm): "Zuletzt Geschautes beim Start fortsetzen" darf wieder greifen.
         // Der Prozess lebt nach Beenden oft weiter; das Merker-Flag blieb deshalb vom ersten Start stehen und nichts wurde mehr geöffnet.
         if (savedInstanceState == null) General.startupHandled = false
