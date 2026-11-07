@@ -1793,18 +1793,47 @@ private fun TmGeneral(ctx: Context) {
         ask = Ask("UDP Proxy (Adresse:Port)", udp, "192.168.1.1:4022") { Tm.set(ctx, Tm.GEN_UDP, it.trim()) }
     })
     ask?.let { a -> TextAskDialog(Lang.tr(a.title), a.initial, a.hint, a.password, onDismiss = { ask = null }) { ask = null; a.onSave(it) } }
-    SettingRow("Daten sichern", msg, rawValue = true, onClick = {
-        scope.launch {
-            val f = withContext(Dispatchers.IO) { Backup.export(ctx) }
-            msg = if (f != null) Lang.tr("Gespeichert") + ": " + f.absolutePath else Lang.tr("Sicherung fehlgeschlagen.")
+    // TiviMate: Sichern auf Gerät oder SMB-Freigabe, Wiederherstellen auch aus einem Link (Dropbox, Google Drive)
+    var backupMenu by remember { mutableIntStateOf(0) }   // 1 = sichern, 2 = wiederherstellen
+    SettingRow("Daten sichern", msg, rawValue = true, onClick = { backupMenu = 1 })
+    SettingRow("Daten wiederherstellen", null, onClick = { backupMenu = 2 })
+    if (backupMenu != 0) {
+        val save = backupMenu == 1
+        val e = ArrayList<SideEntry>()
+        e.add(SideEntry(Lang.tr("Gerätespeicher") + ": " + Backup.file(ctx).absolutePath, raw = true) {
+            scope.launch {
+                if (save) {
+                    val f = withContext(Dispatchers.IO) { Backup.export(ctx) }
+                    msg = if (f != null) Lang.tr("Gespeichert") + ": " + f.absolutePath else Lang.tr("Sicherung fehlgeschlagen.")
+                } else {
+                    val n = withContext(Dispatchers.IO) { Backup.restore(ctx) }
+                    if (n >= 0) Profiles.restart(ctx) else msg = Lang.tr("Keine gültige Sicherung gefunden.")
+                }
+            }
+        })
+        SmbConns.list().forEach { sc ->
+            e.add(SideEntry("SMB: " + sc.name + " · " + sc.url, raw = true) {
+                scope.launch {
+                    if (save) {
+                        val err = withContext(Dispatchers.IO) { BackupRemote.saveToSmb(ctx, sc.url) }
+                        msg = if (err == null) Lang.tr("Gespeichert") + ": " + sc.url + "/ipvio_backup.json" else Lang.tr("Sicherung fehlgeschlagen.") + " " + err
+                    } else {
+                        val n = withContext(Dispatchers.IO) { BackupRemote.loadFromSmb(ctx, sc.url) }
+                        if (n >= 0) Profiles.restart(ctx) else msg = Lang.tr("Keine gültige Sicherung gefunden.")
+                    }
+                }
+            })
         }
-    })
-    SettingRow("Daten wiederherstellen", null, onClick = {
-        scope.launch {
-            val n = withContext(Dispatchers.IO) { Backup.restore(ctx) }
-            if (n >= 0) Profiles.restart(ctx) else msg = Lang.tr("Keine gültige Sicherung gefunden.")
-        }
-    })
+        if (!save) e.add(SideEntry(Lang.tr("Aus Link (Dropbox, Google Drive, URL) …"), raw = true) {
+            ask = Ask("Link zur Sicherung", "https://", "https://www.dropbox.com/…/ipvio_backup.json?dl=0") { u ->
+                scope.launch {
+                    val n = withContext(Dispatchers.IO) { BackupRemote.loadFromLink(ctx, u) }
+                    if (n >= 0) Profiles.restart(ctx) else msg = Lang.tr("Keine gültige Sicherung gefunden.")
+                }
+            }
+        })
+        SideMenu(listOf(SideSection(Lang.tr(if (save) "Daten sichern" else "Daten wiederherstellen"), e)), { backupMenu = 0 })
+    }
     PanelSection(Lang.tr("Start"))
     val tabs = listOf("Start", "Filme", "Serien", "Live TV", "Suche")
     val shown = SettingsLogic.resolveStartTab(General.startTab, AppSettings.menuOrder.toList(), AppSettings.menuHidden.toList())
@@ -2027,6 +2056,7 @@ private fun TmLpList(ctx: Context) {
 @Composable
 private fun TmLpInfo(ctx: Context) {
     ToggleRow("Kartenstil", null, Tm.b(Tm.IF_CARD, false)) { Tm.set(ctx, Tm.IF_CARD, it) }
+    if (Tm.b(Tm.IF_CARD, false)) ToggleRow("Info-Feld unten beim Kanalwechsel anzeigen", null, Tm.b(Tm.IF_BOTTOM, false)) { Tm.set(ctx, Tm.IF_BOTTOM, it) }
     ToggleRow("Zeige die Uhr", null, Tm.b(Tm.IF_CLOCK, true)) { Tm.set(ctx, Tm.IF_CLOCK, it) }
     ToggleRow("Datum neben der Uhr anzeigen", null, Tm.b(Tm.IF_DATE, true)) { Tm.set(ctx, Tm.IF_DATE, it) }
     ToggleRow("Zeige Wiedergabeliste und Gruppenname", null, Tm.b(Tm.IF_PLGROUP, true)) { Tm.set(ctx, Tm.IF_PLGROUP, it) }

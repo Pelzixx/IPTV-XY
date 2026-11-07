@@ -390,6 +390,11 @@ Archiv-Zeitversatz (Stunden)¦Archive time offset (hours)¦Arşiv zaman farkı (
 Neu hinzugekommene Gruppen anzeigen¦Show newly added groups¦Yeni eklenen grupları göster¦Prikaži nove grupe¦Prikaži nove grupe¦Prikaži nove grupe¦Mostrar grupos nuevos¦Afficher les nouveaux groupes¦Mostra i gruppi nuovi
 EPG aktualisiert¦EPG updated¦EPG güncellendi¦EPG ažuriran¦EPG ažuriran¦EPG ažuriran¦EPG actualizada¦EPG mis à jour¦EPG aggiornato
 EPG-Fehler¦EPG error¦EPG hatası¦EPG greška¦EPG pogreška¦EPG greška¦Error de EPG¦Erreur EPG¦Errore EPG
+Info-Feld unten beim Kanalwechsel anzeigen¦Show info panel at the bottom when switching¦Kanal değiştirirken bilgi alanını altta göster¦Prikaži info polje dolje pri promjeni kanala¦Prikaži info polje dolje pri promjeni programa¦Prikaži info polje dole pri promeni kanala¦Mostrar info abajo al cambiar de canal¦Afficher l’info en bas lors du changement¦Mostra info in basso al cambio canale
+Aus Link (Dropbox, Google Drive, URL) …¦From link (Dropbox, Google Drive, URL) …¦Bağlantıdan (Dropbox, Google Drive, URL) …¦Iz linka (Dropbox, Google Drive, URL) …¦Iz poveznice (Dropbox, Google Drive, URL) …¦Iz linka (Dropbox, Google Drive, URL) …¦Desde enlace (Dropbox, Google Drive, URL) …¦Depuis un lien (Dropbox, Google Drive, URL) …¦Da link (Dropbox, Google Drive, URL) …
+Link zur Sicherung¦Backup link¦Yedek bağlantısı¦Link do sigurnosne kopije¦Poveznica na sigurnosnu kopiju¦Link do rezervne kopije¦Enlace de la copia¦Lien de la sauvegarde¦Link del backup
+Daten sichern¦Back up data¦Verileri yedekle¦Sačuvaj podatke¦Spremi podatke¦Sačuvaj podatke¦Copia de seguridad¦Sauvegarder les données¦Backup dei dati
+Daten wiederherstellen¦Restore data¦Verileri geri yükle¦Vrati podatke¦Vrati podatke¦Vrati podatke¦Restaurar datos¦Restaurer les données¦Ripristina dati
 Info¦Info¦Bilgi¦Info¦Info¦Info¦Info¦Info¦Info
 Guide¦Guide¦Rehber¦Vodič¦Vodič¦Vodič¦Guía¦Guide¦Guida
 """

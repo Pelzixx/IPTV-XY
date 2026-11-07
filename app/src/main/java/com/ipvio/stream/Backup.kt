@@ -83,3 +83,44 @@ object Backup {
         count
     }.getOrDefault(-1)
 }
+
+/** Backup auf SMB-Verbindungen und Wiederherstellen aus einem Link (TiviMate: Sichern/Wiederherstellen). */
+object BackupRemote {
+    private const val NAME = "ipvio_backup.json"
+
+    /** Sicherung auf eine SMB-Verbindung schreiben. null = gut, sonst Fehlertext. */
+    fun saveToSmb(c: Context, dir: String): String? = runCatching {
+        val f = Backup.export(c) ?: return "Sicherung fehlgeschlagen."
+        Smb.output(dir.trimEnd('/') + "/" + NAME).use { out -> f.inputStream().use { it.copyTo(out) } }
+        null
+    }.getOrElse { it.message ?: it.javaClass.simpleName }
+
+    /** Sicherung von einer SMB-Verbindung holen und einspielen. */
+    fun loadFromSmb(c: Context, dir: String): Int = runCatching {
+        val raf = Smb.openRead(dir.trimEnd('/') + "/" + NAME)
+        val bytes = ByteArray(raf.length().toInt().coerceAtMost(8 * 1024 * 1024))
+        raf.readFully(bytes); raf.close()
+        Backup.file(c).writeBytes(bytes)
+        Backup.restore(c)
+    }.getOrDefault(-1)
+
+    /** Freigabe-Links in direkte Download-Adressen umwandeln (Dropbox, Google Drive). */
+    fun directLink(u: String): String {
+        val s = u.trim()
+        Regex("""drive\.google\.com/file/d/([^/]+)""").find(s)?.let { return "https://drive.google.com/uc?export=download&id=" + it.groupValues[1] }
+        if (s.contains("dropbox.com")) return s.replace("?dl=0", "?dl=1").let { if (it.contains("dl=1")) it else if (it.contains("?")) "$it&dl=1" else "$it?dl=1" }
+        return s
+    }
+
+    /** Sicherung aus einem Link laden und einspielen. */
+    fun loadFromLink(c: Context, url: String): Int = runCatching {
+        val req = okhttp3.Request.Builder().url(directLink(url)).header("User-Agent", TmNet.userAgent()).build()
+        Net.withTimeouts(15, 30).newCall(req).execute().use { r ->
+            if (!r.isSuccessful) return -1
+            val body = r.body?.bytes() ?: return -1
+            if (body.size > 8 * 1024 * 1024) return -1
+            Backup.file(c).writeBytes(body)
+        }
+        Backup.restore(c)
+    }.getOrDefault(-1)
+}

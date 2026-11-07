@@ -1281,7 +1281,9 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
             LiveTopBar(Modifier.fillMaxWidth().align(Alignment.TopStart).padding(start = PT.MarginX, end = PT.MarginX, top = PT.MarginY))
             LiveInfoBlock(
                 curItem, cur.title, if (curIdx >= 0) curIdx + 1 else 0, epg,
-                Modifier.align(Alignment.BottomStart).padding(start = PT.MarginX, end = PT.MarginX, bottom = PT.MarginY),
+                // Kartenstil ohne „unten beim Kanalwechsel“: Karte oben unter der Kopfzeile (TiviMate)
+                if (Tm.b(Tm.IF_CARD, false) && !Tm.b(Tm.IF_BOTTOM, false)) Modifier.align(Alignment.TopStart).padding(start = PT.MarginX, end = PT.MarginX, top = PT.MarginY + 56.dp)
+                else Modifier.align(Alignment.BottomStart).padding(start = PT.MarginX, end = PT.MarginX, bottom = PT.MarginY),
                 switching = true, media = mediaLabel(player, tracksVer)
             )
         }

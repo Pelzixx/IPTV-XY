@@ -71,6 +71,7 @@ object Tm {
     const val CV_STAY = "cv_stay"
     // Infofeld
     const val IF_CARD = "if_card"
+    const val IF_BOTTOM = "if_bottom"          // Kartenstil: Info-Feld beim Kanalwechsel unten statt oben
     const val IF_CLOCK = "if_clock"
     const val IF_DATE = "if_date"
     const val IF_PLGROUP = "if_plgroup"
