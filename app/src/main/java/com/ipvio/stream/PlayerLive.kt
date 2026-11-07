@@ -131,6 +131,7 @@ fun ChannelOverlay(
         chanCat == "ALL" -> liveAll
         chanCat == "RECENT" -> History.ids.mapNotNull { byId[it] }
         curList != null -> ChannelListLogic.resolve(curList, byId)
+        PlGroups.isPl(chanCat) -> PlGroups.resolve(chanCat, liveAll).orEmpty()
         else -> groups[chanCat].orEmpty()
     }
     val startIdx = chanList.indexOfFirst { it.id == curId }
@@ -141,10 +142,10 @@ fun ChannelOverlay(
     val nowSec = System.currentTimeMillis() / 1000
     val catLabel = when {
         chanCat == FAV_CAT -> Lang.tr("Favoriten"); chanCat == "ALL" -> Lang.tr("Alle Sender"); chanCat == "RECENT" -> Lang.tr("Verlauf")
-        curList != null -> curList.name; else -> chanCat
+        curList != null -> curList.name; else -> PlGroups.label(chanCat) ?: chanCat
     }
-    val plName = PlaylistStore.lists.getOrNull(PlaylistStore.active)?.name
-    val header = listOfNotNull(plName, catLabel).joinToString("  •  ")
+    val plName = PlGroups.playlistOfKey(chanCat) ?: PlaylistStore.lists.getOrNull(PlaylistStore.active)?.name
+    val header = listOfNotNull(plName, catLabel.takeIf { !chanCat.startsWith(PlGroups.P) }).joinToString("  •  ")
     // Programmansicht (nach Rechts): markierte Sendung bestimmt die Detailkarte
     var progMode by remember { mutableStateOf(false) }
     var selE by remember(fc?.id) { mutableStateOf<EpgEntry?>(null) }
@@ -176,7 +177,17 @@ fun ChannelOverlay(
                             PCatRow(l.name, ChannelListLogic.resolve(l, byId).size, chanCat == k, false, if (chanCat == k) Modifier.focusRequester(catsFocus) else Modifier, null, { onChanCat(k) }, icon = AIcon.Lists, raw = true) { onShowCats(false) }
                         }
                         item { PCatRow("Alle Sender", liveAll.size, chanCat == "ALL", false, if (chanCat == "ALL") Modifier.focusRequester(catsFocus) else Modifier, null, { onChanCat("ALL") }) { onShowCats(false) } }
-                        items(catNames) { g ->
+                        if (PlaylistStore.multiPlaylist) {
+                            // TiviMate: je Wiedergabeliste ein Abschnitt mit ihren Ordnern
+                            PlGroups.sections(liveAll).forEach { s ->
+                                val pk = PlGroups.keyP(s.playlist)
+                                item(key = pk) { PCatRow(s.playlist, s.count, chanCat == pk, false, if (chanCat == pk) Modifier.focusRequester(catsFocus) else Modifier, null, { onChanCat(pk) }, icon = AIcon.Layers, raw = true) { onShowCats(false) } }
+                                items(s.groups, key = { pk + "0001" + it.first }) { (g, c) ->
+                                    val gk = PlGroups.keyG(s.playlist, g)
+                                    PCatRow("   " + g, c, chanCat == gk, false, if (chanCat == gk) Modifier.focusRequester(catsFocus) else Modifier, null, { onChanCat(gk) }, raw = true) { onShowCats(false) }
+                                }
+                            }
+                        } else items(catNames) { g ->
                             PCatRow(g, groups[g]?.size ?: 0, chanCat == g, g in CatFavs.list, if (chanCat == g) Modifier.focusRequester(catsFocus) else Modifier, { CatFavs.toggle(ctx, g) }, { onChanCat(g) }, raw = true) { onShowCats(false) }
                         }
                     }
@@ -214,7 +225,7 @@ fun ChannelOverlay(
                         }
                         Column {
                             Text(raw = true, text = ChannelEdit.title(fc), color = Color.White, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(raw = true, text = listOfNotNull(plName, fc.group.takeIf { it.isNotBlank() }).joinToString("  •  "), color = Tok.TextMid, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(raw = true, text = listOfNotNull(PlaylistStore.playlistOf(fc.id) ?: plName, fc.group.takeIf { it.isNotBlank() }).joinToString("  •  "), color = Tok.TextMid, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
                     ProgPane(
@@ -462,9 +473,11 @@ private fun ChannelRow(item: Item, current: Boolean, num: Int, modifier: Modifie
 /** Obere Leiste im Live-Player (TV-Stil): links „Wiedergabeliste • Gruppe“, rechts Datum und Uhrzeit. */
 @Composable
 fun LiveTopBar(modifier: Modifier = Modifier, trailing: @Composable () -> Unit = {}) {
-    val plName = PlaylistStore.lists.getOrNull(PlaylistStore.active)?.name
+    val plName = ZapContext.key?.let { PlGroups.playlistOfKey(it) } ?: PlaylistStore.lists.getOrNull(PlaylistStore.active)?.name
     val group = ZapContext.key?.let { k ->
         when {
+            k.startsWith(PlGroups.P) -> null
+            k.startsWith(PlGroups.G) -> PlGroups.label(k)
             k == FAV_CAT -> Lang.tr("Favoriten")
             k == "ALL" -> Lang.tr("Alle Sender")
             else -> ChannelLists.byKey(k)?.name ?: k

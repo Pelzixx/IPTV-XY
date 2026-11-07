@@ -60,7 +60,8 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     // Zuletzt gewählte Kategorie / Liste (Runde 14): nach dem Zurück aus dem Player und nach einem Neustart wieder dieselbe
     var sel by remember {
         val saved = LiveMemory.sel(ctx)?.takeIf { k ->
-            (k == FAV_CAT && favs.isNotEmpty()) || k == "ALL" || k in groups || ChannelLists.byKey(k) != null
+            (k == FAV_CAT && favs.isNotEmpty()) || k == "ALL" || k in groups || ChannelLists.byKey(k) != null ||
+                (PlGroups.isPl(k) && PlaylistStore.multiPlaylist)
         }
         mutableStateOf(saved ?: if (favs.isNotEmpty()) FAV_CAT else "ALL")
     }
@@ -70,15 +71,28 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     // Reihenfolge: TV-Guide, Favoriten, eigene Senderlisten, alle Sender, Kategorien (neue Liste: Menü eines Senders)
     // „Ausgeblendete Sender“ nur, wenn es welche gibt (dort holt man sie per Menü zurück)
     val hiddenCat = if (ChannelEdit.hiddenCount() > 0) listOf(HIDDEN_CAT) else emptyList()
-    val names = listOf("GUIDE", FAV_CAT) + myLists.map { ChannelListLogic.key(it) } + listOf("ALL") + hiddenCat + favCats + groups.keys.filter { it !in favCats }
+    // TiviMate: mehrere Wiedergabelisten aktiv = je Liste ein Abschnitt mit ihren Ordnern (statt einer gemischten Gruppenliste)
+    val multi = PlaylistStore.multiPlaylist
+    val sections = remember(live, multi) { if (multi) PlGroups.sections(live) else emptyList() }
+    val plCounts = remember(sections) {
+        HashMap<String, Int>().also { m -> sections.forEach { s -> m[PlGroups.keyP(s.playlist)] = s.count; s.groups.forEach { (g, c) -> m[PlGroups.keyG(s.playlist, g)] = c } } }
+    }
+    val names = listOf("GUIDE", FAV_CAT) + myLists.map { ChannelListLogic.key(it) } + listOf("ALL") + hiddenCat +
+        if (multi) sections.flatMap { s -> listOf(PlGroups.keyP(s.playlist)) + s.groups.map { PlGroups.keyG(s.playlist, it.first) } }
+        else favCats + groups.keys.filter { it !in favCats }
+    // Gespeicherte Gruppe aus der Zeit ohne Abschnitte („Music“) auf die Gruppe der Wiedergabeliste umstellen
+    LaunchedEffect(multi, sections) {
+        if (multi && sel !in names && sel in groups) sel = names.firstOrNull { it.startsWith(PlGroups.G) && PlGroups.label(it) == sel } ?: "ALL"
+    }
     val curList = ChannelLists.byKey(sel)
     val showHidden = sel == HIDDEN_CAT
     // Nur neu filtern, wenn sich Auswahl oder Daten ändern – nicht bei jedem Fokuswechsel (tausende Sender)
-    val list = remember(sel, live, favs, groups, curList, editVersion, showHidden) { ChannelEditLogic.visible(
+    val list = remember(sel, live, favs, groups, curList, editVersion, showHidden, multi) { ChannelEditLogic.visible(
         when {
             sel == FAV_CAT -> favs
             sel == "ALL" || showHidden -> live
             curList != null -> ChannelListLogic.resolve(curList, byId)
+            PlGroups.isPl(sel) -> PlGroups.resolve(sel, live).orEmpty()
             else -> groups[sel].orEmpty()
         },
         { it.id }, ChannelEdit::isHidden, showHidden
@@ -205,12 +219,13 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                         n == "ALL" -> "Alle Sender"
                         n == HIDDEN_CAT -> "Ausgeblendete Sender"
                         ml != null -> ml.name
-                        else -> n
+                        else -> PlGroups.label(n) ?: n
                     }
                     val icon = when {
                         n == FAV_CAT || n in CatFavs.list -> AIcon.Star
                         n == HIDDEN_CAT -> AIcon.EyeOff
                         ml != null -> AIcon.Lists
+                        n.startsWith(PlGroups.P) -> AIcon.Layers
                         else -> null
                     }
                     val count = when {
@@ -218,6 +233,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                         n == "ALL" -> live.size
                         n == HIDDEN_CAT -> ChannelEdit.hiddenCount()
                         ml != null -> ChannelListLogic.resolve(ml, byId).size
+                        PlGroups.isPl(n) -> plCounts[n] ?: 0
                         else -> groups[n]?.size ?: 0
                     }
                     var listMenu by remember { mutableStateOf(false) }
@@ -227,8 +243,9 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                             label, count, n == sel,
                             if (n == sel) Modifier.focusRequester(catSelReq).then(if (list.isEmpty()) Modifier.focusRequester(ContentFocus.req) else Modifier) else Modifier,
                             onFocus = { hoverCat(n) }, onRight = { toChannels() },
-                            onFav = { if (ml != null) listMenu = true else if (n != FAV_CAT && n != "ALL" && n != HIDDEN_CAT) CatFavs.toggle(ctx, n) },
-                            icon = icon, raw = ml != null
+                            onFav = { if (ml != null) listMenu = true else if (n != FAV_CAT && n != "ALL" && n != HIDDEN_CAT && !PlGroups.isPl(n)) CatFavs.toggle(ctx, n) },
+                            icon = icon, raw = ml != null || PlGroups.isPl(n), header = n.startsWith(PlGroups.P),
+                            indent = n.startsWith(PlGroups.G)
                         ) { toChannels() }
                         // Menü einer eigenen Liste (OK gedrückt halten): Sender hinzufügen, umbenennen, löschen
                         if (listMenu && ml != null) OptionPopup(
@@ -335,7 +352,8 @@ private fun NameDialog(title: String, initial: String, onDismiss: () -> Unit, on
 @Composable
 private fun CatRow(
     label: String, count: Int, selected: Boolean, modifier: Modifier,
-    onFocus: () -> Unit, onRight: () -> Unit, onFav: () -> Unit, icon: AIcon? = null, raw: Boolean = false, onClick: () -> Unit
+    onFocus: () -> Unit, onRight: () -> Unit, onFav: () -> Unit, icon: AIcon? = null, raw: Boolean = false,
+    header: Boolean = false, indent: Boolean = false, onClick: () -> Unit
 ) {
     var f by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(DS.RadiusS)
@@ -350,12 +368,12 @@ private fun CatRow(
             }
             .favKeys { onFav() }
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(start = if (indent) 30.dp else 16.dp, end = 16.dp, top = 10.dp, bottom = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically
     ) {
         Row(Modifier.weight(1f, fill = false), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (icon != null) AppIcon(icon, if (icon == AIcon.Star) DS.Gold else ink, size = 18.dp)
-            Text(label, color = ink, fontSize = 18.sp, fontWeight = FontWeight.Normal,
+            if (icon != null) AppIcon(icon, if (icon == AIcon.Star) DS.Gold else if (header && !f) Accent2 else ink, size = 18.dp)
+            Text(label, color = if (header && !f) Accent2 else ink, fontSize = 18.sp, fontWeight = if (header) FontWeight.SemiBold else FontWeight.Normal,
                 maxLines = 1, overflow = TextOverflow.Ellipsis, raw = raw)
         }
         // Anzahl nur beim markierten Eintrag (die Liste bleibt ruhig)

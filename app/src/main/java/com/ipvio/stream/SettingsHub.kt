@@ -1138,7 +1138,7 @@ private fun PlaylistMainPage(ctx: Context, idx: Int, onXtream: () -> Unit, onEpg
             }
         } else {
             PlaylistStore.setOn(ctx, idx, on)
-            scope.launch { PlaylistStore.loadExtras(ctx) }
+            PlaylistStore.loadExtrasInBackground(ctx.applicationContext)
         }
     }
     SettingRow("Playlist Name", pl.name, rawValue = true, onClick = { ask = Ask("Playlist Name", pl.name, "Name der Wiedergabeliste") { if (it.isNotEmpty()) savePlaylist(ctx, scope, idx, name = it) } })
@@ -1178,7 +1178,9 @@ private fun PlaylistXtreamPage(ctx: Context, idx: Int) {
     val parts = LoadLogic.xtreamParts(pl.url) ?: return
     val host = parts.first; val user = parts.second; val pass = parts.third
     val servers = Presets.servers
-    val sel = PresetLogic.indexOf(host, servers)
+    // Mehrere feste Server können dieselbe Adresse haben: zuerst über den Namen der Liste zuordnen
+    val sel = servers.indexOfFirst { it.name.equals(pl.name, ignoreCase = true) && PresetLogic.indexOf(host, listOf(it)) == 0 }
+        .takeIf { it >= 0 } ?: PresetLogic.indexOf(host, servers)
     var ask by remember { mutableStateOf<Ask?>(null) }
     var serverMenu by remember { mutableStateOf(false) }
     // Feste XY-Server zeigen ihren Namen statt der Adresse

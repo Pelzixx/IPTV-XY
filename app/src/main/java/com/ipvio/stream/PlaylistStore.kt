@@ -1,5 +1,6 @@
 package com.ipvio.stream
 
+import kotlinx.coroutines.launch
 import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -84,6 +85,21 @@ object PlaylistStore {
     @Volatile private var mergedFor: List<Item>? = null
     @Volatile private var mergedX: List<Item>? = null
     @Volatile private var mergedAll: List<Item> = emptyList()
+    /** Sender je weiterer Wiedergabeliste (Name -> Sender), in der Reihenfolge der Listen. */
+    @Volatile private var extraLists: List<Pair<String, List<Item>>> = emptyList()
+    @Volatile private var owners: Map<String, String> = emptyMap()
+
+    /** Mehrere Wiedergabelisten gleichzeitig aktiv? Dann gruppiert die Senderübersicht nach Liste. */
+    val multiPlaylist: Boolean get() = extraItems.isNotEmpty()
+
+    /** Name der Wiedergabeliste, aus der ein Sender kommt. */
+    fun playlistOf(id: String): String? {
+        merged()
+        return owners[id] ?: lists.getOrNull(active)?.name
+    }
+
+    /** Namen der aktiven Wiedergabelisten in der Reihenfolge der Einstellungen (TiviMate: Playlist-Sortierung). */
+    fun activePlaylistNames(): List<String> = lists.filterIndexed { i, l -> i == active || l.on }.map { it.name }
 
     /** Aktive Playlist plus weitere eingeschaltete; doppelte Einträge (gleiche Adresse) nur einmal. */
     private fun merged(): List<Item> {
@@ -93,7 +109,13 @@ object PlaylistStore {
         if (r !== mergedFor || x !== mergedX) {
             val ids = HashSet<String>(r.size * 2)
             r.forEach { ids.add(it.id) }
-            mergedAll = r + x.filter { ids.add(it.id) }
+            // Herkunft merken (TiviMate: Abschnitt je Wiedergabeliste); die aktive Liste ist der Rest
+            val owner = HashMap<String, String>()
+            val out = ArrayList<Item>(r.size + x.size)
+            out.addAll(r)
+            for ((name, l) in extraLists) for (it in l) if (ids.add(it.id)) { out.add(it); owner[it.id] = name }
+            mergedAll = out
+            owners = owner
             mergedFor = r; mergedX = x
         }
         return mergedAll
@@ -826,16 +848,21 @@ object PlaylistStore {
      * TiviMate: mehrere Playlists gleichzeitig. Liest die Sender aller weiteren eingeschalteten Playlists aus ihrem
      * Zwischenspeicher (fehlt er, wird er erst geladen) und hängt sie an die aktive an. EPG-Quellen werden zusammengeführt.
      */
+    /** Unabhängig von der Oberfläche (Einstellungsseite kann geschlossen werden, das Laden großer Listen läuft weiter). */
+    private val bgScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.Main)
+    fun loadExtrasInBackground(c: Context) { bgScope.launch { runCatching { loadExtras(c) } } }
+
     suspend fun loadExtras(c: Context) {
         ensure(c)
         val others = lists.filterIndexed { i, l -> i != active && l.on }
         if (others.isEmpty()) {
-            if (extraItems.isNotEmpty()) { extraItems = emptyList(); extraEpg = emptyList(); Xmltv.start(c, epgUrls, merged()) }
+            if (extraItems.isNotEmpty()) { extraLists = emptyList(); extraItems = emptyList(); extraEpg = emptyList(); Xmltv.start(c, epgUrls, merged()) }
             return
         }
         val res = withContext(Dispatchers.IO) {
             val items = ArrayList<Item>()
             val epg = ArrayList<String>()
+            val per = ArrayList<Pair<String, List<Item>>>()
             for (l in others) {
                 val u = PlaylistLogic.normalizeUrl(l.url) ?: continue
                 var cached = runCatching { readCache(c, u, LangFilter.hidden) }.getOrNull()
@@ -843,19 +870,38 @@ object PlaylistStore {
                     refreshCacheOnly(c, u)
                     cached = runCatching { readCache(c, u, LangFilter.hidden) }.getOrNull()
                 }
-                if (cached != null) { items.addAll(cached.items); epg.addAll(cached.epg) }
+                if (cached != null) { items.addAll(cached.items); epg.addAll(cached.epg); per.add(l.name to cached.items) }
             }
-            items to epg
+            Triple(items, epg, per)
         }
+        extraLists = res.third
         extraItems = res.first
         extraEpg = res.second
         Xmltv.start(c, (epgUrls + extraEpg).distinct(), merged())
     }
 
     /** Neu hinzugefügte Playlist erfolgreich geladen: in die Liste übernehmen und den gemerkten Auftrag löschen. */
+    /**
+     * Name des beim Anmelden gewählten Servers (z. B. „XY Radio“). Nötig, wenn mehrere feste Server dieselbe Adresse haben –
+     * über die Adresse allein fände man sonst immer den ersten („XY Backup“).
+     */
+    @Volatile var pendingName: String? = null
+
     private fun finishSave(c: Context, u: String) {
         val idx = lists.indexOfFirst { it.url == u }
-        if (idx >= 0) active = idx else { lists.add(PL(displayName(u, lists.size), u)); active = lists.size - 1 }
+        val wanted = pendingName?.trim()?.takeIf { it.isNotEmpty() }
+        pendingName = null
+        if (idx >= 0) active = idx else {
+            // TiviMate: bisherige Listen bleiben aktiv (die neue kommt dazu, statt sie zu ersetzen)
+            if (lists.isNotEmpty() && active in lists.indices) lists[active] = lists[active].copy(on = true)
+            val base = wanted ?: displayName(u, lists.size)
+            // Gleicher Name schon vergeben (z. B. zwei Zugänge beim selben Server): „XY TV 2“
+            var name = base
+            var n = 2
+            while (lists.any { it.name.equals(name, ignoreCase = true) }) name = "$base " + n++
+            lists.add(PL(name, u))
+            active = lists.size - 1
+        }
         persist(c)
         clearPending(c)
     }

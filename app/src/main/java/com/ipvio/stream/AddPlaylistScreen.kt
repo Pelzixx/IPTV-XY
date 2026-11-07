@@ -109,7 +109,7 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
                     onLogin = {
                         val finalUrl = PlaylistStore.xtreamUrl(servers[sel].url, user, pass)
                         if (finalUrl == null) PlaylistStore.error = "Angaben unvollständig: Benutzername und Passwort nötig."
-                        else { host = servers[sel].url; scope.launch { if (PlaylistStore.load(ctx, finalUrl, true)) onDone() } }
+                        else { host = servers[sel].url; PlaylistStore.pendingName = servers[sel].name; scope.launch { if (PlaylistStore.load(ctx, finalUrl, true)) onDone() } }
                     },
                     onOther = { manual = true; xtream = true; host = ""; PlaylistStore.error = null },
                     onCancel = { PlaylistStore.clearPending(ctx); onDone() }

@@ -131,7 +131,7 @@ fun LiveInfo(ch: Item?, modifier: Modifier = Modifier) {
         @Suppress("UNUSED_VARIABLE") val editVersion = ChannelEdit.version
         val epg by produceState(emptyList<EpgEntry>(), ch.id) { value = Epg.now(ch) }
         val nowE = Epg.current(epg)
-        val plName = PlaylistStore.lists.getOrNull(PlaylistStore.active)?.name
+        val plName = PlaylistStore.playlistOf(ch.id) ?: PlaylistStore.lists.getOrNull(PlaylistStore.active)?.name
         val where = listOfNotNull(plName, ch.group.takeIf { it.isNotBlank() }).joinToString("  •  ")
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(raw = true, text = nowE?.title ?: ChannelEdit.title(ch), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold,
