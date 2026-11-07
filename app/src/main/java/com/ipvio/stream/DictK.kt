@@ -322,4 +322,12 @@ Ton 50 ms früher¦Audio 50 ms earlier¦Ses 50 ms önce¦Zvuk 50 ms ranije¦Zvuk
 Ton 50 ms später¦Audio 50 ms later¦Ses 50 ms sonra¦Zvuk 50 ms kasnije¦Zvuk 50 ms kasnije¦Zvuk 50 ms kasnije¦Audio 50 ms después¦Son 50 ms plus tard¦Audio 50 ms dopo
 Bild im Bild beim Drücken der Home-Taste¦Picture-in-picture when pressing Home¦Ana sayfa tuşunda resim içinde resim¦Slika u slici pri pritisku na Home¦Slika u slici pri pritisku na Home¦Slika u slici pri pritisku na Home¦Imagen en imagen al pulsar Inicio¦Image dans l’image avec la touche Accueil¦Picture-in-picture premendo Home
 Auf diesem Gerät nicht verfügbar¦Not available on this device¦Bu cihazda kullanılamaz¦Nije dostupno na ovom uređaju¦Nije dostupno na ovom uređaju¦Nije dostupno na ovom uređaju¦No disponible en este dispositivo¦Non disponible sur cet appareil¦Non disponibile su questo dispositivo
+EPG zuweisen¦Assign EPG¦EPG ata¦Dodijeli EPG¦Dodijeli EPG¦Dodeli EPG¦Asignar EPG¦Attribuer l’EPG¦Assegna EPG
+Zugewiesen¦Assigned¦Atandı¦Dodijeljeno¦Dodijeljeno¦Dodeljeno¦Asignado¦Attribué¦Assegnato
+EPG-Kanal suchen …¦Search EPG channel …¦EPG kanalı ara …¦Traži EPG kanal …¦Traži EPG program …¦Traži EPG kanal …¦Buscar canal EPG …¦Rechercher une chaîne EPG …¦Cerca canale EPG …
+Noch keine EPG-Kanäle bekannt.¦No EPG channels known yet.¦Henüz bilinen EPG kanalı yok.¦Još nema poznatih EPG kanala.¦Još nema poznatih EPG programa.¦Još nema poznatih EPG kanala.¦Aún no hay canales EPG conocidos.¦Aucune chaîne EPG connue pour l’instant.¦Nessun canale EPG ancora noto.
+EPG jetzt aktualisieren¦Update EPG now¦EPG’yi şimdi güncelle¦Ažuriraj EPG sada¦Ažuriraj EPG sada¦Ažuriraj EPG sada¦Actualizar EPG ahora¦Mettre à jour l’EPG maintenant¦Aggiorna EPG ora
+Zuweisung entfernen¦Remove assignment¦Atamayı kaldır¦Ukloni dodjelu¦Ukloni dodjelu¦Ukloni dodelu¦Quitar asignación¦Supprimer l’attribution¦Rimuovi assegnazione
+Zuweisung entfernt – EPG wird neu geladen¦Assignment removed – reloading EPG¦Atama kaldırıldı – EPG yeniden yükleniyor¦Dodjela uklonjena – EPG se ponovo učitava¦Dodjela uklonjena – EPG se ponovno učitava¦Dodela uklonjena – EPG se ponovo učitava¦Asignación quitada – recargando EPG¦Attribution supprimée – rechargement de l’EPG¦Assegnazione rimossa – ricarico EPG
+EPG zugewiesen – wird neu geladen¦EPG assigned – reloading¦EPG atandı – yeniden yükleniyor¦EPG dodijeljen – ponovo se učitava¦EPG dodijeljen – ponovno se učitava¦EPG dodeljen – ponovo se učitava¦EPG asignada – recargando¦EPG attribué – rechargement¦EPG assegnato – ricarico
 """

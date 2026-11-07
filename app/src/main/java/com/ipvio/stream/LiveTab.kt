@@ -462,11 +462,11 @@ private fun ChannelLine(
     // Neu zeichnen, wenn der Sender umbenannt wurde
     @Suppress("UNUSED_VARIABLE") val editVersion = ChannelEdit.version
     // Ohne Netz (gespeichertes EPG): beim schnellen Scrollen startet je Zeile kein Abruf mehr. Neu, wenn das EPG geladen ist.
-    val epg = remember(item.id, Xmltv.channelCount, nowSec / 300) { Epg.nowLocal(item) }
+    val epg = remember(item.id, Xmltv.channelCount, Xmltv.status, nowSec / 300) { Epg.nowLocal(item) }
     val isCurrent = look.currentId == item.id
     // TiviMate: Rechts/Links wählt einzelne Sendungen (auch über das Zeitfenster hinaus, die Zeitleiste läuft mit)
     // TiviMate: ohne EPG volle Stunden als Blöcke mit dem Sendernamen (anwählbar wie Sendungen)
-    val all = remember(item.id, Xmltv.channelCount, nowSec / 300) {
+    val all = remember(item.id, Xmltv.channelCount, Xmltv.status, nowSec / 300) {
         Xmltv.forItem(item).filter { it.end > nowSec }.ifEmpty { epg }.ifEmpty {
             val h0 = nowSec / 3600 * 3600
             val t = ChannelEdit.title(item)
@@ -583,6 +583,7 @@ fun ChannelMenu(
     val ctx = LocalContext.current
     var desc by remember { mutableStateOf<EpgEntry?>(null) }
     var custom by remember { mutableStateOf(false) }
+    var assign by remember { mutableStateOf(false) }
     var open by remember { mutableStateOf(true) }
     val now = System.currentTimeMillis() / 1000
     val top = listOf(
@@ -632,6 +633,7 @@ fun ChannelMenu(
         })
         chan.add(SideEntry("Umbenennen …", onPick = onRename))
     }
+    chan.add(SideEntry("EPG zuweisen") { assign = true })
     // eigene Senderlisten
     val lists = ArrayList<SideEntry>()
     if (inList != null) {
@@ -653,9 +655,10 @@ fun ChannelMenu(
             SideSection(Lang.tr("Senderlisten"), lists)
         )
     ) { open = false }
-    LaunchedEffect(open, desc, custom) { if (!open && desc == null && !custom) onClose() }
+    LaunchedEffect(open, desc, custom, assign) { if (!open && desc == null && !custom && !assign) onClose() }
     desc?.let { e -> ProgDescDialog(item, e) { desc = null; onClose() } }
     if (custom) CustomRecDialog(item, prog) { custom = false; onClose() }
+    if (assign) EpgAssignDialog(item) { assign = false; onClose() }
 }
 
 /**

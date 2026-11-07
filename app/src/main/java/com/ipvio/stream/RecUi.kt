@@ -202,3 +202,71 @@ private fun RecRow(r: Rec, modifier: Modifier, onOk: () -> Unit, onMenu: () -> U
         if (status.isNotEmpty()) Text(raw = true, text = status, color = if (r.state == Rec.FAILED) Color(0xFFE5484D) else if (f) DS.FocusInk else Muted, fontSize = 15.sp, maxLines = 1)
     }
 }
+
+/** Kanaloptionen > EPG zuweisen (TiviMate): EPG-Kanal aus den Quellen wählen, mit Suche und Vorschlägen. */
+@Composable
+fun EpgAssignDialog(item: Item, onClose: () -> Unit) {
+    val ctx = LocalContext.current
+    var q by remember { mutableStateOf("") }
+    val all by produceState(emptyList<Pair<String, String>>(), Xmltv.channelCount, Xmltv.status) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Xmltv.epgChannels(ctx) }
+    }
+    val cur = EpgAssign.get(item.id)
+    val own = EpgNames.norm(ChannelEdit.title(item))
+    val shown = remember(all, q) {
+        val n = EpgNames.norm(q)
+        if (n.isNotEmpty()) all.filter { EpgNames.norm(it.second).contains(n) || it.first.contains(q.trim().lowercase()) }.take(200)
+        else {
+            // Vorschläge: ähnlicher Name zuerst
+            val sug = if (own.length >= 2) all.filter { val x = EpgNames.norm(it.second); x.isNotEmpty() && (x.contains(own) || own.contains(x)) } else emptyList()
+            (sug + all.filter { it !in sug }).take(200)
+        }
+    }
+    val fr = remember { FocusRequester() }
+    fun reload() = Xmltv.start(ctx, (PlaylistStore.epgUrls + PlaylistStore.extraEpg).distinct(), PlaylistStore.channels, force = true)
+    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        LaunchedEffect(Unit) { delay(80); runCatching { fr.requestFocus() } }
+        Column(
+            Modifier.width(820.dp).heightIn(max = 640.dp).clip(RoundedCornerShape(DS.RadiusL)).background(Surf).padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text("EPG zuweisen", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Text(raw = true, text = ChannelEdit.title(item) + (cur?.let { "  ·  " + Lang.tr("Zugewiesen") + ": " + (all.firstOrNull { p -> p.first == it }?.second ?: it) + " (" + Xmltv.forChannel(it).size + ")" } ?: ""),
+                color = Accent2, fontSize = 16.sp)
+            Field(q, { q = it }, "EPG-Kanal suchen …", Modifier.fillMaxWidth())
+            if (all.isEmpty()) {
+                Text(raw = true, text = Lang.tr("Noch keine EPG-Kanäle bekannt.") + "  " + Xmltv.status, color = Muted, fontSize = 15.sp)
+                PillButton("EPG jetzt aktualisieren", Modifier.focusRequester(fr), light = true) { reload() }
+            }
+            LazyColumn(Modifier.weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (cur != null) item {
+                    PillButton("Zuweisung entfernen", Modifier.focusRequester(fr)) {
+                        EpgAssign.set(ctx, item.id, null); reload()
+                        Toast.makeText(ctx, Lang.tr("Zuweisung entfernt – EPG wird neu geladen"), Toast.LENGTH_SHORT).show()
+                        onClose()
+                    }
+                }
+                items(shown, key = { it.first }) { (id, name) ->
+                    var f by remember { mutableStateOf(false) }
+                    val first = cur == null && id == shown.firstOrNull()?.first
+                    Row(
+                        Modifier.fillMaxWidth().then(if (first) Modifier.focusRequester(fr) else Modifier).clip(RoundedCornerShape(DS.RadiusS))
+                            .background(if (f) TvFocusFill else Color.Transparent)
+                            .onFocusChanged { f = it.isFocused }
+                            .clickable {
+                                EpgAssign.set(ctx, item.id, id); reload()
+                                Toast.makeText(ctx, Lang.tr("EPG zugewiesen – wird neu geladen"), Toast.LENGTH_SHORT).show()
+                                onClose()
+                            }
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(raw = true, text = name, color = if (f) DS.FocusInk else Color.White, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                        Text(raw = true, text = id, color = if (f) Color(0xFF3A3D42) else Muted, fontSize = 13.sp, maxLines = 1)
+                        if (id == cur) AppIcon(AIcon.Check, if (f) DS.FocusInk else Accent2, size = 18.dp, modifier = Modifier.padding(start = 8.dp))
+                    }
+                }
+            }
+        }
+    }
+}

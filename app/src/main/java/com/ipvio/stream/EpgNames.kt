@@ -28,6 +28,32 @@ object EpgNames {
     fun keys(item: Item): List<String> {
         val id = item.tvgId?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
         val n = norm(item.title).takeIf { it.length >= 2 }?.let { PFX + it }
-        return listOfNotNull(id, n).distinct()
+        // Von Hand zugewiesener EPG-Kanal zuerst
+        val own = runCatching { EpgAssign.get(item.id) }.getOrNull()
+        return listOfNotNull(own, id, n).distinct()
+    }
+}
+
+/** EPG je Kanal zuweisen (TiviMate: Kanaloptionen > „EPG zuweisen“). Hat Vorrang vor tvg-id und Name. */
+object EpgAssign {
+    private const val KEY = "epg_assign"
+    @Volatile private var raw: String? = null
+    @Volatile private var map: Map<String, String> = emptyMap()
+
+    private fun all(): Map<String, String> {
+        val r = Tm.s(KEY)
+        if (r !== raw) {
+            map = r.split('\n').mapNotNull { l -> val i = l.indexOf('\t'); if (i > 0) l.substring(0, i) to l.substring(i + 1) else null }.toMap()
+            raw = r
+        }
+        return map
+    }
+
+    fun get(itemId: String): String? = all()[itemId]
+
+    fun set(c: android.content.Context, itemId: String, epgId: String?) {
+        val m = all().toMutableMap()
+        if (epgId.isNullOrBlank()) m.remove(itemId) else m[itemId] = epgId.lowercase()
+        Tm.set(c, KEY, m.entries.joinToString("\n") { it.key + "\t" + it.value })
     }
 }

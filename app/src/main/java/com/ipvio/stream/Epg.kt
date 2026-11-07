@@ -90,6 +90,8 @@ object Xmltv {
     var sources by mutableStateOf<List<EpgSourceStat>>(emptyList())
         private set
     private val progs = ConcurrentHashMap<String, List<EpgEntry>>()
+    /** Alle Kanäle der EPG-Quellen (Kennung -> Anzeigename), für „EPG zuweisen“. */
+    val chanNames = ConcurrentHashMap<String, String>()
     // 60 s ohne Daten oder 10 min insgesamt: Quelle abbrechen und mit der nächsten weitermachen
     private val client = Net.withTimeouts(20, 60).newBuilder().callTimeout(10, java.util.concurrent.TimeUnit.MINUTES).build()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -199,6 +201,7 @@ object Xmltv {
                 channelCount = progs.size
                 runCatching { XmltvCache.write(file, key, now, progs) }
                 runCatching { java.io.File(c.cacheDir, "xmltv_icons.txt").writeText(icons.entries.joinToString(ICON_NL) { it.key + ICON_TAB + it.value }) }
+                runCatching { java.io.File(c.cacheDir, "xmltv_channels.txt").writeText(chanNames.entries.joinToString(ICON_NL) { it.key + ICON_TAB + it.value }) }
                 saveStats(c, key, sources)
             }
             status = when {
@@ -270,15 +273,22 @@ object Xmltv {
                 if (ev == XmlPullParser.START_TAG && p.name == "channel") {
                     val cid = p.getAttributeValue(null, "id")?.lowercase()
                     var icon: String? = null
+                    var dn: String? = null
                     var inner = p.next()
                     while (!(inner == XmlPullParser.END_TAG && p.name == "channel") && inner != XmlPullParser.END_DOCUMENT) {
                         if (inner == XmlPullParser.START_TAG && p.name == "icon") icon = p.getAttributeValue(null, "src")?.takeIf { it.startsWith("http") }
-                        else if (inner == XmlPullParser.START_TAG && p.name == "display-name" && names.isNotEmpty() && cid != null && cid !in wanted && cid !in alias) {
-                            val n = EpgNames.norm(p.nextText())
-                            if (n in names) alias[cid] = EpgNames.PFX + n
+                        else if (inner == XmlPullParser.START_TAG && p.name == "display-name") {
+                            val t = p.nextText()
+                            if (dn == null) dn = t.trim()
+                            if (names.isNotEmpty() && cid != null && cid !in wanted && cid !in alias) {
+                                val n = EpgNames.norm(t)
+                                if (n in names) alias[cid] = EpgNames.PFX + n
+                            }
                         }
                         inner = p.next()
                     }
+                    // Kanäle der Quelle merken (für „EPG zuweisen“)
+                    if (cid != null) chanNames.putIfAbsent(cid, dn?.takeIf { it.isNotEmpty() } ?: cid)
                     // Auch die Kennung selbst (z. B. „DasErste.de“) als Name versuchen
                     if (names.isNotEmpty() && cid != null && cid !in wanted && cid !in alias) {
                         val n = EpgNames.norm(cid.substringBeforeLast('.'))
@@ -485,3 +495,11 @@ object EpgPrefs {
 /** Trennzeichen der gespeicherten EPG-Logos (eine Zeile je Sender: Schlüssel, Tab, Adresse). */
 private const val ICON_NL = "\n"
 private const val ICON_TAB = "\t"
+
+/** Kanalliste der EPG-Quellen (aus dem letzten vollständigen Einlesen), sortiert nach Name. */
+fun Xmltv.epgChannels(c: Context): List<Pair<String, String>> {
+    if (chanNames.isEmpty()) runCatching {
+        java.io.File(c.cacheDir, "xmltv_channels.txt").readLines().forEach { l -> val i = l.indexOf('\t'); if (i > 0) chanNames[l.substring(0, i)] = l.substring(i + 1) }
+    }
+    return chanNames.entries.map { it.key to it.value }.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.second })
+}
