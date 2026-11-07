@@ -93,10 +93,13 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
         if (multi && sel !in names && sel in groups) sel = names.firstOrNull { it.startsWith(PlGroups.G) && PlGroups.label(it) == sel } ?: "ALL"
     }
     val curList = ChannelLists.byKey(sel)
+    // TiviMate: Sichtbarkeit (1), Sperren (2) oder Favoriten (3) verwalten: OK schaltet je Sender um
+    var manage by remember { mutableIntStateOf(0) }
+    androidx.activity.compose.BackHandler(enabled = manage != 0) { manage = 0 }
     val showHidden = sel == HIDDEN_CAT
     // Nur neu filtern, wenn sich Auswahl oder Daten ändern – nicht bei jedem Fokuswechsel (tausende Sender)
     val chSort = Tm.i(Tm.EPG_CH_SORT, 0)
-    val list = remember(sel, live, favs, groups, curList, editVersion, showHidden, multi, chSort) { ChannelEditLogic.visible(
+    val list = remember(sel, live, favs, groups, curList, editVersion, showHidden, multi, chSort, manage) { ChannelEditLogic.visible(
         when {
             sel == FAV_CAT -> favs
             sel == "ALL" || showHidden -> live
@@ -104,7 +107,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
             PlGroups.isPl(sel) -> PlGroups.resolve(sel, live).orEmpty()
             else -> groups[sel].orEmpty()
         },
-        { it.id }, ChannelEdit::isHidden, showHidden
+        { it.id }, ChannelEdit::isHidden, showHidden || manage == 1
     ).let { l -> if (curList != null) l else (if (chSort == 3) l.sortedByDescending { WatchTime.sec(it.id) } else Tm.sorted(l, chSort) { ChannelEdit.title(it) }) } }
     // Optik > EPG: Darstellung der Zeilen, einmal je Liste
     val look = GuideLook(
@@ -337,6 +340,15 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                 }
                 Spacer(Modifier.height(14.dp))
                 if (list.isNotEmpty()) TimelineHeader(ws, nowSec)
+                if (manage != 0) Row(
+                    Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    AppIcon(when (manage) { 1 -> AIcon.EyeOff; 2 -> AIcon.Lock; else -> AIcon.Star }, Accent1, size = 20.dp)
+                    Text(Lang.tr(when (manage) { 1 -> "Sichtbarkeit verwalten: OK blendet einen Sender aus bzw. wieder ein"; 2 -> "Sperren verwalten: OK sperrt einen Sender bzw. entsperrt ihn"; else -> "Favoriten verwalten: OK fügt einen Sender hinzu bzw. entfernt ihn" }),
+                        raw = true, color = Color.White, fontSize = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    PillButton("Fertig", light = true) { manage = 0 }
+                }
                 if (addList != null) Row(
                     Modifier.fillMaxWidth().padding(bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -372,9 +384,15 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                             onLeft = { catOpen = true; catFocusReq++ },
                             onFocus = { focus.target = ch; catOpen = false },
                             onProg = { focus.prog = it }, onShift = { d -> tOff = (tOff + d).coerceIn(-14 * 48, 96) }, onProgOk = { e -> progOk(ch, e) },
-                            onKeyAct = { a -> guideAct(a) }
+                            onKeyAct = { a -> guideAct(a) }, onManage = { m -> manage = m }
                         ) {
-                            if (addList != null) {
+                            if (manage != 0) {
+                                when (manage) {
+                                    1 -> ChannelEdit.toggleHidden(ctx, ch.id)
+                                    2 -> if (Parental.pinSet) ChLock.toggle(ctx, ch.id) else Toast.makeText(ctx, Lang.tr("Bitte zuerst unter Einstellungen > Kindersicherung eine PIN festlegen."), Toast.LENGTH_LONG).show()
+                                    else -> Library.toggleFav(ctx, ch.id)
+                                }
+                            } else if (addList != null) {
                                 val has = ch.id in addList.ids
                                 if (has) ChannelLists.remove(ctx, addList.id, ch.id) else ChannelLists.add(ctx, addList.id, ch.id)
                                 Toast.makeText(ctx, (if (has) Lang.tr("Entfernt: ") else Lang.tr("Hinzugefügt: ")) + ch.title, Toast.LENGTH_SHORT).show()
@@ -495,7 +513,7 @@ private fun ChannelLine(
     item: Item, num: Int, look: GuideLook, ws: Long, nowSec: Long, tlW: androidx.compose.ui.unit.Dp, modifier: Modifier, inList: ChList?,
     onNewList: () -> Unit, onRename: () -> Unit, onLeft: () -> Unit,
     onFocus: () -> Unit = {}, onProg: (EpgEntry?) -> Unit = {}, onShift: (Int) -> Unit = {}, onProgOk: (EpgEntry) -> Unit = {},
-    onKeyAct: (EAct) -> Boolean = { false }, onClick: () -> Unit
+    onKeyAct: (EAct) -> Boolean = { false }, onManage: (Int) -> Unit = {}, onClick: () -> Unit
 ) {
     var f by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
@@ -598,7 +616,7 @@ private fun ChannelLine(
         }
     }
     Box {
-    if (menu) ChannelMenu(item, inList, onNewList, onRename, prog = all.getOrNull(pi)) { menu = false }
+    if (menu) ChannelMenu(item, inList, onNewList, onRename, prog = all.getOrNull(pi), onManage = onManage) { menu = false }
     descE?.let { e -> ProgDescDialog(item, e) { descE = null } }
     val cell = RoundedCornerShape(4.dp)
     val titleLines = if (look.twoLineTitles) 2 else 1
@@ -634,6 +652,8 @@ private fun ChannelLine(
                 maxLines = if (look.twoLineNames) 2 else 1, lineHeight = 20.sp, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             else Spacer(Modifier.weight(1f))
             if (Library.isFav(item.id)) AppIcon(AIcon.Star, DS.Gold, size = 14.dp)
+            if (ChLock.version >= 0 && ChLock.isLocked(item.id)) AppIcon(AIcon.Lock, Muted, size = 14.dp)
+            if (ChannelEdit.isHidden(item.id)) AppIcon(AIcon.EyeOff, Muted, size = 14.dp)
             if (look.catchupIcon && Catchup.version >= 0 && Catchup.has(item)) AppIcon(AIcon.Catchup, Accent2, size = 14.dp)
             if (DeadLinks.isDead(item.url)) AppIcon(AIcon.Warning, DS.Gold, size = 14.dp)
             // TiviMate: kleines Play-Symbol beim Sender, der gerade läuft
@@ -686,7 +706,7 @@ private fun ChannelLine(
 @Composable
 fun ChannelMenu(
     item: Item, inList: ChList?, onNewList: (() -> Unit)?, onRename: (() -> Unit)? = null, prog: EpgEntry? = null,
-    onClose: () -> Unit
+    onManage: ((Int) -> Unit)? = null, onClose: () -> Unit
 ) {
     val ctx = LocalContext.current
     var desc by remember { mutableStateOf<EpgEntry?>(null) }
@@ -752,6 +772,11 @@ fun ChannelMenu(
         if (ChannelEdit.isRenamed(item.id)) chan.add(SideEntry("Namen wiederherstellen") { ChannelEdit.rename(ctx, item.id, "") })
     }
     chan.add(SideEntry("EPG zuweisen") { assign = true })
+    if (onManage != null) {
+        chan.add(SideEntry("Sichtbarkeit verwalten") { onManage(1) })
+        chan.add(SideEntry("Sperren verwalten") { onManage(2) })
+        chan.add(SideEntry("Favoriten verwalten") { onManage(3) })
+    }
     // eigene Senderlisten
     val lists = ArrayList<SideEntry>()
     if (inList != null) {
