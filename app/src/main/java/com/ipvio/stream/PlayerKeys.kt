@@ -27,7 +27,8 @@ enum class PAct(val label: String) {
     SLEEP("Sleeptimer"),
     SETTINGS("Einstellungen"),
     RECORD("Aufnehmen"),
-    MULTIVIEW("Multiview")
+    MULTIVIEW("Multiview"),
+    RESTART("Sendung neu starten")
 }
 
 /** Tasten des Live-Players mit TiviMate-Standardbelegung. [long] = langer Druck. */

@@ -692,6 +692,8 @@ fun ChannelMenu(
     // Sendung
     val pe = ArrayList<SideEntry>()
     pe.add(SideEntry("Extern öffnen") { openExternal(ctx, item.url, ChannelEdit.title(item)) })
+    // TiviMate: laufende Sendung von Anfang an (über das Archiv)
+    if (prog != null && prog.start <= now && prog.end > now && Catchup.has(item)) pe.add(SideEntry("Von Anfang an ansehen") { AppNav.archiveStart = item.id to prog; AppNav.openChannel = item.id })
     if (prog == null || prog.end > now) {
         val planned = if (prog != null) Recorder.isPlanned(item.id, prog.start) else Recorder.runningFor(item.id)
         if (planned != null) pe.add(SideEntry(if (planned.state == Rec.RUNNING) "Aufnahme stoppen" else "Aufnahme abbrechen") {
@@ -738,6 +740,7 @@ fun ChannelMenu(
             Toast.makeText(ctx, Lang.tr(if (hidden) "Sender wieder eingeblendet" else "Sender ausgeblendet. Zurückholen: „Ausgeblendete Sender“ links."), Toast.LENGTH_SHORT).show()
         })
         chan.add(SideEntry("Umbenennen …", onPick = onRename))
+        if (ChannelEdit.isRenamed(item.id)) chan.add(SideEntry("Namen wiederherstellen") { ChannelEdit.rename(ctx, item.id, "") })
     }
     chan.add(SideEntry("EPG zuweisen") { assign = true })
     // eigene Senderlisten

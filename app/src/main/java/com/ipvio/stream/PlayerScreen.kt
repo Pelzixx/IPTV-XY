@@ -393,6 +393,8 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     LaunchedEffect(Pip.active) { if (Pip.active) { closePanel(); controls = false; showChannels = false; showCats = false; showGuide = false; banner = false; liveMenu = false } }
 
     /** Aktion einer Taste ausführen (TiviMate: Fernbedienung > Player). */
+    // Aktion „Sendung neu starten“ (TiviMate): laufende Sendung über das Archiv von vorn
+    var restartReq by remember { mutableIntStateOf(0) }
     fun runAct(a: PAct) {
         when (a) {
             PAct.NONE -> {}
@@ -416,6 +418,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
             PAct.EXTERNAL -> { player.pause(); openExternal(ctx, cur.url, cur.title) }
             PAct.RECORD -> recToggle(ctx, curItem)
             PAct.MULTIVIEW -> if (cur.live) { MultiView.start(curItem); onBack() }
+            PAct.RESTART -> restartReq++
             PAct.SEARCH -> { AppNav.toSearch = true; onBack() }
             PAct.AUDIO -> openPanel(Panel.TRACKS)
             PAct.SUBS -> { openPanel(Panel.TRACKS); h.postDelayed({ runCatching { subsFocus.requestFocus() } }, 150) }
@@ -625,6 +628,12 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
         panel = Panel.NONE; panelParent = Panel.NONE
         controls = false
         flash = Flash(null, dayLabel(e.start) + "  " + hhmm(e.start))
+    }
+    LaunchedEffect(restartReq) {
+        if (restartReq == 0) return@LaunchedEffect
+        val ci = curItem; val t = System.currentTimeMillis() / 1000
+        val e = ci?.let { c -> Xmltv.forItem(c).firstOrNull { t in it.start until it.end } }
+        if (ci != null && e != null) playArchive(ci, e) else flash = Flash(null, Lang.tr("Nicht im Archiv verfügbar"))
     }
     // Aus dem TV-Guide gewählte vergangene Sendung: gleich im Archiv starten
     LaunchedEffect(Unit) {

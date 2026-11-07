@@ -383,6 +383,9 @@ Aus meiner Liste entfernen¦Remove from my list¦Listemden kaldır¦Ukloni iz mo
 Zu meiner Liste hinzugefügt¦Added to my list¦Listeme eklendi¦Dodano u moju listu¦Dodano na moj popis¦Dodato u moju listu¦Añadido a mi lista¦Ajouté à ma liste¦Aggiunto alla mia lista
 Aus meiner Liste entfernt¦Removed from my list¦Listemden kaldırıldı¦Uklonjeno iz moje liste¦Uklonjeno s mog popisa¦Uklonjeno iz moje liste¦Quitado de mi lista¦Retiré de ma liste¦Rimosso dalla mia lista
 Meine Liste · TV-Sendungen¦My list · TV programs¦Listem · TV programları¦Moja lista · TV emisije¦Moj popis · TV emisije¦Moja lista · TV emisije¦Mi lista · Programas de TV¦Ma liste · Programmes TV¦La mia lista · Programmi TV
+Namen wiederherstellen¦Restore name¦Adı geri yükle¦Vrati naziv¦Vrati naziv¦Vrati naziv¦Restaurar nombre¦Restaurer le nom¦Ripristina nome
+Von Anfang an ansehen¦Watch from the beginning¦Baştan izle¦Gledaj od početka¦Gledaj od početka¦Gledaj od početka¦Ver desde el principio¦Regarder depuis le début¦Guarda dall’inizio
+Sendung neu starten¦Restart program¦Programı yeniden başlat¦Ponovo pokreni emisiju¦Ponovno pokreni emisiju¦Ponovo pokreni emisiju¦Reiniciar programa¦Redémarrer le programme¦Riavvia programma
 Info¦Info¦Bilgi¦Info¦Info¦Info¦Info¦Info¦Info
 Guide¦Guide¦Rehber¦Vodič¦Vodič¦Vodič¦Guía¦Guide¦Guida
 """
