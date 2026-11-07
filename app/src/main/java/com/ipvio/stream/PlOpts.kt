@@ -63,17 +63,35 @@ object PlOpts {
 /** Kindersicherung > Kanal sperren (TiviMate): gesperrte Sender brauchen die PIN; entsperrt bis zum nächsten App-Start. */
 object ChLock {
     private const val KEY = "locked_channels"
-    private val session = HashSet<String>()
+    /** Entsperrt in dieser Sitzung: Sender-ID -> Zeitpunkt (ms). */
+    private val session = HashMap<String, Long>()
     var version by mutableIntStateOf(0)
         private set
+    /** Einstellungen in dieser Sitzung entsperrt (Zeitpunkt in ms, 0 = nein). */
+    @Volatile var settingsAt = 0L
 
-    private fun set(): Set<String> = Tm.s(KEY).split('\n').filter { it.isNotEmpty() }.toSet()
-    fun isLocked(id: String): Boolean = id in set()
-    fun needsPin(id: String): Boolean = Parental.pinSet && isLocked(id) && id !in session
-    fun unlock(id: String) { session.add(id) }
+    /** Wie lange ein Entsperren gilt (ms); 0 = bis zum nächsten App-Start, -1 = bis zum Wechsel auf einen offenen Sender. */
+    private fun keepMs(): Long = when (Tm.i(Tm.PC_UNLOCK, 0)) {
+        1 -> 10 * 60_000L; 2 -> 30 * 60_000L; 3 -> 60 * 60_000L; 4 -> 120 * 60_000L; 5 -> -1L; else -> 0L
+    }
+    private fun valid(at: Long?): Boolean {
+        if (at == null || at == 0L) return false
+        val k = keepMs()
+        return k <= 0L || System.currentTimeMillis() - at < k
+    }
+
+    fun list(): Set<String> = Tm.s(KEY).split('\n').filter { it.isNotEmpty() }.toSet()
+    fun isLocked(id: String): Boolean = id in list()
+    fun needsPin(id: String): Boolean = Parental.pinSet && isLocked(id) && !valid(session[id])
+    fun unlock(id: String) { session[id] = System.currentTimeMillis() }
+
+    /** Ein nicht gesperrter Sender wird gestartet: bei „bis Wechsel“ alle Freigaben aufheben. */
+    fun onOpen(id: String) { if (keepMs() == -1L && !isLocked(id)) session.clear() }
+
+    fun settingsNeedPin(): Boolean = Parental.pinSet && Tm.b(Tm.PC_SETTINGS, false) && !valid(settingsAt)
 
     fun toggle(c: Context, id: String): Boolean {
-        val s = set().toMutableSet()
+        val s = list().toMutableSet()
         val now = if (!s.remove(id)) { s.add(id); true } else false
         Tm.set(c, KEY, s.joinToString("\n"))
         version++

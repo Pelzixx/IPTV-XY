@@ -260,6 +260,7 @@ private fun AppContent() {
     fun start(item: Item, title: String, url: String, startMs: Long = 0L) {
         // Kindersicherung > Kanal sperren (TiviMate): erst die PIN, dann abspielen
         if (item.kind == Kind.LIVE && ChLock.needsPin(item.id)) { pinErr = null; pinAsk = { ChLock.unlock(item.id); start(item, title, url, startMs) }; return }
+        if (item.kind == Kind.LIVE) ChLock.onOpen(item.id)
         History.add(ctx, item.id)
         val sm = SE_RE.find(title)
         val season = sm?.groupValues?.get(1)?.toIntOrNull() ?: 0

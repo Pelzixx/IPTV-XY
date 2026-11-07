@@ -90,6 +90,8 @@ object Tm {
     // Eingeklappte Wiedergabelisten in der Gruppenübersicht (Namen, durch 0001 getrennt)
     const val PL_COLLAPSED = "pl_collapsed"
     const val PL_SORT = "pl_sort"                 // Playlist Sortierung: 0 Manuell, 1 Name
+    const val PC_SETTINGS = "pc_settings"         // PIN für Einstellungen erforderlich
+    const val PC_UNLOCK = "pc_unlock"             // Entsperrt bleibt: 0 App-Start, 1 10 min, 2 30 min, 3 1 h, 4 2 h, 5 bis Wechsel
 
     // ---------------------------------------------------------------- Fernbedienung > Spuloptionen
     const val SP_RWFF = "sp_rwff"                  // RW/FF/Pause zum Suchen/Pausieren während des Anschauens

@@ -434,6 +434,24 @@ private fun ParentalPage(ctx: Context, onExit: () -> Unit) {
                 PillButton(if (Parental.pinSet) "PIN ändern" else "PIN festlegen", light = !Parental.pinSet) { err = null; step = 2 }
                 if (Parental.pinSet) ConfirmPill("PIN entfernen") { Parental.clearPin(ctx) }
             }
+            // TiviMate: wofür die PIN gilt und wie lange ein Entsperren hält
+            if (Parental.pinSet) {
+                ToggleRow("PIN für Einstellungen erforderlich", null, Tm.b(Tm.PC_SETTINGS, false)) { Tm.set(ctx, Tm.PC_SETTINGS, it) }
+                val keep = listOf("Bis zum nächsten App-Start", "10 Minuten", "30 Minuten", "1 Stunde", "2 Stunden", "Bis zum Wechsel auf einen nicht gesperrten Kanal").map { Lang.tr(it) }
+                val ki = Tm.i(Tm.PC_UNLOCK, 0).coerceIn(0, keep.lastIndex)
+                SelectRow("Nach dem Entsperren", keep[ki], keep, ki) { Tm.set(ctx, Tm.PC_UNLOCK, it) }
+                ChLock.version
+                val locked = ChLock.list()
+                var showLocked by remember { mutableStateOf(false) }
+                SettingRow("Gesperrte Kanäle", locked.size.toString(), rawValue = true, onClick = { if (locked.isNotEmpty()) showLocked = true })
+                if (showLocked) {
+                    val byId = PlaylistStore.channels.associateBy { it.id }
+                    SideMenu(listOf(SideSection(Lang.tr("Gesperrte Kanäle"), locked.map { id ->
+                        SideEntry((byId[id]?.let { ChannelEdit.title(it) } ?: id) + "  ·  " + Lang.tr("entsperren"), raw = true) { ChLock.toggle(ctx, id) }
+                    })), { showLocked = false })
+                }
+                Hint("Kanäle sperrst du im TV-Guide: OK gedrückt halten > „Kanal sperren“.")
+            }
             Hint("Mit einer PIN lässt sich der Schutz nur nach Eingabe der PIN ändern. Die Erkennung arbeitet mit Stichwörtern in Kategorie- und Titelnamen und ist kein vollständiger Filter. Beim Zurücksetzen aller Einstellungen bleibt die PIN erhalten.")
         }
     }
@@ -1607,6 +1625,17 @@ private val PanelRight = object : androidx.compose.ui.window.PopupPositionProvid
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 fun SettingsPanel(onAdd: () -> Unit, reload: () -> Unit, onClose: () -> Unit) {
     val ctx = LocalContext.current
+    // Kindersicherung > PIN für Einstellungen (TiviMate): erst die PIN, dann das Menü
+    var pinOk by remember { mutableStateOf(!ChLock.settingsNeedPin()) }
+    var pinErr by remember { mutableStateOf<String?>(null) }
+    if (!pinOk) {
+        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)), contentAlignment = Alignment.Center) {
+            PinPad("PIN eingeben", Lang.tr("Die Einstellungen sind mit einer PIN geschützt."), pinErr, onSubmit = { pin ->
+                if (Parental.verify(ctx, pin)) { ChLock.settingsAt = System.currentTimeMillis(); pinOk = true } else pinErr = Parental.pinError()
+            }, onCancel = { onClose() })
+        }
+        return
+    }
     val stack = remember { mutableStateListOf<SP>(SP.Root) }
     val top = stack.last()
     fun back() { if (stack.size > 1) stack.removeAt(stack.lastIndex) else onClose() }
