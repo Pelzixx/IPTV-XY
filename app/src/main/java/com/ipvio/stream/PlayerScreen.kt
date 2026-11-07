@@ -336,8 +336,8 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     var pinErr by remember { mutableStateOf<String?>(null) }
     fun switchTo(it: Item, src: List<Item>) {
         // Kindersicherung > Kanal sperren: erst die PIN
-        if (ChLock.needsPin(it.id)) { pinErr = null; pinFor = it to src; return }
-        ChLock.onOpen(it.id)
+        if (ChLock.needsPinItem(it)) { pinErr = null; pinFor = it to src; return }
+        ChLock.onOpen(it)
         if ((cur.live || cur.archive != null) && cur.itemId != it.id) lastChId = cur.itemId
         // Optik > Player > Letzte Sender: erst nach der eingestellten Verzögerung in „zuletzt gesehen“
         val rcDelay = Tm.i(Tm.RC_DELAY, 0)
@@ -1600,7 +1600,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
         pinFor?.let { (pi, ps) ->
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.7f)), contentAlignment = Alignment.Center) {
                 PinPad("PIN eingeben", Lang.tr("Dieser Kanal ist gesperrt."), pinErr, onSubmit = { pin ->
-                    if (Parental.verify(ctx, pin)) { pinFor = null; ChLock.unlock(pi.id); switchTo(pi, ps) } else pinErr = Parental.pinError()
+                    if (Parental.verify(ctx, pin)) { pinFor = null; ChLock.unlockItem(pi); switchTo(pi, ps) } else pinErr = Parental.pinError()
                 }, onCancel = { pinFor = null })
             }
         }

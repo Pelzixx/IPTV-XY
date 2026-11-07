@@ -259,8 +259,8 @@ private fun AppContent() {
     var pinErr by remember { mutableStateOf<String?>(null) }
     fun start(item: Item, title: String, url: String, startMs: Long = 0L) {
         // Kindersicherung > Kanal sperren (TiviMate): erst die PIN, dann abspielen
-        if (item.kind == Kind.LIVE && ChLock.needsPin(item.id)) { pinErr = null; pinAsk = { ChLock.unlock(item.id); start(item, title, url, startMs) }; return }
-        if (item.kind == Kind.LIVE) ChLock.onOpen(item.id)
+        if (item.kind == Kind.LIVE && ChLock.needsPinItem(item)) { pinErr = null; pinAsk = { ChLock.unlockItem(item); start(item, title, url, startMs) }; return }
+        if (item.kind == Kind.LIVE) ChLock.onOpen(item)
         History.add(ctx, item.id)
         val sm = SE_RE.find(title)
         val season = sm?.groupValues?.get(1)?.toIntOrNull() ?: 0

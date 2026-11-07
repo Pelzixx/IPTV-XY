@@ -85,8 +85,24 @@ object ChLock {
     fun needsPin(id: String): Boolean = Parental.pinSet && isLocked(id) && !valid(session[id])
     fun unlock(id: String) { session[id] = System.currentTimeMillis() }
 
+    // Gruppen sperren (TiviMate: Gruppe > „Gruppe sperren“): alle Sender der Gruppe brauchen die PIN
+    private const val GKEY = "locked_groups"
+    fun groups(): Set<String> = Tm.s(GKEY).split('\n').filter { it.isNotEmpty() }.toSet()
+    fun isGroupLocked(g: String): Boolean = g in groups()
+    fun toggleGroup(c: Context, g: String): Boolean {
+        val s = groups().toMutableSet()
+        val now = if (!s.remove(g)) { s.add(g); true } else false
+        Tm.set(c, GKEY, s.joinToString("\n"))
+        version++
+        return now
+    }
+    fun needsPinItem(it: Item): Boolean = Parental.pinSet && (
+        (isLocked(it.id) && !valid(session[it.id])) || (isGroupLocked(it.group) && !valid(session["g:" + it.group]) && !valid(session[it.id]))
+    )
+    fun unlockItem(it: Item) { val t = System.currentTimeMillis(); session[it.id] = t; if (isGroupLocked(it.group)) session["g:" + it.group] = t }
+
     /** Ein nicht gesperrter Sender wird gestartet: bei „bis Wechsel“ alle Freigaben aufheben. */
-    fun onOpen(id: String) { if (keepMs() == -1L && !isLocked(id)) session.clear() }
+    fun onOpen(it: Item) { if (keepMs() == -1L && !isLocked(it.id) && !isGroupLocked(it.group)) session.clear() }
 
     fun settingsNeedPin(): Boolean = Parental.pinSet && Tm.b(Tm.PC_SETTINGS, false) && !valid(settingsAt)
 

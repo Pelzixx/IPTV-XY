@@ -264,6 +264,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                         else -> groups[n]?.size ?: 0
                     }
                     var listMenu by remember { mutableStateOf(false) }
+                    var grpMenu by remember { mutableStateOf(false) }
                     var confirmDelete by remember { mutableStateOf(false) }
                     Box {
                         CatRow(
@@ -271,11 +272,29 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                             (if (n == "GUIDE") Modifier.focusRequester(catFirstReq) else Modifier).then(
                                 if (n == sel) Modifier.focusRequester(catSelReq).then(if (list.isEmpty()) Modifier.focusRequester(ContentFocus.req) else Modifier) else Modifier),
                             onFocus = { hoverCat(n) }, onRight = { toChannels() },
-                            onFav = { if (ml != null) listMenu = true else if (n != FAV_CAT && n != "ALL" && n != HIDDEN_CAT && !PlGroups.isPl(n)) CatFavs.toggle(ctx, n) },
-                            icon = if (n.startsWith(PlGroups.P)) null else icon, raw = ml != null || PlGroups.isPl(n), header = n.startsWith(PlGroups.P),
+                            onFav = { if (ml != null) listMenu = true else if (n != FAV_CAT && n != "ALL" && n != HIDDEN_CAT && n != "GUIDE" && !n.startsWith(PlGroups.P)) grpMenu = true },
+                            icon = if (n.startsWith(PlGroups.P)) null else if (ChLock.version >= 0 && ChLock.isGroupLocked(PlGroups.label(n) ?: n)) AIcon.Lock else icon, raw = ml != null || PlGroups.isPl(n), header = n.startsWith(PlGroups.P),
                             indent = n.startsWith(PlGroups.G),
                             expanded = if (n.startsWith(PlGroups.P)) !PlGroups.collapsed(PlGroups.label(n) ?: "") else null
                         ) { if (n.startsWith(PlGroups.P)) PlGroups.toggle(ctx, PlGroups.label(n) ?: "") else toChannels() }
+                        // Menü einer Gruppe (OK gedrückt halten, TiviMate): Favorit, sperren, ausblenden
+                        if (grpMenu) {
+                            val gName = PlGroups.label(n) ?: n
+                            val plName = PlGroups.playlistOfKey(n) ?: PlaylistStore.lists.getOrNull(PlaylistStore.active)?.name.orEmpty()
+                            val isFav = n in CatFavs.list
+                            val locked = ChLock.isGroupLocked(gName)
+                            SideMenu(listOf(SideSection(gName, listOf(
+                                SideEntry(if (isFav) "Aus den Favoriten entfernen" else "Zu den Favoriten hinzufügen", AIcon.Star) { CatFavs.toggle(ctx, n) },
+                                SideEntry(if (locked) "Gruppe entsperren" else "Gruppe sperren", AIcon.Lock) {
+                                    if (!Parental.pinSet) Toast.makeText(ctx, Lang.tr("Bitte zuerst unter Einstellungen > Kindersicherung eine PIN festlegen."), Toast.LENGTH_LONG).show()
+                                    else Toast.makeText(ctx, Lang.tr(if (ChLock.toggleGroup(ctx, gName)) "Gruppe gesperrt" else "Gruppe entsperrt"), Toast.LENGTH_SHORT).show()
+                                },
+                                SideEntry("Gruppe ausblenden", AIcon.EyeOff) {
+                                    PlOpts.setHidden(ctx, plName, gName, true)
+                                    Toast.makeText(ctx, Lang.tr("Gruppe ausgeblendet. Zurückholen: Wiedergabeliste > Gruppen verwalten."), Toast.LENGTH_LONG).show()
+                                }
+                            ))), { grpMenu = false })
+                        }
                         // Menü einer eigenen Liste (OK gedrückt halten): Sender hinzufügen, umbenennen, löschen
                         if (listMenu && ml != null) OptionPopup(
                             listOf("Sender hinzufügen", "Umbenennen", "Liste löschen"), -1, { listMenu = false },
