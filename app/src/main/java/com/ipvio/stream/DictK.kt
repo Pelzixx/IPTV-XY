@@ -355,4 +355,13 @@ Filme und Serien¦Movies and series¦Filmler ve diziler¦Filmovi i serije¦Filmo
 Gilt nach dem nächsten Aktualisieren der Wiedergabeliste.¦Applies after the next playlist update.¦Bir sonraki liste güncellemesinden sonra geçerli.¦Važi nakon sljedećeg ažuriranja liste.¦Vrijedi nakon sljedećeg ažuriranja popisa.¦Važi nakon sledećeg ažuriranja liste.¦Se aplica tras la próxima actualización de la lista.¦S’applique après la prochaine mise à jour de la playlist.¦Valido dopo il prossimo aggiornamento della playlist.
 Max. Verbindungen¦Max. connections¦Maks. bağlantı¦Maks. veza¦Maks. veza¦Maks. veza¦Conexiones máx.¦Connexions max.¦Connessioni max.
 Verbindungslimit erreicht¦Connection limit reached¦Bağlantı sınırına ulaşıldı¦Dostignut limit veza¦Dosegnut limit veza¦Dostignut limit veza¦Límite de conexiones alcanzado¦Limite de connexions atteinte¦Limite di connessioni raggiunto
+Multiview¦Multiview¦Çoklu görünüm¦Multiview¦Multiview¦Multiview¦Multivista¦Multivue¦Multiview
+Bildschirm hinzufügen¦Add screen¦Ekran ekle¦Dodaj ekran¦Dodaj zaslon¦Dodaj ekran¦Añadir pantalla¦Ajouter un écran¦Aggiungi schermo
+Bildschirm entfernen¦Remove screen¦Ekranı kaldır¦Ukloni ekran¦Ukloni zaslon¦Ukloni ekran¦Quitar pantalla¦Retirer l’écran¦Rimuovi schermo
+Kanal ändern¦Change channel¦Kanalı değiştir¦Promijeni kanal¦Promijeni program¦Promeni kanal¦Cambiar canal¦Changer de chaîne¦Cambia canale
+Vollbild¦Full screen¦Tam ekran¦Cijeli ekran¦Cijeli zaslon¦Ceo ekran¦Pantalla completa¦Plein écran¦Schermo intero
+Gruppe wählen¦Choose group¦Grup seç¦Odaberi grupu¦Odaberi grupu¦Izaberi grupu¦Elegir grupo¦Choisir un groupe¦Scegli gruppo
+Wiedergabe nicht möglich¦Playback not possible¦Oynatılamıyor¦Reprodukcija nije moguća¦Reprodukcija nije moguća¦Reprodukcija nije moguća¦No se puede reproducir¦Lecture impossible¦Riproduzione non possibile
+Hinweis: Die Wiedergabeliste erlaubt nur¦Note: the playlist only allows¦Not: Oynatma listesi yalnızca¦Napomena: lista dozvoljava samo¦Napomena: popis dopušta samo¦Napomena: lista dozvoljava samo¦Aviso: la lista solo permite¦Remarque : la playlist n’autorise que¦Nota: la playlist consente solo
+Verbindungen.¦connections.¦bağlantıya izin veriyor.¦veza.¦veza.¦veza.¦conexiones.¦connexions.¦connessioni.
 """

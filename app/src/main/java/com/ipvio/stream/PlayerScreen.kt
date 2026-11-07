@@ -409,6 +409,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
             PAct.CH_OPTS -> { liveMenu = true; controls = true }
             PAct.EXTERNAL -> { player.pause(); openExternal(ctx, cur.url, cur.title) }
             PAct.RECORD -> recToggle(ctx, curItem)
+            PAct.MULTIVIEW -> if (cur.live) { MultiView.start(curItem); onBack() }
             PAct.SEARCH -> { AppNav.toSearch = true; onBack() }
             PAct.AUDIO -> openPanel(Panel.TRACKS)
             PAct.SUBS -> { openPanel(Panel.TRACKS); h.postDelayed({ runCatching { subsFocus.requestFocus() } }, 150) }
@@ -1471,6 +1472,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                                     MBtn.SETTINGS -> PBarButton(first, label = "Einstellungen", onLabel = setLabel, onClick = { AppNav.toSettings = true; onBack() }) { AppIcon(AIcon.Gear, it, size = 26.dp) }
                                     MBtn.EXTERNAL -> PBarButton(first, label = "Extern öffnen", onLabel = setLabel, onClick = { player.pause(); openExternal(ctx, cur.url, cur.title) }) { PlayerIcon(PIcon.External, it) }
                                     MBtn.RECORD -> if (cur.live) PBarButton(first, label = if (curItem != null && Recorder.runningFor(curItem.id) != null) "Aufnahme stoppen" else "Aufnehmen", onLabel = setLabel, onClick = { recToggle(ctx, curItem) }) { AppIcon(AIcon.Rec, if (curItem != null && Recorder.runningFor(curItem.id) != null) Color(0xFFE5484D) else it, size = 26.dp) }
+                                    MBtn.MULTIVIEW -> if (cur.live) PBarButton(first, label = "Multiview", onLabel = setLabel, onClick = { MultiView.start(curItem); onBack() }) { AppIcon(AIcon.Grid, it, size = 26.dp) }
                                     MBtn.HISTORY -> PBarButton(first, label = "Verlauf", onLabel = setLabel, onClick = { openRecent() }) { AppIcon(AIcon.History, it, size = 26.dp) }
                                     MBtn.MOVIES -> PBarButton(first, label = "Filme", onLabel = setLabel, onClick = { AppNav.toTab = 1; onBack() }) { AppIcon(AIcon.Play, it, size = 26.dp) }
                                     MBtn.SERIES -> PBarButton(first, label = "Serien", onLabel = setLabel, onClick = { AppNav.toTab = 2; onBack() }) { AppIcon(AIcon.Layers, it, size = 26.dp) }

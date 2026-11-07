@@ -389,6 +389,10 @@ private fun AppContent() {
         val b = browse
         val c = cats
         when {
+            MultiView.open -> MultiViewScreen(liveAll) { item ->
+                MultiView.open = false
+                if (item != null) start(item, item.title, item.url)
+            }
             p != null -> {
                 val zap = if (p.live || p.archive != null) {
                     val ctxList = ZapContext.list

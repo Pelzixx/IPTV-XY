@@ -9,6 +9,7 @@ enum class MBtn(val label: String, val shown: Boolean) {
     GUIDE("TV-Guide", true),
     ARCHIVE("Archiv", true),
     RECORD("Aufnehmen", true),
+    MULTIVIEW("Multiview", true),
     LIVE("Zurück zu Live", true),
     VIDEO("Videospuren", true),
     AUDIO("Audiospuren", true),
