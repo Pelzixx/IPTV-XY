@@ -367,6 +367,7 @@ private fun AppContent() {
                     PlayerScreen(p, zap, liveAll, seriesItem) {
                         // Live: zurück in Live TV auf den zuletzt gesehenen Sender (auch nach Umschalten im Player)
                         if (p.live || p.archive != null) LastFocus.pending = History.ids.firstOrNull { id -> liveAll.any { it.id == id } }
+                        if (AppNav.toGuide) { AppNav.toGuide = false; if (tab != 3) { tab = 3; AppNav.focusTab = 3 } }
                         playing = null
                     }
                 }

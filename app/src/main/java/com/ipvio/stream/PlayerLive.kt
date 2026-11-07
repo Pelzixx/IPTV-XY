@@ -52,40 +52,42 @@ import coil.compose.AsyncImage
 /** Sender-Infoblock: Logo, Nummer, Name, laufende Sendung mit Fortschritt und "Danach". */
 @Composable
 fun LiveInfoBlock(item: Item?, title: String, number: Int, epg: List<EpgEntry>, modifier: Modifier = Modifier) {
+    // Runde 20 (TV-Stil): Logo frei links, daneben Sendungstitel groß; darunter Zeit, Fortschritt, Restminuten und Sendername,
+    // dann Beschreibung und die nächste Sendung
     val nowE = Epg.current(epg)
     val nextE = if (nowE != null) epg.firstOrNull { it.start >= nowE.end } else null
     val logo = item?.logo
-    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-        Box(
-            Modifier.size(72.dp).clip(RoundedCornerShape(DS.RadiusM)).background(Color(0x24FFFFFF)),
-            contentAlignment = Alignment.Center
-        ) {
-            if (logo != null) AsyncImage(logo, null, Modifier.fillMaxSize().padding(8.dp), contentScale = ContentScale.Fit)
-            else Text(raw = true, text = title.take(2).uppercase(), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
+    val chName = item?.let { ChannelEdit.title(it) } ?: title
+    Row(modifier, verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+        Box(Modifier.width(140.dp).height(90.dp), contentAlignment = Alignment.Center) {
+            if (logo != null) AsyncImage(logo, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+            else Text(raw = true, text = chName.take(3).uppercase(), color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
         }
-        Column(Modifier.widthIn(max = 760.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (number > 0) Text("$number", color = Accent2, fontSize = 22.sp, fontWeight = FontWeight.Bold, style = TNUM)
-                Text(raw = true, text = title, color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Column(Modifier.widthIn(max = 1100.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(raw = true, text = nowE?.title ?: chName, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Medium,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (nowE != null) {
+                    val nowS = System.currentTimeMillis() / 1000
+                    val frac = ((nowS - nowE.start).toFloat() / (nowE.end - nowE.start).coerceAtLeast(1)).coerceIn(0f, 1f)
+                    Text(raw = true, text = hhmm(nowE.start) + " — " + hhmm(nowE.end), color = PT.T2, fontSize = 18.sp, style = TNUM, maxLines = 1)
+                    Box(Modifier.width(70.dp).height(4.dp).clip(RoundedCornerShape(2.dp)).background(DS.Overlay3)) {
+                        Box(Modifier.fillMaxWidth(frac).fillMaxHeight().background(Color.White))
+                    }
+                    Text(raw = true, text = "${((nowE.end - nowS) / 60).coerceAtLeast(0)} Min", color = PT.T2, fontSize = 18.sp, style = TNUM, maxLines = 1)
+                }
+                if (number > 0) Text("$number", color = Accent2, fontSize = 18.sp, fontWeight = FontWeight.Medium, style = TNUM)
+                Text(raw = true, text = chName, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             if (nowE != null) {
-                val frac = ((System.currentTimeMillis() / 1000 - nowE.start).toFloat() / (nowE.end - nowE.start).coerceAtLeast(1)).coerceIn(0f, 1f)
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("${hhmm(nowE.start)}–${hhmm(nowE.end)}", color = Accent2, fontSize = 18.sp, fontWeight = FontWeight.Bold, style = TNUM, maxLines = 1)
-                    Text(raw = true, text = nowE.title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(50)).background(DS.Overlay3)) {
-                    Box(Modifier.fillMaxWidth(frac).fillMaxHeight().background(Accent1))
-                }
-                if (nextE != null) {
-                    Text("Danach ${hhmm(nextE.start)}  ${nextE.title}", color = PT.T2, fontSize = 15.sp, style = TNUM, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (nowE.desc.isNotBlank()) Text(raw = true, text = nowE.desc, color = PT.T2, fontSize = 17.sp, lineHeight = 22.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                if (nextE != null) Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(raw = true, text = hhmm(nextE.start) + " — " + hhmm(nextE.end), color = PT.T2, fontSize = 18.sp, style = TNUM, maxLines = 1)
+                    Text(raw = true, text = nextE.title, color = PT.T2, fontSize = 20.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             } else {
                 val supported = item != null && Epg.supported(item)
-                Text(
-                    if (supported) "Kein Programm für diesen Sender" else "Kein Programm verfügbar",
-                    color = Muted, fontSize = 15.sp, maxLines = 1
-                )
+                Text(if (supported) "Kein Programm für diesen Sender" else "Kein Programm verfügbar", color = PT.T2, fontSize = 17.sp, maxLines = 1)
             }
         }
     }
@@ -337,5 +339,27 @@ private fun ChannelRow(item: Item, current: Boolean, modifier: Modifier, onFocus
         if (DeadLinks.isDead(item.url)) AppIcon(AIcon.Warning, if (f) PT.InkSoft else PT.Gold, size = 18.dp)
         if (Library.isFav(item.id)) AppIcon(AIcon.Star, if (f) PT.InkSoft else PT.Gold, size = 18.dp)
         if (f) AppIcon(AIcon.Play, PT.Ink, size = 18.dp)
+    }
+}
+
+/** Obere Leiste im Live-Player (TV-Stil): links „Wiedergabeliste • Gruppe“, rechts Datum und Uhrzeit. */
+@Composable
+fun LiveTopBar(modifier: Modifier = Modifier, trailing: @Composable () -> Unit = {}) {
+    val plName = PlaylistStore.lists.getOrNull(PlaylistStore.active)?.name
+    val group = ZapContext.key?.let { k ->
+        when {
+            k == FAV_CAT -> Lang.tr("Favoriten")
+            k == "ALL" -> Lang.tr("Alle Sender")
+            else -> ChannelLists.byKey(k)?.name ?: k
+        }
+    }
+    val nowS by produceState(System.currentTimeMillis() / 1000) {
+        while (true) { kotlinx.coroutines.delay(15_000); value = System.currentTimeMillis() / 1000 }
+    }
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(raw = true, text = listOfNotNull(plName, group).joinToString("  •  "), color = Color.White, fontSize = 20.sp,
+            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        Text(raw = true, text = longDay(nowS) + ", " + hhmm(nowS), color = Color.White, fontSize = 20.sp, maxLines = 1)
+        trailing()
     }
 }

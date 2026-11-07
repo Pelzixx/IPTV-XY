@@ -66,6 +66,8 @@ object NavState {
  */
 object AppNav {
     var homeSignal by androidx.compose.runtime.mutableIntStateOf(0)
+    /** Aus dem Live-Player mit „links“: danach den TV-Guide (Bereich TV) zeigen. */
+    @Volatile var toGuide = false
     /** Player offen? Dann verschiebt die Hintergrund-Aktualisierung das Neuladen der Playlist (kein Ruckeln mitten im Film). */
     @Volatile var playing = false
     /** Sender, der geöffnet werden soll (Tippen auf eine Erinnerungs-Benachrichtigung). */

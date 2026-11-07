@@ -973,7 +973,8 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                     cur.live && digitBuf.isNotEmpty() && (k == Key.DirectionCenter || k == Key.Enter) -> { commitDigits(); true }
                     controls || panel != Panel.NONE || showChannels || showGuide -> false
                     else -> when (k) {
-                        Key.DirectionLeft -> { if (cur.live) openChannels() else stepSeek(-1); true }
+                        // TV-Stil: Links führt in den TV-Guide (der Sender läuft dort im Vorschaufenster weiter)
+                        Key.DirectionLeft -> { if (cur.live) { AppNav.toGuide = true; onBack() } else stepSeek(-1); true }
                         Key.DirectionRight -> { if (cur.live) { controls = false; showGuide = true } else stepSeek(1); true }
                         Key.DirectionCenter, Key.Enter -> {
                             val seg = activeSeg
@@ -1131,10 +1132,14 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
 
         // Kurzer Sender-Banner beim Umschalten
         if (banner && cur.live && !controls && !showChannels && !showGuide) {
+            // TV-Stil: Abdunklung oben und unten über die ganze Breite, oben Wiedergabeliste/Gruppe und Uhrzeit, unten die Infos
+            Box(Modifier.fillMaxWidth().height(150.dp).align(Alignment.TopCenter).background(Brush.verticalGradient(listOf(Color(0xCC000000), Color.Transparent))))
+            Box(Modifier.fillMaxWidth().height(360.dp).align(Alignment.BottomCenter)
+                .background(Brush.verticalGradient(0f to Color.Transparent, 0.35f to Color(0xB3000000), 1f to Color(0xF2000000))))
+            LiveTopBar(Modifier.fillMaxWidth().align(Alignment.TopStart).padding(start = PT.MarginX, end = PT.MarginX, top = PT.MarginY))
             LiveInfoBlock(
                 curItem, cur.title, if (curIdx >= 0) curIdx + 1 else 0, epg,
-                Modifier.align(Alignment.BottomStart).padding(start = PT.MarginX, bottom = PT.MarginY)
-                    .clip(RoundedCornerShape(DS.RadiusL)).background(Color(0xCC000000)).padding(20.dp)
+                Modifier.align(Alignment.BottomStart).padding(start = PT.MarginX, end = PT.MarginX, bottom = PT.MarginY)
             )
         }
 
@@ -1212,35 +1217,15 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                     }
                 }
 
-                // Live (Runde 20, TV-Stil): oben links Playlist und Gruppe, oben rechts Datum und Uhrzeit
-                if (cur.live) {
-                    val plName = PlaylistStore.lists.getOrNull(PlaylistStore.active)?.name
-                    val group = ZapContext.key?.let { k ->
-                        when {
-                            k == FAV_CAT -> Lang.tr("Favoriten")
-                            k == "ALL" -> Lang.tr("Alle Sender")
-                            else -> ChannelLists.byKey(k)?.name ?: k
-                        }
-                    }
-                    Text(raw = true, text = listOfNotNull(plName, group).joinToString("  •  "), color = Color.White, fontSize = 20.sp,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.align(Alignment.TopStart).padding(start = PT.MarginX, top = PT.MarginY, end = 520.dp))
-                }
-                // Marken oben rechts
-                Row(
+                // Live (TV-Stil): oben „Wiedergabeliste • Gruppe“, rechts Datum, Uhrzeit und LIVE
+                if (cur.live) LiveTopBar(Modifier.fillMaxWidth().align(Alignment.TopStart).padding(start = PT.MarginX, end = PT.MarginX, top = PT.MarginY)) {
+                    PLiveChip(behindSec = behindSec)
+                } else Row(
                     Modifier.align(Alignment.TopEnd).padding(end = PT.MarginX, top = PT.MarginY),
                     horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (cur.live) {
-                        val nowS by androidx.compose.runtime.produceState(System.currentTimeMillis() / 1000) {
-                            while (true) { kotlinx.coroutines.delay(15_000); value = System.currentTimeMillis() / 1000 }
-                        }
-                        Text(raw = true, text = longDay(nowS) + ", " + hhmm(nowS), color = Color.White, fontSize = 20.sp, maxLines = 1)
-                    }
-                    if (cur.live) PLiveChip(behindSec = behindSec)
-                    else badges.forEachIndexed { i, b -> PChip(b, filled = i == 0 && b == "4K") }
+                    badges.forEachIndexed { i, b -> PChip(b, filled = i == 0 && b == "4K") }
                 }
-
                 val setLabel: (String) -> Unit = { ctrlLabel = it }
 
                 Column(
