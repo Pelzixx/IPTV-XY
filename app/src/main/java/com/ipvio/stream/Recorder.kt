@@ -280,6 +280,18 @@ class RecService : Service() {
 
     private fun launchRec(r: Rec) {
         val ctx = applicationContext
+        // Max. Verbindungen der Wiedergabeliste (TiviMate): laufende Aufnahmen + Player derselben Liste zählen mit
+        val list = PlaylistStore.playlistOf(r.chId)
+        val max = PlOpts.maxConn(list)
+        if (max > 0) {
+            val recs = Recorder.list.count { it.state == Rec.RUNNING && it.id != r.id && PlaylistStore.playlistOf(it.chId) == list }
+            val player = AppNav.playingId?.let { id -> if (AppNav.playing && PlaylistStore.playlistOf(id) == list) 1 else 0 } ?: 0
+            if (recs + player >= max) {
+                Recorder.update(ctx, r.id) { it.copy(state = Rec.FAILED, msg = "Verbindungslimit erreicht") }
+                Recorder.list.firstOrNull { it.id == r.id }?.let { Recorder.planNextRepeat(ctx, it) }
+                return
+            }
+        }
         val name = RecStore.fileName(r)
         val target = RecStore.target(ctx, name)
         Recorder.update(ctx, r.id) { it.copy(state = Rec.RUNNING, file = target, msg = "") }

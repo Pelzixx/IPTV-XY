@@ -783,6 +783,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
         findActivity(ctx)?.let { Pip.allow(it, true) }
         onDispose {
             AppNav.playing = false
+            AppNav.playingId = null
             findActivity(ctx)?.let { Pip.allow(it, false) }
             // Detailseite merkt sich die zuletzt gespielte Folge (auch nach „Nächste Folge“)
             if (!cur.live && cur.archive == null) DetailReturn.set(cur.itemId, cur.season, cur.episode)
@@ -854,6 +855,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     }
 
     LaunchedEffect(cur.url) {
+        AppNav.playingId = cur.itemId
         readyOnce = false; stalls = emptyList()
         retries = 0; msg = null; buffering = true; segs = emptyList(); pos = 0; dur = 0; buffered = 0
         infoFor = ""; info = null; badges = emptyList(); nextDismissed = false

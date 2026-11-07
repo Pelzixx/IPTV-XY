@@ -18,6 +18,15 @@ class XtreamApiLoadTest {
         return sw.toString()
     }
 
+    @Test fun ausgabeformat_hls() {
+        val sw = StringWriter()
+        val w = XtreamM3uLogic.Writer(sw, "http://h:80", "u", "p")
+        w.liveExt = "m3u8"
+        w.header()
+        w.live(mapOf("stream_id" to "7", "name" to "Das Erste HD", "category_id" to "1"), mapOf("1" to "DE"))
+        assertTrue(sw.toString().contains("http://h:80/live/u/p/7.m3u8"))
+    }
+
     @Test fun kompakte_liste_wird_richtig_eingelesen() {
         val p = M3uParser.parseStream(java.io.StringReader(m3u()))
         val live = p.items.first { it.kind == Kind.LIVE }

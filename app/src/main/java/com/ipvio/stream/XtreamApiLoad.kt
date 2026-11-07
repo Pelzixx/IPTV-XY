@@ -19,14 +19,20 @@ object XtreamApiLoad {
     /** Gesamtzahl geschriebener Einträge; [onPhase] meldet „Sender/Filme/Serien werden geladen …“. */
     fun writeM3u(
         client: OkHttpClient, host: String, user: String, pass: String, out: Writer,
-        onPhase: (String) -> Unit, onCount: (Int) -> Unit, cancelled: () -> Boolean
+        onPhase: (String) -> Unit, onCount: (Int) -> Unit, cancelled: () -> Boolean,
+        liveExt: String = "ts", withLive: Boolean = true, withVod: Boolean = true
     ): Int {
         val api = "$host/player_api.php?username=${URLEncoder.encode(user, "UTF-8")}&password=${URLEncoder.encode(pass, "UTF-8")}&action="
         val w = XtreamM3uLogic.Writer(out, host, user, pass)
+        w.liveExt = liveExt
         w.header()
-        onPhase("Sender werden geladen …")
-        val liveCats = categories(client, api + "get_live_categories")
-        stream(client, api + "get_live_streams") { o -> w.live(o, liveCats); onCount(w.count); if (cancelled()) throw java.util.concurrent.CancellationException() }
+        // TiviMate (Xtream Codes Parameter): „TV-Kanäle einbeziehen“ / „VOD einbeziehen“
+        if (withLive) {
+            onPhase("Sender werden geladen …")
+            val liveCats = categories(client, api + "get_live_categories")
+            stream(client, api + "get_live_streams") { o -> w.live(o, liveCats); onCount(w.count); if (cancelled()) throw java.util.concurrent.CancellationException() }
+        }
+        if (!withVod) { out.flush(); return w.count }
         onPhase("Filme werden geladen …")
         val vodCats = categories(client, api + "get_vod_categories")
         stream(client, api + "get_vod_streams") { o -> w.movie(o, vodCats); onCount(w.count); if (cancelled()) throw java.util.concurrent.CancellationException() }
@@ -96,6 +102,8 @@ object XtreamM3uLogic {
     private fun t(s: String?): String = (s ?: "").replace('\n', ' ').replace('\r', ' ').replace(',', ' ').trim()
 
     class Writer(private val out: java.io.Writer, private val host: String, private val user: String, private val pass: String) {
+        /** Ausgabeformat der Sender (TiviMate: „Ausgabeformat“): ts oder m3u8. */
+        var liveExt = "ts"
         var count = 0
             private set
 
@@ -116,7 +124,7 @@ object XtreamM3uLogic {
                 val d = o["tv_archive_duration"]?.toIntOrNull() ?: 0
                 if (d > 0) sb.append(" catchup=\"xc\" catchup-days=\"").append(d).append('"')
             }
-            entry(sb.toString(), name, "$host/live/$user/$pass/$id.ts")
+            entry(sb.toString(), name, "$host/live/$user/$pass/$id.$liveExt")
         }
 
         fun movie(o: Map<String, String>, cats: Map<String, String>) {

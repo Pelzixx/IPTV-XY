@@ -1167,6 +1167,9 @@ private fun PlaylistMainPage(ctx: Context, idx: Int, onXtream: () -> Unit, onEpg
     SettingRow("EPG Quellen", if (epgs.isEmpty()) Lang.tr("EPG vom Anbieter") else epgs.size.toString() + " " + Lang.tr("Quellen") + " + " + Lang.tr("Anbieter"),
         rawValue = true, onClick = onEpg)
     PlaylistTmRows(ctx, pl.name, onGroups) { ask = it }
+    val mcs = listOf(0, 1, 2, 3, 4, 5, 10)
+    val mc = PlOpts.maxConn(pl.name)
+    SelectRow("Max. Verbindungen", if (mc == 0) Lang.tr("Unbegrenzt") else mc.toString(), mcs.map { if (it == 0) Lang.tr("Unbegrenzt") else it.toString() }, mcs.indexOf(mc).coerceAtLeast(0)) { PlOpts.setMaxConn(ctx, pl.name, mcs[it]) }
     PanelSection(Lang.tr("Update-Optionen"))
     PlaylistUpdateRows(ctx)
     // TiviMate: Stand der Aktualisierung direkt am Eintrag (läuft gerade / zuletzt aktualisiert)
@@ -1217,6 +1220,12 @@ private fun PlaylistXtreamPage(ctx: Context, idx: Int) {
     SettingRow("Passwort", "•".repeat(pass.length.coerceIn(4, 12)), rawValue = true, onClick = {
         ask = Ask("Passwort", pass, "Passwort", password = true) { saveXtream(ctx, scope, idx, host, user, it) }
     })
+    // TiviMate: Ausgabeformat, TV-Kanäle einbeziehen, VOD einbeziehen (gelten beim nächsten Aktualisieren)
+    val fmts = listOf("MPEG-TS (.ts)", "HLS (.m3u8)")
+    val fi = if (PlOpts.xtExt(pl.name) == "m3u8") 1 else 0
+    SelectRow("Ausgabeformat", fmts[fi], fmts, fi) { PlOpts.setXtFmt(ctx, pl.name, it); PlaylistStore.forgetRaw(ctx, pl.url); android.widget.Toast.makeText(ctx, Lang.tr("Gilt nach dem nächsten Aktualisieren der Wiedergabeliste."), android.widget.Toast.LENGTH_SHORT).show() }
+    ToggleRow("TV-Kanäle einbeziehen", null, PlOpts.xtLive(pl.name)) { PlOpts.setXtLive(ctx, pl.name, it); PlaylistStore.forgetRaw(ctx, pl.url) }
+    ToggleRow("VOD einbeziehen", Lang.tr("Filme und Serien"), PlOpts.xtVod(pl.name)) { PlOpts.setXtVod(ctx, pl.name, it); PlaylistStore.forgetRaw(ctx, pl.url) }
     // Ablaufdatum vom Server (wie „Mein Zugang“ auf Home)
     val acc by produceState<AccountInfo?>(null, pl.url) { value = HomeInfo.account(pl.url) }
     acc?.let { a ->

@@ -348,4 +348,11 @@ Gruppe gesperrt¦Group locked¦Grup kilitlendi¦Grupa zaključana¦Grupa zaklju�
 Gruppe entsperrt¦Group unlocked¦Grup kilidi açıldı¦Grupa otključana¦Grupa otključana¦Grupa otključana¦Grupo desbloqueado¦Groupe déverrouillé¦Gruppo sbloccato
 Gruppe ausblenden¦Hide group¦Grubu gizle¦Sakrij grupu¦Sakrij grupu¦Sakrij grupu¦Ocultar grupo¦Masquer le groupe¦Nascondi gruppo
 Gruppe ausgeblendet. Zurückholen: Wiedergabeliste > Gruppen verwalten.¦Group hidden. Restore: Playlist > Manage groups.¦Grup gizlendi. Geri almak için: Oynatma listesi > Grupları yönet.¦Grupa sakrivena. Vrati: Lista > Upravljaj grupama.¦Grupa skrivena. Vrati: Popis > Upravljaj grupama.¦Grupa sakrivena. Vrati: Lista > Upravljaj grupama.¦Grupo oculto. Recuperar: Lista > Gestionar grupos.¦Groupe masqué. Restaurer : Playlist > Gérer les groupes.¦Gruppo nascosto. Ripristina: Playlist > Gestisci gruppi.
+Ausgabeformat¦Output format¦Çıkış biçimi¦Izlazni format¦Izlazni format¦Izlazni format¦Formato de salida¦Format de sortie¦Formato di uscita
+TV-Kanäle einbeziehen¦Include TV channels¦TV kanallarını dahil et¦Uključi TV kanale¦Uključi TV programe¦Uključi TV kanale¦Incluir canales de TV¦Inclure les chaînes TV¦Includi canali TV
+VOD einbeziehen¦Include VOD¦VOD'u dahil et¦Uključi VOD¦Uključi VOD¦Uključi VOD¦Incluir VOD¦Inclure la VOD¦Includi VOD
+Filme und Serien¦Movies and series¦Filmler ve diziler¦Filmovi i serije¦Filmovi i serije¦Filmovi i serije¦Películas y series¦Films et séries¦Film e serie
+Gilt nach dem nächsten Aktualisieren der Wiedergabeliste.¦Applies after the next playlist update.¦Bir sonraki liste güncellemesinden sonra geçerli.¦Važi nakon sljedećeg ažuriranja liste.¦Vrijedi nakon sljedećeg ažuriranja popisa.¦Važi nakon sledećeg ažuriranja liste.¦Se aplica tras la próxima actualización de la lista.¦S’applique après la prochaine mise à jour de la playlist.¦Valido dopo il prossimo aggiornamento della playlist.
+Max. Verbindungen¦Max. connections¦Maks. bağlantı¦Maks. veza¦Maks. veza¦Maks. veza¦Conexiones máx.¦Connexions max.¦Connessioni max.
+Verbindungslimit erreicht¦Connection limit reached¦Bağlantı sınırına ulaşıldı¦Dostignut limit veza¦Dosegnut limit veza¦Dostignut limit veza¦Límite de conexiones alcanzado¦Limite de connexions atteinte¦Limite di connessioni raggiunto
 """

@@ -223,6 +223,9 @@ object PlaylistStore {
     private val UA: String get() = TmNet.userAgent()
     /** Eine fertig heruntergeladene, aber noch nicht eingelesene Liste wird so lange wiederverwendet. */
     private const val RAW_MAX_AGE = 12 * 3_600_000L
+
+    /** Zwischengespeicherte Rohliste verwerfen (z. B. nach geänderten Xtream-Optionen), damit das nächste Aktualisieren neu lädt. */
+    fun forgetRaw(c: Context, url: String) { runCatching { rawFile(c, url).delete() } }
     /** Freier Platz, der nach dem Download mindestens bleiben soll. */
     private const val SPACE_RESERVE = 64L * 1024 * 1024
 
@@ -579,9 +582,11 @@ object PlaylistStore {
                 bytesRead = 0L; totalBytes = -1L; downloadDone = false
                 part.delete()
                 val n = java.io.OutputStreamWriter(BufferedOutputStream(FileOutputStream(part), 1 shl 16), Charsets.UTF_8).use { w ->
+                    val ln = lists.firstOrNull { it.url.trim() == u.trim() }?.name
                     XtreamApiLoad.writeM3u(client, host, user, pass, w,
                         onPhase = { phase = it }, onCount = { k -> if (k % 500 == 0) bytesRead = part.length() },
-                        cancelled = { cancelled() })
+                        cancelled = { cancelled() },
+                        liveExt = PlOpts.xtExt(ln), withLive = PlOpts.xtLive(ln), withVod = PlOpts.xtVod(ln))
                 }
                 if (n > 0 && part.length() > 0) {
                     info.writeText(LoadLogic.PartInfo(key(u), null, null, "UTF-8").encode())

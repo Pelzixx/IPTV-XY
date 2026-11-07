@@ -76,6 +76,8 @@ object AppNav {
     @Volatile var archiveStart: Pair<String, EpgEntry>? = null
     /** Player offen? Dann verschiebt die Hintergrund-Aktualisierung das Neuladen der Playlist (kein Ruckeln mitten im Film). */
     @Volatile var playing = false
+    /** Sender bzw. Titel, der gerade im Player läuft (für Max. Verbindungen). */
+    @Volatile var playingId: String? = null
     /** Sender, der geöffnet werden soll (Tippen auf eine Erinnerungs-Benachrichtigung). */
     var openChannel by androidx.compose.runtime.mutableStateOf<String?>(null)
     @Volatile var leftByUser = false

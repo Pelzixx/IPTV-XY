@@ -27,6 +27,18 @@ object PlOpts {
     fun ua(list: String?): String = if (list == null) "" else Tm.s(k(list, "ua")).trim()
     fun setUa(c: Context, list: String, v: String) = Tm.set(c, k(list, "ua"), v.trim())
 
+    // Xtream Codes Parameter (TiviMate): Ausgabeformat, TV-Kanäle und VOD einbeziehen
+    fun xtExt(list: String?): String = if (list != null && Tm.i(k(list, "xtfmt"), 0) == 1) "m3u8" else "ts"
+    fun setXtFmt(c: Context, list: String, v: Int) = Tm.set(c, k(list, "xtfmt"), v)
+    fun xtLive(list: String?): Boolean = list == null || Tm.b(k(list, "xtlive"), true)
+    fun xtVod(list: String?): Boolean = list == null || Tm.b(k(list, "xtvod"), true)
+    fun setXtLive(c: Context, list: String, v: Boolean) = Tm.set(c, k(list, "xtlive"), v)
+    fun setXtVod(c: Context, list: String, v: Boolean) = Tm.set(c, k(list, "xtvod"), v)
+
+    // Max. Verbindungen (TiviMate): gleichzeitige Streams dieser Liste (0 = unbegrenzt)
+    fun maxConn(list: String?): Int = if (list == null) 0 else Tm.i(k(list, "maxconn"), 0)
+    fun setMaxConn(c: Context, list: String, v: Int) = Tm.set(c, k(list, "maxconn"), v)
+
     // ---------------------------------------------------------------- Gruppen verwalten
     private const val HIDDEN = "plo_hidden_groups"
     private const val SEP = "\n"
