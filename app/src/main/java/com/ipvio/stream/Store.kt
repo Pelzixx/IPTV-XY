@@ -654,3 +654,54 @@ object Classifier {
         }
     }
 }
+
+/**
+ * Verlauf der gesehenen Sendungen (TiviMate: Optik > Player > Historie > Verlauf). Ein Eintrag je Sendung, nach der
+ * eingestellten Verzögerung; aufbewahrt so viele Tage wie der „Verlauf Tageszähler“.
+ */
+data class WEntry(val chId: String, val chTitle: String, val title: String, val start: Long, val end: Long, val at: Long)
+
+object WatchLog {
+    val list = mutableStateListOf<WEntry>()
+    @Volatile private var inited = false
+    private fun prefs(c: Context) = c.applicationContext.getSharedPreferences("ipvio_watchlog", Context.MODE_PRIVATE)
+
+    @Synchronized
+    fun init(c: Context) {
+        if (inited) return
+        inited = true
+        val arr = runCatching { org.json.JSONArray(prefs(c).getString("l", "[]")) }.getOrNull() ?: org.json.JSONArray()
+        for (i in 0 until arr.length()) {
+            val o = arr.optJSONObject(i) ?: continue
+            list.add(WEntry(o.optString("c"), o.optString("ct"), o.optString("t"), o.optLong("s"), o.optLong("e"), o.optLong("a")))
+        }
+        prune(c)
+    }
+
+    private fun save(c: Context) {
+        val a = org.json.JSONArray()
+        list.forEach { a.put(org.json.JSONObject().put("c", it.chId).put("ct", it.chTitle).put("t", it.title).put("s", it.start).put("e", it.end).put("a", it.at)) }
+        prefs(c).edit().putString("l", a.toString()).apply()
+    }
+
+    @Synchronized
+    private fun prune(c: Context) {
+        val keep = System.currentTimeMillis() / 1000 - Tm.i(Tm.HI_DAYS, 7) * 86400L
+        if (list.removeAll { it.at < keep }) save(c)
+    }
+
+    /** Laufende Sendung eines Senders eintragen (nicht doppelt). */
+    @Synchronized
+    fun add(c: Context, ch: Item, e: EpgEntry?) {
+        init(c)
+        val now = System.currentTimeMillis() / 1000
+        val s = e?.start ?: (now / 3600 * 3600)
+        if (list.firstOrNull()?.let { it.chId == ch.id && it.start == s } == true) return
+        list.add(0, WEntry(ch.id, ChannelEdit.title(ch), e?.title ?: ChannelEdit.title(ch), s, e?.end ?: (s + 3600), now))
+        while (list.size > 500) list.removeAt(list.lastIndex)
+        prune(c)
+        save(c)
+    }
+
+    fun clear(c: Context) { list.clear(); save(c) }
+}

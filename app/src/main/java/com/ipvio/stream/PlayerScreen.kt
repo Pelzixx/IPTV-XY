@@ -303,6 +303,12 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
 
     fun openChannels() { controls = false; focusedCh = curItem; showCats = false; chanCat = playCat; showChannels = true }
     fun openRecent() { controls = false; focusedCh = curItem; showCats = false; chanCat = "RECENT"; showChannels = true }
+    // Verlauf der gesehenen Sendungen (TiviMate)
+    var showLog by remember { mutableStateOf(false) }
+    var logTick by remember { mutableIntStateOf(0) }
+    // Erst nach dem Loslassen von OK öffnen, sonst wählt das Loslassen gleich den ersten Eintrag
+    LaunchedEffect(logTick) { if (logTick > 0) { delay(350); showLog = true } }
+    fun openLog() { controls = false; showChannels = false; WatchLog.init(ctx); logTick++ }
 
     fun togglePlay() { if (player.isPlaying) player.pause() else player.play() }
 
@@ -399,7 +405,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
             PAct.DESC -> { controls = false; bannerTick++ }
             PAct.NEXT -> zap(1)
             PAct.PREV -> zap(-1)
-            PAct.HISTORY -> openRecent()
+            PAct.HISTORY -> openLog()
             PAct.PLAYPAUSE -> { val was = player.isPlaying; togglePlay(); if (was) { liveMenu = false; controls = true } }
             PAct.LIVE -> {
                 if (player.isCurrentMediaItemSeekable) player.seekToDefaultPosition() else { player.stop(); player.prepare() }
@@ -1407,7 +1413,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                                     else false
                                 },
                                 onEpg = { AppNav.toGuide = true; onBack() },
-                                onHistory = { openRecent() },
+                                onHistory = { openLog() },
                                 onPick = { ch -> switchTo(ch, zapSrc.takeIf { l -> l.any { it.id == ch.id } } ?: liveAll) }
                             )
                         } else Row(
@@ -1473,7 +1479,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                                     MBtn.EXTERNAL -> PBarButton(first, label = "Extern öffnen", onLabel = setLabel, onClick = { player.pause(); openExternal(ctx, cur.url, cur.title) }) { PlayerIcon(PIcon.External, it) }
                                     MBtn.RECORD -> if (cur.live) PBarButton(first, label = if (curItem != null && Recorder.runningFor(curItem.id) != null) "Aufnahme stoppen" else "Aufnehmen", onLabel = setLabel, onClick = { recToggle(ctx, curItem) }) { AppIcon(AIcon.Rec, if (curItem != null && Recorder.runningFor(curItem.id) != null) Color(0xFFE5484D) else it, size = 26.dp) }
                                     MBtn.MULTIVIEW -> if (cur.live) PBarButton(first, label = "Multiview", onLabel = setLabel, onClick = { MultiView.start(curItem); onBack() }) { AppIcon(AIcon.Grid, it, size = 26.dp) }
-                                    MBtn.HISTORY -> PBarButton(first, label = "Verlauf", onLabel = setLabel, onClick = { openRecent() }) { AppIcon(AIcon.History, it, size = 26.dp) }
+                                    MBtn.HISTORY -> PBarButton(first, label = "Verlauf", onLabel = setLabel, onClick = { openLog() }) { AppIcon(AIcon.History, it, size = 26.dp) }
                                     MBtn.MOVIES -> PBarButton(first, label = "Filme", onLabel = setLabel, onClick = { AppNav.toTab = 1; onBack() }) { AppIcon(AIcon.Play, it, size = 26.dp) }
                                     MBtn.SERIES -> PBarButton(first, label = "Serien", onLabel = setLabel, onClick = { AppNav.toTab = 2; onBack() }) { AppIcon(AIcon.Layers, it, size = 26.dp) }
                                     MBtn.MYLIST -> PBarButton(first, label = "Meine Liste", onLabel = setLabel, onClick = { AppNav.toTab = MenuLogic.MYLIST; onBack() }) { AppIcon(AIcon.Lists, it, size = 26.dp) }
@@ -1600,6 +1606,37 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
             ) { switchTo(it, zapSrc) }
         }
 
+        // Verlauf (TiviMate): gesehene Sendungen nach Tagen; OK = laufend umschalten, vergangen aus dem Archiv
+        if (showLog) {
+            val byIdL = remember(liveAll) { liveAll.associateBy { it.id } }
+            val nowL = System.currentTimeMillis() / 1000
+            val showNow = Tm.b(Tm.HI_NOW, true)
+            val showPast = Tm.b(Tm.HI_PAST, false)
+            val shown = WatchLog.list.filter { w ->
+                val ch = byIdL[w.chId] ?: return@filter false
+                if (w.end > nowL) showNow else (showPast || Catchup.has(ch))
+            }
+            val days = shown.groupBy { dayLabel(it.start) }
+            val secs = days.map { (d, l) -> SideSection(d, l.map { w ->
+                SideEntry(hhmm(w.start) + "  " + w.title + "  ·  " + w.chTitle, if (w.end > nowL) AIcon.Live else AIcon.Catchup, raw = true) {
+                    val ch = byIdL[w.chId] ?: return@SideEntry
+                    if (w.end > nowL) switchTo(ch, zapSrc) else playArchive(ch, EpgEntry(w.title, "", w.start, w.end))
+                }
+            }) }
+            if (secs.isEmpty()) SideMenu(listOf(SideSection(Lang.tr("Verlauf"), listOf(SideEntry("Noch keine Sendungen im Verlauf") {}))), { showLog = false })
+            else SideMenu(secs, { showLog = false })
+        }
+        // Gesehene Sendung nach der Verzögerung in den Verlauf (bei jedem Sendungswechsel neu)
+        LaunchedEffect(cur.itemId, cur.live) {
+            if (!cur.live) return@LaunchedEffect
+            val ch = curItem ?: return@LaunchedEffect
+            delay(Tm.i(Tm.HI_DELAY, 10) * 1000L)
+            while (true) {
+                val t = System.currentTimeMillis() / 1000
+                WatchLog.add(ctx, ch, Xmltv.forItem(ch).firstOrNull { t in it.start until it.end })
+                delay(60_000)
+            }
+        }
         // Gesperrter Sender: PIN-Eingabe vor dem Umschalten
         pinFor?.let { (pi, ps) ->
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.7f)), contentAlignment = Alignment.Center) {

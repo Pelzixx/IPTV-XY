@@ -377,6 +377,7 @@ Links¦Left¦Sol¦Lijevo¦Lijevo¦Levo¦Izquierda¦Gauche¦Sinistra
 Rücktaste¦Backspace¦Geri tuşu¦Tipka za brisanje¦Tipka za brisanje¦Taster za brisanje¦Retroceso¦Retour arrière¦Backspace
 Vorschaumodus¦Preview mode¦Önizleme modu¦Način pregleda¦Način pregleda¦Režim pregleda¦Modo vista previa¦Mode aperçu¦Modalità anteprima
 Animierter Übergang¦Animated transition¦Animasyonlu geçiş¦Animirani prijelaz¦Animirani prijelaz¦Animirani prelaz¦Transición animada¦Transition animée¦Transizione animata
+Noch keine Sendungen im Verlauf¦No programs in history yet¦Geçmişte henüz program yok¦Još nema emisija u historiji¦Još nema emisija u povijesti¦Još nema emisija u istoriji¦Aún no hay programas en el historial¦Aucun programme dans l’historique¦Nessun programma nella cronologia
 Info¦Info¦Bilgi¦Info¦Info¦Info¦Info¦Info¦Info
 Guide¦Guide¦Rehber¦Vodič¦Vodič¦Vodič¦Guía¦Guide¦Guida
 """
