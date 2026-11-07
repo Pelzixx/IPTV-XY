@@ -136,6 +136,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     // Runde 20: Start mit dem Fokus auf den Sendern (Gruppen zu), wie bei TV-Playern; Links öffnet die Gruppen
     var catOpen by remember { mutableStateOf(false) }
     val catSelReq = remember { FocusRequester() }
+    val catFirstReq = remember { FocusRequester() }
     var catFocusReq by remember { mutableIntStateOf(0) }
     val catW by androidx.compose.animation.core.animateDpAsState(
         if (catOpen) 270.dp else 0.dp,
@@ -143,6 +144,8 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     )
     LaunchedEffect(catFocusReq) {
         if (catFocusReq == 0) return@LaunchedEffect
+        // Gruppe liegt in einer zugeklappten Wiedergabeliste: erst aufklappen, sonst gibt es kein Ziel und Links tut nichts
+        if (sel.startsWith(PlGroups.G)) PlGroups.playlistOfKey(sel)?.let { pl -> if (PlGroups.collapsed(pl)) { PlGroups.toggle(ctx, pl); kotlinx.coroutines.delay(60) } }
         // Gewählte Gruppe erst in den sichtbaren Bereich holen, sonst gibt es sie in der Liste noch nicht (kein Fokus möglich)
         val si = names.indexOf(sel)
         if (si >= 0) runCatching { catState.scrollToItem(maxOf(si - 3, 0)) }
@@ -150,6 +153,9 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
             kotlinx.coroutines.delay(40)
             if (runCatching { catSelReq.requestFocus() }.isSuccess) return@LaunchedEffect
         }
+        // Notlösung: an den Anfang der Gruppenliste (TV-Guide)
+        runCatching { catState.scrollToItem(0) }
+        repeat(5) { kotlinx.coroutines.delay(40); if (runCatching { catFirstReq.requestFocus() }.isSuccess) return@LaunchedEffect }
     }
     // Rechts aus den Gruppen: Senderliste nach oben holen (sonst gibt es den ersten Sender noch nicht) und so lange
     // fokussieren, bis ein Sender den Fokus hat (dann klappen die Gruppen zu)
@@ -262,7 +268,8 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                     Box {
                         CatRow(
                             label, count, n == sel,
-                            if (n == sel) Modifier.focusRequester(catSelReq).then(if (list.isEmpty()) Modifier.focusRequester(ContentFocus.req) else Modifier) else Modifier,
+                            (if (n == "GUIDE") Modifier.focusRequester(catFirstReq) else Modifier).then(
+                                if (n == sel) Modifier.focusRequester(catSelReq).then(if (list.isEmpty()) Modifier.focusRequester(ContentFocus.req) else Modifier) else Modifier),
                             onFocus = { hoverCat(n) }, onRight = { toChannels() },
                             onFav = { if (ml != null) listMenu = true else if (n != FAV_CAT && n != "ALL" && n != HIDDEN_CAT && !PlGroups.isPl(n)) CatFavs.toggle(ctx, n) },
                             icon = if (n.startsWith(PlGroups.P)) null else icon, raw = ml != null || PlGroups.isPl(n), header = n.startsWith(PlGroups.P),
@@ -476,14 +483,27 @@ private fun ChannelLine(
         modifier.fillMaxWidth().height(look.rowH)
             .onFocusChanged {
                 f = it.isFocused
-                if (it.isFocused) { onFocus(); pick(all.indexOfFirst { e -> e.end > maxOf(nowSec, ws) }.let { i -> if (i < 0) nowIdx else i }) }
+                // TiviMate: zuerst ist der Sender markiert; Sendungen erst mit Rechts
+                if (it.isFocused) { onFocus(); pi = -1; onProg(null) }
             }
             .onPreviewKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) false
                 else when (e.key) {
-                    // Links: vorherige Sendung; an der laufenden Sendung Gruppenliste aufklappen
-                    Key.DirectionLeft -> { if (pi <= nowIdx || pi <= 0) onLeft() else pick(pi - 1); true }
-                    Key.DirectionRight -> { if (pi in 0 until all.lastIndex) pick(pi + 1); true }
+                    // Links: vorherige Sendung, an der ersten zurück zum Sender, am Sender die Gruppenliste
+                    Key.DirectionLeft -> {
+                        when {
+                            pi < 0 -> onLeft()
+                            pi <= nowIdx || pi <= 0 -> { pi = -1; onProg(null); onShift(-96) }
+                            else -> pick(pi - 1)
+                        }
+                        true
+                    }
+                    // Rechts: vom Sender auf die laufende (bzw. erste sichtbare) Sendung, dann weiter
+                    Key.DirectionRight -> {
+                        if (pi < 0) { val i = all.indexOfFirst { x -> x.end > maxOf(nowSec, ws) }.let { i -> if (i < 0) nowIdx else i }; if (i >= 0) pick(i) }
+                        else if (pi < all.lastIndex) pick(pi + 1)
+                        true
+                    }
                     else -> false
                 }
             }
@@ -494,8 +514,10 @@ private fun ChannelLine(
             },
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Sender markiert (noch keine Sendung gewählt): Senderfeld hell wie in TiviMate
+        val chLit = f && pi < 0
         Row(
-            Modifier.width(CH_W).fillMaxHeight().padding(horizontal = 8.dp),
+            Modifier.width(CH_W).fillMaxHeight().padding(vertical = 2.dp).clip(cell).background(if (chLit) TvFocusFill else Color.Transparent).padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (look.numbers) Text(raw = true, text = num.toString(), color = Tok.TextMid, fontSize = 15.sp, style = TNUM,
@@ -505,7 +527,7 @@ private fun ChannelLine(
                 else Text(raw = true, text = item.title.take(2).uppercase(), color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
             if (look.names) Text(raw = true, text = ChannelEdit.title(item),
-                color = if (f || (isCurrent)) Accent2 else Color.White, fontSize = 17.sp, fontWeight = FontWeight.Normal,
+                color = if (chLit) DS.FocusInk else if (f || (isCurrent)) Accent2 else Color.White, fontSize = 17.sp, fontWeight = FontWeight.Normal,
                 maxLines = if (look.twoLineNames) 2 else 1, lineHeight = 20.sp, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             else Spacer(Modifier.weight(1f))
             if (Library.isFav(item.id)) AppIcon(AIcon.Star, DS.Gold, size = 14.dp)
@@ -518,16 +540,16 @@ private fun ChannelLine(
             val shownE = all.filter { it.end > ws && it.start < ws + SPAN }
             if (shownE.isEmpty()) {
                 // Kein Programm: eine Fläche mit dem Sendernamen über die ganze Breite
-                Box(Modifier.fillMaxSize().padding(start = 3.dp).clip(cell).background(if (f) TvFocusFill else TvCell).padding(horizontal = 14.dp),
+                Box(Modifier.fillMaxSize().padding(start = 3.dp).clip(cell).background(if (f) Color(0xFF3A3E44) else TvCell).padding(horizontal = 14.dp),
                     contentAlignment = Alignment.CenterStart) {
-                    Text(raw = true, text = ChannelEdit.title(item), color = if (f) DS.FocusInk else Tok.TextMid, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(raw = true, text = ChannelEdit.title(item), color = if (f) Color.White else Tok.TextMid, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             } else shownE.forEach { e ->
                 val a = ((maxOf(e.start, ws) - ws).toFloat() / SPAN).coerceIn(0f, 1f)
                 val b = ((minOf(e.end, ws + SPAN) - ws).toFloat() / SPAN).coerceIn(0f, 1f)
                 val running = nowSec in e.start until e.end
                 // Laufende Sendung der markierten Zeile: hell mit dunkler Schrift (wie die Markierung im Menü)
-                val lit = f && (all.getOrNull(pi)?.let { it.start == e.start } ?: running)
+                val lit = f && pi >= 0 && all.getOrNull(pi)?.start == e.start
                 // TiviMate „Markiere laufendes Programm“: ganze Fläche heller, oder („nur Fortschritt“) nur der abgelaufene Teil
                 val runFill = running && !f && look.markRunning && !look.progressOnly
                 Box(

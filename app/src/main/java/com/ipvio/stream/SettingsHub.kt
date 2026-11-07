@@ -1118,7 +1118,7 @@ internal fun PanelSection(text: String) {
  * EPG Quellen, Update-Optionen (Aktualisieren, Löschen).
  */
 @Composable
-private fun PlaylistMainPage(ctx: Context, idx: Int, onXtream: () -> Unit, onEpg: () -> Unit, onDeleted: () -> Unit, reload: () -> Unit) {
+private fun PlaylistMainPage(ctx: Context, idx: Int, onXtream: () -> Unit, onEpg: () -> Unit, onGroups: () -> Unit, onDeleted: () -> Unit, reload: () -> Unit) {
     val scope = rememberCoroutineScope()
     val pl = PlaylistStore.lists.getOrNull(idx) ?: return
     val isActive = idx == PlaylistStore.active
@@ -1148,8 +1148,15 @@ private fun PlaylistMainPage(ctx: Context, idx: Int, onXtream: () -> Unit, onEpg
     })
     SettingRow("EPG Quellen", if (epgs.isEmpty()) Lang.tr("EPG vom Anbieter") else epgs.size.toString() + " " + Lang.tr("Quellen") + " + " + Lang.tr("Anbieter"),
         rawValue = true, onClick = onEpg)
+    PlaylistTmRows(ctx, pl.name, onGroups) { ask = it }
     PanelSection(Lang.tr("Update-Optionen"))
-    SettingRow("Aktualisieren", if (isActive) Lang.tr("Sender und TV-Programm neu laden") else null, onClick = {
+    PlaylistUpdateRows(ctx)
+    // TiviMate: Stand der Aktualisierung direkt am Eintrag (läuft gerade / zuletzt aktualisiert)
+    val upd = if (PlaylistStore.updating?.trim() == pl.url.trim()) updatingText()
+        else PlaylistStore.lastUpdate(pl.url).takeIf { it > 0 }?.let { Lang.tr("Zuletzt aktualisiert") + ": " + updTime(it) }
+            ?: if (isActive) Lang.tr("Sender und TV-Programm neu laden") else null
+    SettingRow("Aktualisieren", upd, rawValue = true, onClick = {
+        PlaylistStore.manualUpdate = true
         if (isActive) reload() else { PlaylistStore.activate(ctx, idx); scope.launch { PlaylistStore.load(ctx, pl.url, false) } }
     })
     SettingRow("Löschen", null, onClick = { confirmDelete = true })
@@ -1275,7 +1282,8 @@ private fun PlaylistPage(ctx: Context, onAdd: () -> Unit, reload: () -> Unit, on
     PlaylistStore.lists.forEachIndexed { i, pl ->
         val active = i == PlaylistStore.active
         // TiviMate: bei jeder Liste ihre eigene Senderzahl (bzw. warum eine zugeschaltete Liste nicht geladen ist)
-        val info = if (active && PlaylistStore.primaryLiveCount > 0) Lang.tr("Kanäle") + ": " + PlaylistStore.primaryLiveCount
+        val info = if (PlaylistStore.updating?.trim() == pl.url.trim()) updatingText()
+            else if (active && PlaylistStore.primaryLiveCount > 0) Lang.tr("Kanäle") + ": " + PlaylistStore.primaryLiveCount + updatedSuffix(pl.url)
             else if (!active && pl.on) PlaylistStore.extraStatus[pl.name]?.let { s -> if (s.startsWith("Kanäle: ")) Lang.tr("Kanäle") + ": " + s.removePrefix("Kanäle: ") else s }
                 ?: Lang.tr("Wird geladen …")
             else if (LoadLogic.xtreamParts(pl.url) != null) "Xtream Codes" else "M3U"
@@ -1289,7 +1297,7 @@ private fun PlaylistPage(ctx: Context, onAdd: () -> Unit, reload: () -> Unit, on
         })
     }
     SettingRow("Hinzufügen", Lang.tr("Xtream Codes, M3U-Link oder vom Handy"), onClick = { onAdd() })
-    SettingRow("Aktualisiere alle Wiedergabelisten", null, onClick = { reload() })
+    SettingRow("Aktualisiere alle Wiedergabelisten", if (PlaylistStore.updating != null) updatingText() else null, rawValue = true, onClick = { PlaylistStore.manualUpdate = true; reload() })
     // Eigene Funktionen von XY (Sprachfilter, Zeitplan) als eigene Einträge mit Unterseite
     SettingRow("Sprachen der Inhalte", Lang.tr("Ausgeblendete Sprachen werden gar nicht erst geladen"), onClick = onLang)
     val modes = listOf("Bei jedem Start", "Alle paar Stunden", "Täglich", "Wöchentlich", "Nur von Hand")
@@ -1540,6 +1548,7 @@ private sealed class SP {
     class Pl(val idx: Int) : SP()
     class PlX(val idx: Int) : SP()
     class PlE(val idx: Int) : SP()
+    class PlG(val idx: Int) : SP()
     object Lang : SP()
     object Upd : SP()
     class Sub(val key: String, val title: String) : SP()
@@ -1586,6 +1595,7 @@ fun SettingsPanel(onAdd: () -> Unit, reload: () -> Unit, onClose: () -> Unit) {
         is SP.Pl -> PlaylistStore.lists.getOrNull(top.idx)?.name.orEmpty()
         is SP.PlX -> Lang.tr("Xtream Codes Parameter")
         is SP.PlE -> Lang.tr("EPG Quellen") + " (" + PlaylistStore.lists.getOrNull(top.idx)?.name.orEmpty() + ")"
+        is SP.PlG -> Lang.tr("Gruppen verwalten") + " (" + PlaylistStore.lists.getOrNull(top.idx)?.name.orEmpty() + ")"
         SP.Lang -> Lang.tr("Sprachen der Inhalte")
         SP.Upd -> Lang.tr("Automatisch aktualisieren")
         is SP.Sub -> Lang.tr(top.title)
@@ -1669,10 +1679,11 @@ fun SettingsPanel(onAdd: () -> Unit, reload: () -> Unit, onClose: () -> Unit) {
                             "misc_diag" -> DiagPage(ctx, reload)
                         }
                         }
-                        is SP.Pl -> PlaylistMainPage(ctx, top.idx, onXtream = { stack.add(SP.PlX(top.idx)) }, onEpg = { stack.add(SP.PlE(top.idx)) },
+                        is SP.Pl -> PlaylistMainPage(ctx, top.idx, onXtream = { stack.add(SP.PlX(top.idx)) }, onEpg = { stack.add(SP.PlE(top.idx)) }, onGroups = { stack.add(SP.PlG(top.idx)) },
                             onDeleted = { back() }, reload = reload)
                         is SP.PlX -> PlaylistXtreamPage(ctx, top.idx)
                         is SP.PlE -> PlaylistEpgPage(ctx, top.idx)
+                        is SP.PlG -> PlaylistGroupsPage(ctx, top.idx)
                         SP.Lang -> LanguageFilterSection(ctx)
                         SP.Upd -> PlaylistUpdatePage(ctx)
                     }
@@ -2090,3 +2101,68 @@ private fun TmSearch(ctx: Context) {
     ToggleRow("Bleibe auf dem Suchbildschirm, wenn du den Kanal wechselst", null, Tm.b(Tm.SE_STAY, false)) { Tm.set(ctx, Tm.SE_STAY, it) }
     SettingRow("Suchverlauf löschen", null, onClick = { AppSettings.clearSearch(ctx) })
 }
+
+/** Wiedergabeliste (TiviMate): Logo Priorität, Archiv, User-Agent, Gruppen verwalten. */
+@Composable
+private fun PlaylistTmRows(ctx: Context, name: String, onGroups: () -> Unit, ask: (Ask) -> Unit) {
+    val lp = PlOpts.logoPrio(name)
+    val lpNames = listOf(Lang.tr("Wie unter Optik > Logos")) + Logos.PRIO_NAMES.map { Lang.tr(it) }
+    SelectRow("Logo Priorität", lpNames[lp + 1], lpNames, lp + 1) { PlOpts.setLogoPrio(ctx, name, it - 1) }
+    val arch = listOf(Lang.tr("Automatisch"), Lang.tr("Keine"))
+    val ai = PlOpts.archive(name).coerceIn(0, 1)
+    SelectRow("Archiv", arch[ai], arch, ai) { PlOpts.setArchive(ctx, name, it) }
+    val ua = PlOpts.ua(name)
+    SettingRow("User-Agent", ua.ifEmpty { Lang.tr("Nicht festgelegt") }, rawValue = true, onClick = {
+        ask(Ask("User-Agent", ua, TmNet.userAgent()) { PlOpts.setUa(ctx, name, it) })
+    })
+    val hidden = PlOpts.hiddenCount(name)
+    SettingRow("Gruppen verwalten", if (hidden > 0) "$hidden " + Lang.tr("ausgeblendet") else null, rawValue = true, onClick = onGroups)
+}
+
+/** Update-Optionen einer Wiedergabeliste (TiviMate): Intervall in Stunden und Aktualisieren beim Start. */
+@Composable
+private fun PlaylistUpdateRows(ctx: Context) {
+    val ivs = listOf(3, 6, 12, 24, 48)
+    val iv = General.refreshInterval
+    SelectRow("Aktualisierungsintervall (Stunden)", iv.toString(), ivs.map { it.toString() }, ivs.indexOf(iv).coerceAtLeast(0)) {
+        General.setPlan(ctx, mode = 1, interval = ivs[it])
+    }
+    ToggleRow("Aktualisieren beim Starten der App", null, General.refreshMode == 0) { General.setPlan(ctx, mode = if (it) 0 else 1) }
+}
+
+/** Wiedergabeliste > Gruppen verwalten (TiviMate): Live-Gruppen einzeln ein- und ausblenden. */
+@Composable
+private fun PlaylistGroupsPage(ctx: Context, idx: Int) {
+    val pl = PlaylistStore.lists.getOrNull(idx) ?: return
+    val groups = remember(pl.name, PlaylistStore.channels) { PlaylistStore.groupsOf(pl.name) }
+    PlOpts.version // neu zeichnen, wenn sich etwas ändert
+    if (groups.isEmpty()) {
+        Text("Diese Wiedergabeliste ist nicht aktiv oder hat keine Sendergruppen.", color = Muted, fontSize = 16.sp)
+        return
+    }
+    val allShown = groups.none { PlOpts.isHidden(pl.name, it) }
+    SettingRow(if (allShown) "Alle ausblenden" else "Alle einblenden", null, onClick = {
+        groups.forEach { g -> PlOpts.setHidden(ctx, pl.name, g, allShown) }
+    })
+    groups.forEach { g ->
+        ToggleRow(g.ifEmpty { Lang.tr("Ohne Gruppe") }, null, !PlOpts.isHidden(pl.name, g)) { PlOpts.setHidden(ctx, pl.name, g, !it) }
+    }
+}
+
+/** „Wird aktualisiert … (Schritt)“ während eine Wiedergabeliste lädt. */
+private fun updatingText(): String {
+    val p = PlaylistStore.phase.trim()
+    return Lang.tr("Wird aktualisiert …") + if (p.isNotEmpty()) " " + Lang.tr(p) else ""
+}
+
+/** Zeitpunkt der letzten Aktualisierung: heute nur Uhrzeit, sonst mit Datum. */
+private fun updTime(ms: Long): String {
+    val sec = ms / 1000
+    val today = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.ROOT)
+    val d = java.util.Date(ms)
+    return if (today.format(d) == today.format(java.util.Date())) hhmm(sec)
+        else java.text.SimpleDateFormat("dd.MM.", java.util.Locale.ROOT).format(d) + " " + hhmm(sec)
+}
+
+private fun updatedSuffix(url: String): String =
+    PlaylistStore.lastUpdate(url).takeIf { it > 0 }?.let { " · " + Lang.tr("Aktualisiert") + " " + updTime(it) } ?: ""

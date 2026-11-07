@@ -71,11 +71,13 @@ object PlaylistStore {
     }
 
     /** Stand der Filter (Jugendschutz, „gestörte Titel ausblenden“): ändert er sich, wird die gezeigte Liste neu gebildet. */
-    private fun filterVer(): Int = Parental.version * 10_000 + (if (DeadLinks.hide) DeadLinks.version else 0)
+    private fun filterVer(): Int = (Parental.version * 10_000 + (if (DeadLinks.hide) DeadLinks.version else 0)) * 31 + PlOpts.version
 
     private fun shownOf(l: List<Item>): List<Item> {
         var r = if (Parental.hideAdult) Parental.filter(l) else l
         if (DeadLinks.hide) r = DeadLinks.filter(r)
+        // Wiedergabeliste > Gruppen verwalten (TiviMate): ausgeblendete Gruppen fehlen überall in Live-TV
+        if (PlOpts.anyHidden) r = PlOpts.filter(r) { owners[it.id] ?: lists.getOrNull(active)?.name }
         return r
     }
     /** Sender weiterer eingeschalteter Playlists (aus deren Zwischenspeicher, siehe [loadExtras]). */
@@ -96,6 +98,15 @@ object PlaylistStore {
     fun playlistOf(id: String): String? {
         merged()
         return owners[id] ?: lists.getOrNull(active)?.name
+    }
+
+    /** Live-Gruppen einer Wiedergabeliste (ungefiltert, Reihenfolge der Playlist) – für „Gruppen verwalten“. */
+    fun groupsOf(name: String): List<String> {
+        val all = merged()
+        val main = lists.getOrNull(active)?.name
+        val out = LinkedHashSet<String>()
+        for (it in all) if (it.kind == Kind.LIVE && (owners[it.id] ?: main).equals(name, ignoreCase = true)) out.add(it.group)
+        return out.toList()
     }
 
     /** Namen der aktiven Wiedergabelisten in der Reihenfolge der Einstellungen (TiviMate: Playlist-Sortierung). */
@@ -138,7 +149,7 @@ object PlaylistStore {
         get() {
             val raw = merged()
             val ver = filterVer()
-            if (!Parental.hideAdult && !DeadLinks.hide) return raw
+            if (!Parental.hideAdult && !DeadLinks.hide && !PlOpts.anyHidden) return raw
             if (raw !== filteredFor || ver != filteredVer) {
                 filtered = shownOf(raw); filteredFor = raw; filteredVer = ver
             }
@@ -146,6 +157,32 @@ object PlaylistStore {
         }
 
     var loading by mutableStateOf(false)
+    /** Adresse der Liste, die gerade geladen wird (TiviMate: „Wird aktualisiert …“ unter der Liste). */
+    var updating by mutableStateOf<String?>(null)
+        private set
+    /** Letzte erfolgreiche Aktualisierung je Liste (Adresse -> Zeit in ms). */
+    val updatedAt = androidx.compose.runtime.mutableStateMapOf<String, Long>()
+    /** Von Hand angestoßen: am Ende eine Meldung zeigen. */
+     var manualUpdate = false
+    var doneSignal by androidx.compose.runtime.mutableIntStateOf(0)
+        private set
+    var doneMsg = ""
+        private set
+
+    private fun updKey(url: String) = "upd_" + url.trim().hashCode()
+    fun lastUpdate(url: String): Long = updatedAt[url.trim()] ?: Tm.i(updKey(url), 0).toLong() * 1000L
+
+    private fun markUpdated(c: Context, url: String) {
+        val now = System.currentTimeMillis()
+        updatedAt[url.trim()] = now
+        Tm.set(c, updKey(url), (now / 1000).toInt())
+        if (manualUpdate) {
+            manualUpdate = false
+            val n = primaryLiveCount
+            doneMsg = (lists.firstOrNull { it.url.trim() == url.trim() }?.name ?: "") + ": " + Lang.tr("Aktualisiert") + (if (n > 0) " · " + Lang.tr("Kanäle") + ": " + n else "")
+            doneSignal++
+        }
+    }
     var error by mutableStateOf<String?>(null)
     /** true, solange heruntergeladen oder eingelesen wird (nicht beim schnellen Lesen des Zwischenspeichers) – dann Ladebildschirm. */
     var heavy by mutableStateOf(false)
@@ -533,7 +570,7 @@ object PlaylistStore {
         if (offset > 0) { offset = maxOf(0L, offset - 65_536); RandomAccessFile(part, "rw").use { it.setLength(offset) } }
         val extra = if (pi != null) LoadLogic.resumeHeaders(offset, pi.etag, pi.lastModified) else emptyMap()
         if (extra.isEmpty()) offset = 0L
-        val rb = Request.Builder().url(u).header("User-Agent", UA)
+        val rb = Request.Builder().url(u).header("User-Agent", TmNet.userAgentForList(u))
         extra.forEach { (k, v) -> rb.header(k, v) }
         phase = if (offset > 0) "Download wird fortgesetzt …" else "Verbindung zum Server wird aufgebaut …"
         bytesRead = offset; totalBytes = -1L; downloadDone = false
@@ -759,9 +796,13 @@ object PlaylistStore {
         ask: Boolean = true, resumed: Boolean = false
     ): Boolean {
         if (!loadLock.tryLock()) return rawChannels.isNotEmpty()
+        updating = url
+        var wasHeavy = false
         val ok = try {
             loadInner(c, url, save, skipNetworkWhenCached, ask, resumed)
         } finally {
+            wasHeavy = heavy
+            updating = null
             loading = false   // auch bei Abbruch: sonst bliebe der Ladezustand (und die Bildschirm-Wachhaltung) hängen
             heavy = false
             langAsk = null
@@ -770,6 +811,8 @@ object PlaylistStore {
             job = null
             loadLock.unlock()
         }
+        if (ok && (wasHeavy || manualUpdate)) markUpdated(c, url)
+        else if (manualUpdate) { manualUpdate = false; doneMsg = error ?: Lang.tr("Aktualisierung fehlgeschlagen"); doneSignal++ }
         // Weitere eingeschaltete Playlists dazuholen (erst nach dem Freigeben der Sperre, sie laden ggf. selbst)
         if (ok) runCatching { loadExtras(c) }
         return ok

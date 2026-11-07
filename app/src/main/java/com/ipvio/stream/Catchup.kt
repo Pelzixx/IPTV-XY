@@ -40,7 +40,10 @@ object Catchup {
 
     private class Saved(val m3u: Map<String, CatchupInfo>, val xt: Map<String, Int>, val tz: String?, val xtAt: Long)
 
-    fun of(item: Item?): CatchupInfo? = if (item != null && item.kind == Kind.LIVE) map[item.id] else null
+    fun of(item: Item?): CatchupInfo? = if (item != null && item.kind == Kind.LIVE && !archiveOff(item)) map[item.id] else null
+
+    /** Wiedergabeliste > Archiv „Keine“ (TiviMate): Archiv dieser Liste abgeschaltet. */
+    private fun archiveOff(item: Item): Boolean = PlOpts.archive(PlaylistStore.playlistOf(item.id)) == 1
 
     fun has(item: Item?): Boolean = of(item) != null
 

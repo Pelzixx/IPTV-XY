@@ -238,4 +238,16 @@ Standardaktion¦Default action¦Varsayılan eylem¦Zadana radnja¦Zadana radnja�
 Anschauen¦Watch¦İzle¦Gledaj¦Gledaj¦Gledaj¦Ver¦Regarder¦Guarda
 Wache aus dem Schlafmodus auf¦Wake up from sleep mode¦Uyku modundan uyandır¦Probudi iz stanja mirovanja¦Probudi iz stanja mirovanja¦Probudi iz stanja mirovanja¦Despertar del modo reposo¦Sortir de la veille¦Riattiva dallo standby
 Meine Erinnerungen¦My reminders¦Hatırlatıcılarım¦Moji podsjetnici¦Moji podsjetnici¦Moji podsetnici¦Mis recordatorios¦Mes rappels¦I miei promemoria
+Wie unter Optik > Logos¦As in Appearance > Logos¦Görünüm > Logolar'daki gibi¦Kao u Izgled > Logotipi¦Kao u Izgled > Logotipi¦Kao u Izgled > Logotipi¦Como en Apariencia > Logotipos¦Comme dans Apparence > Logos¦Come in Aspetto > Loghi
+Gruppen verwalten¦Manage groups¦Grupları yönet¦Upravljaj grupama¦Upravljaj grupama¦Upravljaj grupama¦Gestionar grupos¦Gérer les groupes¦Gestisci gruppi
+ausgeblendet¦hidden¦gizli¦sakriveno¦skriveno¦sakriveno¦ocultos¦masqués¦nascosti
+Aktualisierungsintervall (Stunden)¦Update interval (hours)¦Güncelleme aralığı (saat)¦Interval ažuriranja (sati)¦Interval ažuriranja (sati)¦Interval ažuriranja (sati)¦Intervalo de actualización (horas)¦Intervalle de mise à jour (heures)¦Intervallo di aggiornamento (ore)
+Aktualisieren beim Starten der App¦Update on app start¦Uygulama başlarken güncelle¦Ažuriraj pri pokretanju aplikacije¦Ažuriraj pri pokretanju aplikacije¦Ažuriraj pri pokretanju aplikacije¦Actualizar al iniciar la app¦Mettre à jour au démarrage¦Aggiorna all’avvio dell’app
+Diese Wiedergabeliste ist nicht aktiv oder hat keine Sendergruppen.¦This playlist is not active or has no channel groups.¦Bu oynatma listesi etkin değil veya kanal grubu yok.¦Ova lista nije aktivna ili nema grupe kanala.¦Ovaj popis nije aktivan ili nema grupe programa.¦Ova lista nije aktivna ili nema grupe kanala.¦Esta lista no está activa o no tiene grupos de canales.¦Cette playlist n’est pas active ou n’a pas de groupes.¦Questa playlist non è attiva o non ha gruppi di canali.
+Alle ausblenden¦Hide all¦Tümünü gizle¦Sakrij sve¦Sakrij sve¦Sakrij sve¦Ocultar todo¦Tout masquer¦Nascondi tutto
+Alle einblenden¦Show all¦Tümünü göster¦Prikaži sve¦Prikaži sve¦Prikaži sve¦Mostrar todo¦Tout afficher¦Mostra tutto
+Ohne Gruppe¦No group¦Grupsuz¦Bez grupe¦Bez grupe¦Bez grupe¦Sin grupo¦Sans groupe¦Senza gruppo
+Wird aktualisiert …¦Updating …¦Güncelleniyor …¦Ažurira se …¦Ažurira se …¦Ažurira se …¦Actualizando …¦Mise à jour …¦Aggiornamento …
+Aktualisiert¦Updated¦Güncellendi¦Ažurirano¦Ažurirano¦Ažurirano¦Actualizado¦Mis à jour¦Aggiornato
+Aktualisierung fehlgeschlagen¦Update failed¦Güncelleme başarısız¦Ažuriranje nije uspjelo¦Ažuriranje nije uspjelo¦Ažuriranje nije uspelo¦Error al actualizar¦Échec de la mise à jour¦Aggiornamento non riuscito
 """

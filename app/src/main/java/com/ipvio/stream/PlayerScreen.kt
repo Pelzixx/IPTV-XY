@@ -146,9 +146,13 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     CatFavs.init(ctx)
     // Eigene HTTP-Einstellungen: folgt Weiterleitungen auch von http nach https (viele IPTV-Server tun das)
     // und gibt nach 10 s Verbindungsaufbau bzw. 15 s Lesezeit auf, statt endlos zu warten.
+    // User-Agent je Wiedergabeliste (TiviMate): vor jedem neuen Stream passend setzen
+    val httpRef = remember { arrayOfNulls<DefaultHttpDataSource.Factory>(1) }
     val player = remember {
         val http = DefaultHttpDataSource.Factory()
-            .setUserAgent(TmNet.userAgent())
+            .setUserAgent(TmNet.userAgentFor(req.itemId))
+        httpRef[0] = http
+        http
             .setAllowCrossProtocolRedirects(true)
             .setConnectTimeoutMs(10_000)
             .setReadTimeoutMs(15_000)
@@ -841,6 +845,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
         scrubTarget = -1L
         val loaded = player.currentMediaItem?.localConfiguration?.uri?.toString()
         if (loaded != cur.url) {
+            httpRef[0]?.setUserAgent(TmNet.userAgentFor(cur.itemId))
             player.setMediaItem(MediaItem.fromUri(TmNet.playUrl(cur.url)), if (cur.startMs > 0) cur.startMs else 0L)
             player.prepare(); player.playWhenReady = true
         }

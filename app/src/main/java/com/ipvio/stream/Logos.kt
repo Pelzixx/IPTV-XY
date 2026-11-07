@@ -14,7 +14,8 @@ object Logos {
         val pl = item.logo?.takeIf { it.isNotBlank() }
         val epg = Xmltv.iconFor(item)
         val dir = folder(item)
-        return when (Tm.i(Tm.LOGO_PRIO, 0)) {
+        val own = PlOpts.logoPrio(PlaylistStore.playlistOf(item.id))
+        return when (if (own >= 0) own else Tm.i(Tm.LOGO_PRIO, 0)) {
             1 -> epg ?: pl ?: dir
             2 -> dir ?: pl ?: epg
             else -> pl ?: epg ?: dir

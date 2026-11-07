@@ -321,6 +321,10 @@ private fun AppContent() {
         start(ch, ch.title, ch.url)
     }
     // Erinnerungen, während die App offen ist: Karte mit „Umschalten“ (statt Benachrichtigung)
+    // Wiedergabeliste von Hand aktualisiert: Meldung, sobald sie fertig ist (TiviMate)
+    LaunchedEffect(PlaylistStore.doneSignal) {
+        if (PlaylistStore.doneSignal > 0) android.widget.Toast.makeText(ctx, PlaylistStore.doneMsg, android.widget.Toast.LENGTH_LONG).show()
+    }
     var remindNow by remember { mutableStateOf<Reminder?>(null) }
     LaunchedEffect(Unit) {
         while (true) {

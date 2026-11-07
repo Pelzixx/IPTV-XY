@@ -151,6 +151,14 @@ object Tm {
 object TmNet {
     const val DEFAULT_UA = "IPTV-XY/1.0"
     fun userAgent(): String = Tm.s(Tm.GEN_UA).trim().ifEmpty { DEFAULT_UA }
+    /** User-Agent für einen Sender: eigener Wert seiner Wiedergabeliste, sonst der allgemeine. */
+    fun userAgentFor(itemId: String?): String =
+        PlOpts.ua(itemId?.let { PlaylistStore.playlistOf(it) }).ifEmpty { userAgent() }
+
+    /** User-Agent beim Laden einer Wiedergabeliste (Adresse der Liste). */
+    fun userAgentForList(url: String): String =
+        PlOpts.ua(PlaylistStore.lists.firstOrNull { it.url.trim() == url.trim() }?.name).ifEmpty { userAgent() }
+
 
     /** udp://@239.0.0.1:1234 bzw. rtp://… über den eingestellten udpxy-Proxy: http://proxy/udp/239.0.0.1:1234 */
     fun playUrl(url: String): String {
