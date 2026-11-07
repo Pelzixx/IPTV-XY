@@ -179,7 +179,7 @@ fun ChannelOverlay(
             LazyColumn(state = ls) {
                 itemsIndexed(chanList) { i, it ->
                     ChannelRow(
-                        it, it.id == curId,
+                        it, it.id == curId, i + 1,
                         if (i == startIdx || (startIdx < 0 && i == 0)) Modifier.focusRequester(chanFocus) else Modifier,
                         onFocus = { onFocusedCh(it) }
                     ) { onPick(it, chanList) }
@@ -294,7 +294,7 @@ private fun PCatRow(
 }
 
 @Composable
-private fun ChannelRow(item: Item, current: Boolean, modifier: Modifier, onFocus: () -> Unit, onClick: () -> Unit) {
+private fun ChannelRow(item: Item, current: Boolean, num: Int, modifier: Modifier, onFocus: () -> Unit, onClick: () -> Unit) {
     val ctx = LocalContext.current
     var f by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(DS.RadiusS)
@@ -319,6 +319,8 @@ private fun ChannelRow(item: Item, current: Boolean, modifier: Modifier, onFocus
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        Text(raw = true, text = num.toString(), color = if (f) PT.InkSoft else Tok.TextMid, fontSize = 16.sp, style = TNUM,
+            textAlign = androidx.compose.ui.text.style.TextAlign.End, modifier = Modifier.width(34.dp))
         Box(Modifier.size(width = 64.dp, height = 44.dp), contentAlignment = Alignment.Center) {
             if (item.logo != null) AsyncImage(item.logo, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
         }

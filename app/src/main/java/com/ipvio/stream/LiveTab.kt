@@ -418,11 +418,11 @@ private fun ChannelLine(
                 val lit = running && f
                 Box(
                     Modifier.offset(x = w * a).width(w * (b - a)).fillMaxHeight().padding(start = 3.dp).clip(cell)
-                        .background(if (lit) TvFocusFill else if (running) TvCellNow else TvCell)
+                        .background(if (lit) TvFocusFill else if (f) Color(0xFF3A3E44) else TvCell)
                         .padding(horizontal = 14.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
-                    Text(raw = true, text = e.title, color = if (lit) DS.FocusInk else Color(0xFFD0D3D8), fontSize = 17.sp,
+                    Text(raw = true, text = e.title, color = if (lit) DS.FocusInk else if (f) Color.White else Color(0xFFC9CCD1), fontSize = 17.sp,
                         maxLines = 1, overflow = TextOverflow.Clip)
                 }
             }

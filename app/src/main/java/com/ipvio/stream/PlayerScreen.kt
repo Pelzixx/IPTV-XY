@@ -282,7 +282,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
 
     fun ping() { miniBar = true; miniTick++ }
 
-    fun openChannels() { focusedCh = curItem; showCats = false; chanCat = playCat; showChannels = true }
+    fun openChannels() { controls = false; focusedCh = curItem; showCats = false; chanCat = playCat; showChannels = true }
 
     fun togglePlay() { if (player.isPlaying) player.pause() else player.play() }
 
