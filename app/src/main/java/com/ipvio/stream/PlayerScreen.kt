@@ -165,7 +165,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
             .setTrackSelector(ts)
             .setLoadControl(Mem.loadControl(ctx))
             .setWakeMode(C.WAKE_MODE_NETWORK)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(ctx).setDataSourceFactory(DefaultDataSource.Factory(ctx, http)))
+            .setMediaSourceFactory(DefaultMediaSourceFactory(ctx).setDataSourceFactory(SmbAwareFactory(DefaultDataSource.Factory(ctx, http))))
             .build()
             .also {
                 // Bildrate: nur wechseln, wenn der Fernseher das nahtlos kann (kein Aufblitzen); abschaltbar unter Einstellungen > Player
@@ -401,6 +401,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
             PAct.FAV -> Library.toggleFav(ctx, cur.itemId)
             PAct.CH_OPTS -> { liveMenu = true; controls = true }
             PAct.EXTERNAL -> { player.pause(); openExternal(ctx, cur.url, cur.title) }
+            PAct.RECORD -> recToggle(ctx, curItem)
             PAct.SEARCH -> { AppNav.toSearch = true; onBack() }
             PAct.AUDIO -> openPanel(Panel.TRACKS)
             PAct.SUBS -> { openPanel(Panel.TRACKS); h.postDelayed({ runCatching { subsFocus.requestFocus() } }, 150) }
@@ -1452,6 +1453,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                                     }
                                     MBtn.SETTINGS -> PBarButton(first, label = "Einstellungen", onLabel = setLabel, onClick = { AppNav.toSettings = true; onBack() }) { AppIcon(AIcon.Gear, it, size = 26.dp) }
                                     MBtn.EXTERNAL -> PBarButton(first, label = "Extern öffnen", onLabel = setLabel, onClick = { player.pause(); openExternal(ctx, cur.url, cur.title) }) { PlayerIcon(PIcon.External, it) }
+                                    MBtn.RECORD -> if (cur.live) PBarButton(first, label = if (curItem != null && Recorder.runningFor(curItem.id) != null) "Aufnahme stoppen" else "Aufnehmen", onLabel = setLabel, onClick = { recToggle(ctx, curItem) }) { AppIcon(AIcon.Rec, if (curItem != null && Recorder.runningFor(curItem.id) != null) Color(0xFFE5484D) else it, size = 26.dp) }
                                     MBtn.HISTORY -> PBarButton(first, label = "Verlauf", onLabel = setLabel, onClick = { openRecent() }) { AppIcon(AIcon.History, it, size = 26.dp) }
                                     MBtn.MOVIES -> PBarButton(first, label = "Filme", onLabel = setLabel, onClick = { AppNav.toTab = 1; onBack() }) { AppIcon(AIcon.Play, it, size = 26.dp) }
                                     MBtn.SERIES -> PBarButton(first, label = "Serien", onLabel = setLabel, onClick = { AppNav.toTab = 2; onBack() }) { AppIcon(AIcon.Layers, it, size = 26.dp) }
@@ -1858,4 +1860,18 @@ private fun pkOf(k: Key): PKey? = when (k) {
     Key.Info -> PKey.INFO
     Key.Guide -> PKey.GUIDE
     else -> null
+}
+
+/** Aufnahme im Player (TiviMate): läuft keine, laufende Sendung bis zum Ende aufnehmen (sonst 1 Stunde); läuft eine, stoppen. */
+internal fun recToggle(ctx: Context, item: Item?) {
+    if (item == null || item.kind != Kind.LIVE) return
+    Recorder.init(ctx)
+    val r = Recorder.runningFor(item.id)
+    if (r != null) {
+        Recorder.stop(ctx, r.id)
+        android.widget.Toast.makeText(ctx, Lang.tr("Aufnahme gestoppt"), android.widget.Toast.LENGTH_SHORT).show()
+    } else {
+        val n = Recorder.recordNow(ctx, item)
+        android.widget.Toast.makeText(ctx, Lang.tr("Aufnahme läuft") + ": " + n.title + " (" + Lang.tr("bis") + " " + hhmm(n.end) + ")", android.widget.Toast.LENGTH_LONG).show()
+    }
 }

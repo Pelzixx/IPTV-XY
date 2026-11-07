@@ -250,4 +250,58 @@ Ohne Gruppe¦No group¦Grupsuz¦Bez grupe¦Bez grupe¦Bez grupe¦Sin grupo¦Sans
 Wird aktualisiert …¦Updating …¦Güncelleniyor …¦Ažurira se …¦Ažurira se …¦Ažurira se …¦Actualizando …¦Mise à jour …¦Aggiornamento …
 Aktualisiert¦Updated¦Güncellendi¦Ažurirano¦Ažurirano¦Ažurirano¦Actualizado¦Mis à jour¦Aggiornato
 Aktualisierung fehlgeschlagen¦Update failed¦Güncelleme başarısız¦Ažuriranje nije uspjelo¦Ažuriranje nije uspjelo¦Ažuriranje nije uspelo¦Error al actualizar¦Échec de la mise à jour¦Aggiornamento non riuscito
+Aufnahme¦Recording¦Kayıt¦Snimanje¦Snimanje¦Snimanje¦Grabación¦Enregistrement¦Registrazione
+Aufnehmen¦Record¦Kaydet¦Snimi¦Snimi¦Snimi¦Grabar¦Enregistrer¦Registra
+Aufnahme läuft¦Recording¦Kayıt yapılıyor¦Snimanje u toku¦Snimanje u tijeku¦Snimanje u toku¦Grabando¦Enregistrement en cours¦Registrazione in corso
+Aufnahme geplant¦Recording scheduled¦Kayıt planlandı¦Snimanje zakazano¦Snimanje zakazano¦Snimanje zakazano¦Grabación programada¦Enregistrement programmé¦Registrazione pianificata
+Aufnahme abgebrochen¦Recording cancelled¦Kayıt iptal edildi¦Snimanje otkazano¦Snimanje otkazano¦Snimanje otkazano¦Grabación cancelada¦Enregistrement annulé¦Registrazione annullata
+Aufnahme stoppen¦Stop recording¦Kaydı durdur¦Zaustavi snimanje¦Zaustavi snimanje¦Zaustavi snimanje¦Detener grabación¦Arrêter l’enregistrement¦Interrompi registrazione
+Aufnahme abbrechen¦Cancel recording¦Kaydı iptal et¦Otkaži snimanje¦Otkaži snimanje¦Otkaži snimanje¦Cancelar grabación¦Annuler l’enregistrement¦Annulla registrazione
+Aufnahme gestoppt¦Recording stopped¦Kayıt durduruldu¦Snimanje zaustavljeno¦Snimanje zaustavljeno¦Snimanje zaustavljeno¦Grabación detenida¦Enregistrement arrêté¦Registrazione interrotta
+Aufnahme gelöscht¦Recording deleted¦Kayıt silindi¦Snimak obrisan¦Snimka obrisana¦Snimak obrisan¦Grabación eliminada¦Enregistrement supprimé¦Registrazione eliminata
+Aufnahme hinzufügen¦Add recording¦Kayıt ekle¦Dodaj snimanje¦Dodaj snimanje¦Dodaj snimanje¦Añadir grabación¦Ajouter un enregistrement¦Aggiungi registrazione
+Benutzerdefinierte Aufnahme¦Custom recording¦Özel kayıt¦Prilagođeno snimanje¦Prilagođeno snimanje¦Prilagođeno snimanje¦Grabación personalizada¦Enregistrement personnalisé¦Registrazione personalizzata
+Programmbeschreibung¦Program description¦Program açıklaması¦Opis emisije¦Opis emisije¦Opis emisije¦Descripción del programa¦Description du programme¦Descrizione del programma
+Zu den Favoriten hinzufügen¦Add to favorites¦Favorilere ekle¦Dodaj u favorite¦Dodaj u favorite¦Dodaj u omiljene¦Añadir a favoritos¦Ajouter aux favoris¦Aggiungi ai preferiti
+Aus den Favoriten entfernen¦Remove from favorites¦Favorilerden kaldır¦Ukloni iz favorita¦Ukloni iz favorita¦Ukloni iz omiljenih¦Quitar de favoritos¦Retirer des favoris¦Rimuovi dai preferiti
+Kanal sperren¦Lock channel¦Kanalı kilitle¦Zaključaj kanal¦Zaključaj program¦Zaključaj kanal¦Bloquear canal¦Verrouiller la chaîne¦Blocca canale
+Kanal entsperren¦Unlock channel¦Kanal kilidini aç¦Otključaj kanal¦Otključaj program¦Otključaj kanal¦Desbloquear canal¦Déverrouiller la chaîne¦Sblocca canale
+Kanal ausblenden¦Hide channel¦Kanalı gizle¦Sakrij kanal¦Sakrij program¦Sakrij kanal¦Ocultar canal¦Masquer la chaîne¦Nascondi canale
+Kanal einblenden¦Show channel¦Kanalı göster¦Prikaži kanal¦Prikaži program¦Prikaži kanal¦Mostrar canal¦Afficher la chaîne¦Mostra canale
+Kanal gesperrt¦Channel locked¦Kanal kilitlendi¦Kanal zaključan¦Program zaključan¦Kanal zaključan¦Canal bloqueado¦Chaîne verrouillée¦Canale bloccato
+Kanal entsperrt¦Channel unlocked¦Kanal kilidi açıldı¦Kanal otključan¦Program otključan¦Kanal otključan¦Canal desbloqueado¦Chaîne déverrouillée¦Canale sbloccato
+Bitte zuerst unter Einstellungen > Kindersicherung eine PIN festlegen.¦Please set a PIN under Settings > Parental control first.¦Lütfen önce Ayarlar > Ebeveyn denetimi altında bir PIN belirleyin.¦Prvo postavite PIN u Postavke > Roditeljska kontrola.¦Najprije postavite PIN u Postavke > Roditeljska kontrola.¦Prvo podesite PIN u Podešavanja > Roditeljska kontrola.¦Primero define un PIN en Ajustes > Control parental.¦Définissez d’abord un code PIN dans Paramètres > Contrôle parental.¦Imposta prima un PIN in Impostazioni > Controllo genitori.
+Aus dem Archiv abspielen¦Play from archive¦Arşivden oynat¦Reprodukuj iz arhive¦Reproduciraj iz arhive¦Reprodukuj iz arhive¦Reproducir desde el archivo¦Lire depuis l’archive¦Riproduci dall’archivio
+Startdatum¦Start date¦Başlangıç tarihi¦Datum početka¦Datum početka¦Datum početka¦Fecha de inicio¦Date de début¦Data di inizio
+Startzeit (Stunde)¦Start time (hour)¦Başlangıç saati (saat)¦Vrijeme početka (sat)¦Vrijeme početka (sat)¦Vreme početka (sat)¦Hora de inicio (hora)¦Heure de début (heure)¦Ora di inizio (ora)
+Startzeit (Minute)¦Start time (minute)¦Başlangıç saati (dakika)¦Vrijeme početka (minuta)¦Vrijeme početka (minuta)¦Vreme početka (minut)¦Hora de inicio (minuto)¦Heure de début (minute)¦Ora di inizio (minuto)
+Dauer (Minuten)¦Duration (minutes)¦Süre (dakika)¦Trajanje (minute)¦Trajanje (minute)¦Trajanje (minuti)¦Duración (minutos)¦Durée (minutes)¦Durata (minuti)
+Wiederholen¦Repeat¦Tekrarla¦Ponavljaj¦Ponavljaj¦Ponavljaj¦Repetir¦Répéter¦Ripeti
+Nie¦Never¦Asla¦Nikad¦Nikad¦Nikad¦Nunca¦Jamais¦Mai
+Keine Aufnahmen¦No recordings¦Kayıt yok¦Nema snimaka¦Nema snimki¦Nema snimaka¦No hay grabaciones¦Aucun enregistrement¦Nessuna registrazione
+Im TV-Guide OK gedrückt halten und „Aufnahme hinzufügen“ wählen, oder im Player über das Menü aufnehmen.¦In the TV guide, hold OK and choose “Add recording”, or record from the player menu.¦TV rehberinde OK tuşunu basılı tutup “Kayıt ekle” seçin veya oynatıcı menüsünden kaydedin.¦U TV vodiču držite OK i odaberite „Dodaj snimanje“ ili snimajte iz menija plejera.¦U TV vodiču držite OK i odaberite „Dodaj snimanje“ ili snimajte iz izbornika playera.¦U TV vodiču držite OK i izaberite „Dodaj snimanje“ ili snimajte iz menija plejera.¦En la guía de TV mantén OK y elige “Añadir grabación”, o graba desde el menú del reproductor.¦Dans le guide TV, maintenez OK et choisissez « Ajouter un enregistrement », ou enregistrez depuis le menu du lecteur.¦Nella guida TV tieni premuto OK e scegli “Aggiungi registrazione”, oppure registra dal menu del player.
+Zum TV-Guide¦Go to TV guide¦TV rehberine git¦Na TV vodič¦Na TV vodič¦Na TV vodič¦Ir a la guía de TV¦Aller au guide TV¦Vai alla guida TV
+Laufende Aufnahmen¦Recording now¦Devam eden kayıtlar¦Trenutna snimanja¦Trenutna snimanja¦Trenutna snimanja¦Grabaciones en curso¦Enregistrements en cours¦Registrazioni in corso
+Geplante Aufnahmen¦Scheduled recordings¦Planlanan kayıtlar¦Zakazana snimanja¦Zakazana snimanja¦Zakazana snimanja¦Grabaciones programadas¦Enregistrements programmés¦Registrazioni pianificate
+Aufgenommen¦Recorded¦Kaydedilenler¦Snimljeno¦Snimljeno¦Snimljeno¦Grabado¦Enregistrés¦Registrate
+Fehlgeschlagen¦Failed¦Başarısız¦Neuspjelo¦Neuspjelo¦Neuspelo¦Fallida¦Échec¦Non riuscita
+Verpasst¦Missed¦Kaçırıldı¦Propušteno¦Propušteno¦Propušteno¦Perdida¦Manqué¦Persa
+Keine Daten¦No data¦Veri yok¦Nema podataka¦Nema podataka¦Nema podataka¦Sin datos¦Aucune donnée¦Nessun dato
+frei¦free¦boş¦slobodno¦slobodno¦slobodno¦libre¦libre¦liberi
+Aufnahmeverzeichnis¦Recording folder¦Kayıt klasörü¦Mapa za snimke¦Mapa za snimke¦Fascikla za snimke¦Carpeta de grabaciones¦Dossier d’enregistrement¦Cartella registrazioni
+SMB Benutzername¦SMB user name¦SMB kullanıcı adı¦SMB korisničko ime¦SMB korisničko ime¦SMB korisničko ime¦Usuario SMB¦Nom d’utilisateur SMB¦Nome utente SMB
+SMB Passwort¦SMB password¦SMB şifresi¦SMB lozinka¦SMB lozinka¦SMB lozinka¦Contraseña SMB¦Mot de passe SMB¦Password SMB
+Gast¦Guest¦Misafir¦Gost¦Gost¦Gost¦Invitado¦Invité¦Ospite
+Verbindung testen¦Test connection¦Bağlantıyı test et¦Testiraj vezu¦Testiraj vezu¦Testiraj vezu¦Probar conexión¦Tester la connexion¦Verifica connessione
+Verbindung erfolgreich¦Connection successful¦Bağlantı başarılı¦Veza uspješna¦Veza uspješna¦Veza uspešna¦Conexión correcta¦Connexion réussie¦Connessione riuscita
+Verbindung fehlgeschlagen¦Connection failed¦Bağlantı başarısız¦Veza nije uspjela¦Veza nije uspjela¦Veza nije uspela¦Error de conexión¦Échec de la connexion¦Connessione non riuscita
+Beginn der Aufnahme vorher (Minuten)¦Start recording early (minutes)¦Kayda önceden başla (dakika)¦Početak snimanja ranije (minute)¦Početak snimanja ranije (minute)¦Početak snimanja ranije (minuti)¦Empezar a grabar antes (minutos)¦Commencer plus tôt (minutes)¦Inizia prima (minuti)
+Aufnahme stoppen nach (Minuten)¦Stop recording after (minutes)¦Kaydı sonra durdur (dakika)¦Zaustavi snimanje nakon (minute)¦Zaustavi snimanje nakon (minute)¦Zaustavi snimanje posle (minuti)¦Detener grabación después (minutos)¦Arrêter après (minutes)¦Interrompi dopo (minuti)
+Gerätespeicher¦Device storage¦Cihaz depolama¦Memorija uređaja¦Memorija uređaja¦Memorija uređaja¦Almacenamiento del dispositivo¦Stockage de l’appareil¦Memoria del dispositivo
+Externer Speicher (USB/SD)¦External storage (USB/SD)¦Harici depolama (USB/SD)¦Vanjska memorija (USB/SD)¦Vanjska memorija (USB/SD)¦Spoljna memorija (USB/SD)¦Almacenamiento externo (USB/SD)¦Stockage externe (USB/SD)¦Memoria esterna (USB/SD)
+Netzwerkfreigabe (SMB) …¦Network share (SMB) …¦Ağ paylaşımı (SMB) …¦Mrežno dijeljenje (SMB) …¦Mrežno dijeljenje (SMB) …¦Mrežno deljenje (SMB) …¦Recurso de red (SMB) …¦Partage réseau (SMB) …¦Condivisione di rete (SMB) …
+bis¦until¦kadar¦do¦do¦do¦hasta¦jusqu’à¦fino alle
+Dieser Kanal ist gesperrt.¦This channel is locked.¦Bu kanal kilitli.¦Ovaj kanal je zaključan.¦Ovaj program je zaključan.¦Ovaj kanal je zaključan.¦Este canal está bloqueado.¦Cette chaîne est verrouillée.¦Questo canale è bloccato.
+Wiedergabeliste erfolgreich aktualisiert¦Playlist updated successfully¦Oynatma listesi başarıyla güncellendi¦Lista uspješno ažurirana¦Popis uspješno ažuriran¦Lista uspešno ažurirana¦Lista actualizada correctamente¦Playlist mise à jour¦Playlist aggiornata correttamente
+Fehler beim Aktualisieren der Wiedergabeliste¦Error updating playlist¦Oynatma listesi güncellenirken hata¦Greška pri ažuriranju liste¦Pogreška pri ažuriranju popisa¦Greška pri ažuriranju liste¦Error al actualizar la lista¦Erreur lors de la mise à jour de la playlist¦Errore durante l’aggiornamento della playlist
 """

@@ -25,7 +25,8 @@ enum class PAct(val label: String) {
     SUBS("Untertitel"),
     ASPECT("Bildformat"),
     SLEEP("Sleeptimer"),
-    SETTINGS("Einstellungen")
+    SETTINGS("Einstellungen"),
+    RECORD("Aufnehmen")
 }
 
 /** Tasten des Live-Players mit TiviMate-Standardbelegung. [long] = langer Druck. */

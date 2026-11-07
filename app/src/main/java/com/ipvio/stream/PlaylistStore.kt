@@ -179,7 +179,7 @@ object PlaylistStore {
         if (manualUpdate) {
             manualUpdate = false
             val n = primaryLiveCount
-            doneMsg = (lists.firstOrNull { it.url.trim() == url.trim() }?.name ?: "") + ": " + Lang.tr("Aktualisiert") + (if (n > 0) " · " + Lang.tr("Kanäle") + ": " + n else "")
+            doneMsg = Lang.tr("Wiedergabeliste erfolgreich aktualisiert") + (lists.firstOrNull { it.url.trim() == url.trim() }?.name?.let { " ($it)" } ?: "")
             doneSignal++
         }
     }
@@ -812,7 +812,7 @@ object PlaylistStore {
             loadLock.unlock()
         }
         if (ok && (wasHeavy || manualUpdate)) markUpdated(c, url)
-        else if (manualUpdate) { manualUpdate = false; doneMsg = error ?: Lang.tr("Aktualisierung fehlgeschlagen"); doneSignal++ }
+        else if (manualUpdate) { manualUpdate = false; doneMsg = Lang.tr("Fehler beim Aktualisieren der Wiedergabeliste") + (error?.let { ": " + Lang.tr(it) } ?: ""); doneSignal++ }
         // Weitere eingeschaltete Playlists dazuholen (erst nach dem Freigeben der Sperre, sie laden ggf. selbst)
         if (ok) runCatching { loadExtras(c) }
         return ok

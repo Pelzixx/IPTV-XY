@@ -123,6 +123,10 @@ fun MenuIcon(id: Int, color: Color, modifier: Modifier = Modifier) {
                 line(.5f, .5f, .5f, .28f)
                 line(.5f, .5f, .66f, .6f)
             }
+            10 -> { // Aufnahmen: Kreis mit Punkt
+                drawCircle(color, radius = .36f * s, center = Offset(.5f * s, .5f * s), style = sw)
+                drawCircle(color, radius = .16f * s, center = Offset(.5f * s, .5f * s))
+            }
             else -> {
                 for (y in listOf(.26f, .5f, .74f)) line(.12f, y, .88f, y)
             }

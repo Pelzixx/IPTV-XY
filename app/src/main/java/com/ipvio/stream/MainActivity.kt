@@ -238,7 +238,11 @@ private fun AppContent() {
     // Genre-Erkennung im Hintergrund; startet bei jeder neuen Liste (Neuladen, Sprachfilter, Jugendschutz) sauber neu
     LaunchedEffect(all) { Classifier.restart(ctx, all) }
 
+    var pinAsk by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var pinErr by remember { mutableStateOf<String?>(null) }
     fun start(item: Item, title: String, url: String, startMs: Long = 0L) {
+        // Kindersicherung > Kanal sperren (TiviMate): erst die PIN, dann abspielen
+        if (item.kind == Kind.LIVE && ChLock.needsPin(item.id)) { pinErr = null; pinAsk = { ChLock.unlock(item.id); start(item, title, url, startMs) }; return }
         History.add(ctx, item.id)
         val sm = SE_RE.find(title)
         val season = sm?.groupValues?.get(1)?.toIntOrNull() ?: 0
@@ -321,6 +325,9 @@ private fun AppContent() {
         start(ch, ch.title, ch.url)
     }
     // Erinnerungen, während die App offen ist: Karte mit „Umschalten“ (statt Benachrichtigung)
+    // Menü im TV-Guide: „Suchen“ u. a. – sofort den Bereich wechseln
+    LaunchedEffect(AppNav.tabNow) { val t = AppNav.tabNow; if (t >= 0) { AppNav.tabNow = -1; goTab(t); AppNav.focusTab = t } }
+    LaunchedEffect(Unit) { Recorder.init(ctx); Recorder.schedule(ctx) }
     // Wiedergabeliste von Hand aktualisiert: Meldung, sobald sie fertig ist (TiviMate)
     LaunchedEffect(PlaylistStore.doneSignal) {
         if (PlaylistStore.doneSignal > 0) android.widget.Toast.makeText(ctx, PlaylistStore.doneMsg, android.widget.Toast.LENGTH_LONG).show()
@@ -412,6 +419,9 @@ private fun AppContent() {
                 onGoTab = { if (it != MenuLogic.EPG) cats = null; goTab(it) }
             ) }
             adding -> Box(Modifier.fillMaxSize().screenEnter()) { AddPlaylistScreen { adding = false } }
+            tab == MenuLogic.REC -> Box(Modifier.fillMaxSize().screenEnter()) { RecordingsScreen(tab, onTab = { goTab(it) }) { r ->
+                playing = PlayReq(r.title, RecStore.playUrl(r.file), "rec:" + r.id, false, 0L)
+            } }
             tab == 4 && all.isNotEmpty() -> Box(Modifier.fillMaxSize().screenEnter()) { SearchScreen(
                 tab = tab, state = states[4],
                 onOpen = open,
@@ -436,6 +446,11 @@ private fun AppContent() {
         }
         // Genre-Erkennung im Hintergrund: dezent oben rechts, nie im Player
         if (p == null && !adding) MetaBadge(Modifier.align(Alignment.TopEnd).padding(top = 16.dp, end = 22.dp))
+        pinAsk?.let { go ->
+            PinPad("PIN eingeben", Lang.tr("Dieser Kanal ist gesperrt."), pinErr, onSubmit = { pin ->
+                if (Parental.verify(ctx, pin)) { pinAsk = null; go() } else pinErr = Parental.pinError()
+            }, onCancel = { pinAsk = null })
+        }
         remindNow?.let { r ->
             ReminderCard(r, Modifier.align(Alignment.TopCenter).padding(top = 24.dp), onClose = { remindNow = null }) {
                 remindNow = null

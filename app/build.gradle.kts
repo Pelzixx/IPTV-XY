@@ -104,6 +104,8 @@ dependencies {
     implementation("org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1")
 
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    // Aufnahmen auf SMB-Netzwerkfreigaben (TiviMate: Aufnahmeverzeichnis smb://…)
+    implementation("org.codelibs:jcifs:2.1.39")
     // QR-Code auf der Startseite (HomeInfo.kt)
     implementation("com.google.zxing:core:3.5.3")
     implementation("io.coil-kt:coil-compose:2.7.0")

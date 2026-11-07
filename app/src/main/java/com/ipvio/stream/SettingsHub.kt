@@ -1158,7 +1158,7 @@ private fun PlaylistMainPage(ctx: Context, idx: Int, onXtream: () -> Unit, onEpg
     SettingRow("Aktualisieren", upd, rawValue = true, onClick = {
         PlaylistStore.manualUpdate = true
         if (isActive) reload() else { PlaylistStore.activate(ctx, idx); scope.launch { PlaylistStore.load(ctx, pl.url, false) } }
-    })
+    }, trailing = { f -> if (PlaylistStore.updating?.trim() == pl.url.trim()) Spinner(if (f) DS.FocusInk else Accent2, Modifier.size(24.dp)) })
     SettingRow("Löschen", null, onClick = { confirmDelete = true })
     if (confirmDelete) SideMenu(
         listOf(SideSection(pl.name, listOf(
@@ -1290,7 +1290,9 @@ private fun PlaylistPage(ctx: Context, onAdd: () -> Unit, reload: () -> Unit, on
         // Haken links wie in TV-Playern (aktive Liste); sonst gleicher Einzug
         SettingRow(pl.name, info, rawTitle = true, rawValue = true, onClick = { onOpen(i) }, leading = { f ->
             Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) {
-                if (active || pl.on) Box(Modifier.size(30.dp).clip(CircleShape).background(if (f) DS.FocusInk else Accent2), contentAlignment = Alignment.Center) {
+                // TiviMate: kleiner Ladekreis, solange die Liste aktualisiert wird
+                if (PlaylistStore.updating?.trim() == pl.url.trim() || (!active && pl.on && PlaylistStore.extraStatus[pl.name] == null)) Spinner(if (f) DS.FocusInk else Accent2, Modifier.size(26.dp))
+                else if (active || pl.on) Box(Modifier.size(30.dp).clip(CircleShape).background(if (f) DS.FocusInk else Accent2), contentAlignment = Alignment.Center) {
                     AppIcon(AIcon.Check, if (f) TvFocusFill else Color.White, size = 20.dp)
                 }
             }
@@ -1673,6 +1675,7 @@ fun SettingsPanel(onAdd: () -> Unit, reload: () -> Unit, onClose: () -> Unit) {
                             "play_audio" -> AudioPage(ctx)
                             "misc_search" -> TmSearch(ctx)
                             "misc_rem" -> ReminderSettingsSection(ctx)
+                            "misc_rec" -> TmRecording(ctx)
                             "about_legal" -> AboutLegal()
                             "misc_lists" -> TmChannelLists(ctx)
                             "misc_storage" -> StoragePage(ctx)
@@ -2046,6 +2049,7 @@ private fun TmPlayback(ctx: Context, open: (String, String) -> Unit) {
 private fun TmMisc(open: (String, String) -> Unit) {
     SettingRow("Suchen", null, onClick = { open("misc_search", "Suchen") })
     SettingRow("Erinnerungen", null, onClick = { open("misc_rem", "Erinnerungen") })
+    SettingRow("Aufnahme", null, onClick = { open("misc_rec", "Aufnahme") })
     SettingRow("VOD", null, onClick = { open("misc_vod", "VOD") })
     SettingRow("Senderlisten", null, onClick = { open("misc_lists", "Senderlisten") })
     SettingRow("Speicher", null, onClick = { open("misc_storage", "Speicher") })
@@ -2166,3 +2170,48 @@ private fun updTime(ms: Long): String {
 
 private fun updatedSuffix(url: String): String =
     PlaylistStore.lastUpdate(url).takeIf { it > 0 }?.let { " · " + Lang.tr("Aktualisiert") + " " + updTime(it) } ?: ""
+
+/** Sonstiges > Aufnahme (TiviMate): Aufnahmeverzeichnis (Gerät, USB, SMB), Beginn vorher, Stopp nach. */
+@Composable
+private fun TmRecording(ctx: Context) {
+    val scope = rememberCoroutineScope()
+    var ask by remember { mutableStateOf<Ask?>(null) }
+    var pick by remember { mutableStateOf(false) }
+    val dir = RecStore.dir(ctx)
+    SettingRow("Aufnahmeverzeichnis", dir, rawValue = true, onClick = { pick = true })
+    if (RecStore.isSmb(dir)) {
+        SettingRow("SMB Benutzername", Tm.s(Tm.REC_SMB_USER).ifEmpty { Lang.tr("Gast") }, rawValue = true, onClick = {
+            ask = Ask("SMB Benutzername", Tm.s(Tm.REC_SMB_USER), "Benutzer oder DOMÄNE/Benutzer") { Tm.set(ctx, Tm.REC_SMB_USER, it) }
+        })
+        SettingRow("SMB Passwort", if (Tm.s(Tm.REC_SMB_PASS).isEmpty()) Lang.tr("Nicht festgelegt") else "••••••", rawValue = true, onClick = {
+            ask = Ask("SMB Passwort", Tm.s(Tm.REC_SMB_PASS), "Passwort", password = true) { Tm.set(ctx, Tm.REC_SMB_PASS, it) }
+        })
+        SettingRow("Verbindung testen", null, onClick = {
+            scope.launch {
+                val err = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Smb.test(dir) }
+                android.widget.Toast.makeText(ctx, if (err == null) Lang.tr("Verbindung erfolgreich") else Lang.tr("Verbindung fehlgeschlagen") + ": " + err, android.widget.Toast.LENGTH_LONG).show()
+            }
+        })
+    }
+    val mins = listOf(0, 1, 2, 3, 5, 10, 15, 20, 30)
+    val b = Tm.i(Tm.REC_BEFORE, 0)
+    SelectRow("Beginn der Aufnahme vorher (Minuten)", b.toString(), mins.map { it.toString() }, mins.indexOf(b).coerceAtLeast(0)) { Tm.set(ctx, Tm.REC_BEFORE, mins[it]) }
+    val a = Tm.i(Tm.REC_AFTER, 0)
+    SelectRow("Aufnahme stoppen nach (Minuten)", a.toString(), mins.map { it.toString() }, mins.indexOf(a).coerceAtLeast(0)) { Tm.set(ctx, Tm.REC_AFTER, mins[it]) }
+    if (pick) {
+        val locals = RecStore.localDirs(ctx)
+        val entries = ArrayList<SideEntry>()
+        locals.forEachIndexed { i, f ->
+            entries.add(SideEntry(Lang.tr(if (i == 0) "Gerätespeicher" else "Externer Speicher (USB/SD)") + ": " + f.absolutePath, raw = true) {
+                Tm.set(ctx, Tm.REC_DIR, if (i == 0) "" else f.absolutePath)
+            })
+        }
+        entries.add(SideEntry(Lang.tr("Netzwerkfreigabe (SMB) …"), raw = true) {
+            ask = Ask("Aufnahmeverzeichnis", dir.takeIf { RecStore.isSmb(it) } ?: "smb://", "smb://192.168.2.9/Freigabe/Aufnahmen") {
+                if (it.startsWith("smb://", true)) Tm.set(ctx, Tm.REC_DIR, it.trim().trimEnd('/'))
+            }
+        })
+        SideMenu(listOf(SideSection(Lang.tr("Aufnahmeverzeichnis"), entries)), { pick = false })
+    }
+    ask?.let { q -> TextAskDialog(Lang.tr(q.title), q.initial, q.hint, q.password, onDismiss = { ask = null }) { ask = null; q.onSave(it) } }
+}

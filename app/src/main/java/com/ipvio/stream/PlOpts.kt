@@ -59,3 +59,24 @@ object PlOpts {
         return l.filter { it.kind != Kind.LIVE || gk(listOf(it) ?: return@filter true, it.group) !in h }
     }
 }
+
+/** Kindersicherung > Kanal sperren (TiviMate): gesperrte Sender brauchen die PIN; entsperrt bis zum nächsten App-Start. */
+object ChLock {
+    private const val KEY = "locked_channels"
+    private val session = HashSet<String>()
+    var version by mutableIntStateOf(0)
+        private set
+
+    private fun set(): Set<String> = Tm.s(KEY).split('\n').filter { it.isNotEmpty() }.toSet()
+    fun isLocked(id: String): Boolean = id in set()
+    fun needsPin(id: String): Boolean = Parental.pinSet && isLocked(id) && id !in session
+    fun unlock(id: String) { session.add(id) }
+
+    fun toggle(c: Context, id: String): Boolean {
+        val s = set().toMutableSet()
+        val now = if (!s.remove(id)) { s.add(id); true } else false
+        Tm.set(c, KEY, s.joinToString("\n"))
+        version++
+        return now
+    }
+}

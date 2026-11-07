@@ -465,7 +465,14 @@ private fun ChannelLine(
     val epg = remember(item.id, Xmltv.channelCount, nowSec / 300) { Epg.nowLocal(item) }
     val isCurrent = look.currentId == item.id
     // TiviMate: Rechts/Links wählt einzelne Sendungen (auch über das Zeitfenster hinaus, die Zeitleiste läuft mit)
-    val all = remember(item.id, Xmltv.channelCount, nowSec / 300) { Xmltv.forItem(item).filter { it.end > nowSec }.ifEmpty { epg } }
+    // TiviMate: ohne EPG volle Stunden als Blöcke mit dem Sendernamen (anwählbar wie Sendungen)
+    val all = remember(item.id, Xmltv.channelCount, nowSec / 300) {
+        Xmltv.forItem(item).filter { it.end > nowSec }.ifEmpty { epg }.ifEmpty {
+            val h0 = nowSec / 3600 * 3600
+            val t = ChannelEdit.title(item)
+            (0 until 48).map { k -> EpgEntry(t, "", h0 + k * 3600L, h0 + (k + 1) * 3600L) }
+        }
+    }
     var pi by remember { mutableIntStateOf(-1) }
     val nowIdx = all.indexOfFirst { it.end > nowSec }
     fun pick(i: Int) {
@@ -476,34 +483,24 @@ private fun ChannelLine(
         onProg(e)
     }
     Box {
-    if (menu) ChannelMenu(item, inList, onNewList, onRename, next = epg.firstOrNull { it.start > nowSec }) { menu = false }
+    if (menu) ChannelMenu(item, inList, onNewList, onRename, prog = all.getOrNull(pi)) { menu = false }
     val cell = RoundedCornerShape(4.dp)
     val titleLines = if (look.twoLineTitles) 2 else 1
     Row(
         modifier.fillMaxWidth().height(look.rowH)
+            // TiviMate: Zeile des laufenden Senders mit hellem Rahmen (dazu ▶ beim Namen)
+            .border(1.dp, if (isCurrent) Color(0xFFDADCE0) else Color.Transparent, RoundedCornerShape(6.dp))
             .onFocusChanged {
                 f = it.isFocused
-                // TiviMate: zuerst ist der Sender markiert; Sendungen erst mit Rechts
-                if (it.isFocused) { onFocus(); pi = -1; onProg(null) }
+                // TiviMate: markiert ist die laufende (bzw. erste sichtbare) Sendung der Zeile
+                if (it.isFocused) { onFocus(); pick(all.indexOfFirst { e -> e.end > maxOf(nowSec, ws) }.let { i -> if (i < 0) nowIdx else i }) }
             }
             .onPreviewKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) false
                 else when (e.key) {
-                    // Links: vorherige Sendung, an der ersten zurück zum Sender, am Sender die Gruppenliste
-                    Key.DirectionLeft -> {
-                        when {
-                            pi < 0 -> onLeft()
-                            pi <= nowIdx || pi <= 0 -> { pi = -1; onProg(null); onShift(-96) }
-                            else -> pick(pi - 1)
-                        }
-                        true
-                    }
-                    // Rechts: vom Sender auf die laufende (bzw. erste sichtbare) Sendung, dann weiter
-                    Key.DirectionRight -> {
-                        if (pi < 0) { val i = all.indexOfFirst { x -> x.end > maxOf(nowSec, ws) }.let { i -> if (i < 0) nowIdx else i }; if (i >= 0) pick(i) }
-                        else if (pi < all.lastIndex) pick(pi + 1)
-                        true
-                    }
+                    // Links: vorherige Sendung; an der laufenden Sendung die Gruppenliste
+                    Key.DirectionLeft -> { if (pi <= nowIdx || pi <= 0) onLeft() else pick(pi - 1); true }
+                    Key.DirectionRight -> { if (pi in 0 until all.lastIndex) pick(pi + 1); true }
                     else -> false
                 }
             }
@@ -514,10 +511,8 @@ private fun ChannelLine(
             },
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Sender markiert (noch keine Sendung gewählt): Senderfeld hell wie in TiviMate
-        val chLit = f && pi < 0
         Row(
-            Modifier.width(CH_W).fillMaxHeight().padding(vertical = 2.dp).clip(cell).background(if (chLit) TvFocusFill else Color.Transparent).padding(horizontal = 8.dp),
+            Modifier.width(CH_W).fillMaxHeight().padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (look.numbers) Text(raw = true, text = num.toString(), color = Tok.TextMid, fontSize = 15.sp, style = TNUM,
@@ -527,12 +522,14 @@ private fun ChannelLine(
                 else Text(raw = true, text = item.title.take(2).uppercase(), color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
             if (look.names) Text(raw = true, text = ChannelEdit.title(item),
-                color = if (chLit) DS.FocusInk else if (f || (isCurrent)) Accent2 else Color.White, fontSize = 17.sp, fontWeight = FontWeight.Normal,
+                color = if (f || (isCurrent)) Accent2 else Color.White, fontSize = 17.sp, fontWeight = FontWeight.Normal,
                 maxLines = if (look.twoLineNames) 2 else 1, lineHeight = 20.sp, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             else Spacer(Modifier.weight(1f))
             if (Library.isFav(item.id)) AppIcon(AIcon.Star, DS.Gold, size = 14.dp)
             if (look.catchupIcon && Catchup.version >= 0 && Catchup.has(item)) AppIcon(AIcon.Catchup, Accent2, size = 14.dp)
             if (DeadLinks.isDead(item.url)) AppIcon(AIcon.Warning, DS.Gold, size = 14.dp)
+            // TiviMate: kleines Play-Symbol beim Sender, der gerade läuft
+            if (isCurrent) AppIcon(AIcon.Play, Accent2, size = 16.dp)
         }
         // Breite der Zeitleiste wird einmal für die ganze Liste gemessen (nicht je Zeile)
         Box(Modifier.width(tlW).fillMaxHeight().padding(vertical = 2.dp)) {
@@ -540,16 +537,16 @@ private fun ChannelLine(
             val shownE = all.filter { it.end > ws && it.start < ws + SPAN }
             if (shownE.isEmpty()) {
                 // Kein Programm: eine Fläche mit dem Sendernamen über die ganze Breite
-                Box(Modifier.fillMaxSize().padding(start = 3.dp).clip(cell).background(if (f) Color(0xFF3A3E44) else TvCell).padding(horizontal = 14.dp),
+                Box(Modifier.fillMaxSize().padding(start = 3.dp).clip(cell).background(if (f) TvFocusFill else TvCell).padding(horizontal = 14.dp),
                     contentAlignment = Alignment.CenterStart) {
-                    Text(raw = true, text = ChannelEdit.title(item), color = if (f) Color.White else Tok.TextMid, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(raw = true, text = ChannelEdit.title(item), color = if (f) DS.FocusInk else Tok.TextMid, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             } else shownE.forEach { e ->
                 val a = ((maxOf(e.start, ws) - ws).toFloat() / SPAN).coerceIn(0f, 1f)
                 val b = ((minOf(e.end, ws + SPAN) - ws).toFloat() / SPAN).coerceIn(0f, 1f)
                 val running = nowSec in e.start until e.end
                 // Laufende Sendung der markierten Zeile: hell mit dunkler Schrift (wie die Markierung im Menü)
-                val lit = f && pi >= 0 && all.getOrNull(pi)?.start == e.start
+                val lit = f && (all.getOrNull(pi)?.let { it.start == e.start } ?: running)
                 // TiviMate „Markiere laufendes Programm“: ganze Fläche heller, oder („nur Fortschritt“) nur der abgelaufene Teil
                 val runFill = running && !f && look.markRunning && !look.progressOnly
                 Box(
@@ -573,39 +570,69 @@ private fun ChannelLine(
 }
 
 /**
- * Menü eines Senders (Menü-Taste oder OK gedrückt halten): Favorit, Erinnerung an die nächste Sendung, eigene Listen
- * (hinzufügen/entfernen), in der Liste verschieben, neue Liste, umbenennen, ausblenden.
- * [onNewList] = null blendet „Neue Senderliste“ aus (Player); [onRename] = null blendet Umbenennen und Ausblenden aus.
- * [next] = nächste Sendung des Senders (für die Erinnerung).
+ * Menü eines Senders im TV-Guide (OK gedrückt halten / Menü-Taste), Aufbau wie TiviMate:
+ * Suchen, Einstellungen | Sendung: Extern öffnen, Aufnahme, Benutzerdefinierte Aufnahme, Erinnerung, Programmbeschreibung |
+ * Kanal: Favoriten, Kanal sperren, Kanal ausblenden, Umbenennen | eigene Senderlisten.
+ * [prog] = markierte Sendung (null = keine EPG-Daten).
  */
 @Composable
 fun ChannelMenu(
-    item: Item, inList: ChList?, onNewList: (() -> Unit)?, onRename: (() -> Unit)? = null, next: EpgEntry? = null,
+    item: Item, inList: ChList?, onNewList: (() -> Unit)?, onRename: (() -> Unit)? = null, prog: EpgEntry? = null,
     onClose: () -> Unit
 ) {
     val ctx = LocalContext.current
-    // Abschnitt 1: nächste Sendung (Erinnerung)
-    val prog = ArrayList<SideEntry>()
-    if (next != null && ReminderLogic.canRemind(next.start, System.currentTimeMillis() / 1000)) {
-        val set = Reminders.isSet(item.id, next.start)
-        prog.add(SideEntry(if (set) "Erinnerung löschen" else "Erinnern an", if (set) AIcon.BellOff else AIcon.Bell) {
-            val on = Reminders.toggle(ctx, Reminder(item.id, ChannelEdit.title(item), next.title, next.start, next.end))
-            if (on) Reminders.askPermission(ctx as? android.app.Activity)
-            Toast.makeText(ctx, if (on) Lang.tr("Erinnerung gesetzt – ${Reminders.leadMin} Min vorher") else Lang.tr("Erinnerung gelöscht"), Toast.LENGTH_SHORT).show()
+    var desc by remember { mutableStateOf<EpgEntry?>(null) }
+    var custom by remember { mutableStateOf(false) }
+    var open by remember { mutableStateOf(true) }
+    val now = System.currentTimeMillis() / 1000
+    val top = listOf(
+        SideEntry("Suchen", AIcon.Search) { AppNav.tabNow = MenuLogic.SEARCH },
+        SideEntry("Einstellungen", AIcon.Gear) { SettingsOpen.value = true }
+    )
+    // Sendung
+    val pe = ArrayList<SideEntry>()
+    pe.add(SideEntry("Extern öffnen") { openExternal(ctx, item.url, ChannelEdit.title(item)) })
+    if (prog == null || prog.end > now) {
+        val planned = if (prog != null) Recorder.isPlanned(item.id, prog.start) else Recorder.runningFor(item.id)
+        if (planned != null) pe.add(SideEntry(if (planned.state == Rec.RUNNING) "Aufnahme stoppen" else "Aufnahme abbrechen") {
+            Recorder.stop(ctx, planned.id)
+            Toast.makeText(ctx, Lang.tr("Aufnahme abgebrochen"), Toast.LENGTH_SHORT).show()
+        }) else pe.add(SideEntry("Aufnahme hinzufügen") {
+            Recorder.init(ctx)
+            if (prog != null) Recorder.add(ctx, item, prog.title, maxOf(prog.start, now), prog.end) else Recorder.recordNow(ctx, item)
+            Toast.makeText(ctx, Lang.tr(if (prog == null || prog.start <= now) "Aufnahme läuft" else "Aufnahme geplant"), Toast.LENGTH_SHORT).show()
         })
     }
-    // Abschnitt 2: der Sender (Überschrift = Sendername)
+    pe.add(SideEntry("Benutzerdefinierte Aufnahme") { custom = true })
+    if (prog != null && ReminderLogic.canRemind(prog.start, now)) {
+        val set = Reminders.isSet(item.id, prog.start)
+        pe.add(SideEntry(if (set) "Erinnerung löschen" else "Erinnern an") {
+            val on = Reminders.toggle(ctx, Reminder(item.id, ChannelEdit.title(item), prog.title, prog.start, prog.end))
+            if (on) Reminders.askPermission(ctx as? android.app.Activity)
+            Toast.makeText(ctx, Lang.tr(if (on) "Erinnerung gesetzt" else "Erinnerung entfernt"), Toast.LENGTH_SHORT).show()
+        })
+    }
+    if (prog != null && prog.end <= now && Catchup.has(item)) pe.add(SideEntry("Aus dem Archiv abspielen") { AppNav.archiveStart = item.id to prog; AppNav.openChannel = item.id })
+    if (prog != null) pe.add(SideEntry("Programmbeschreibung") { desc = prog })
+    // Kanal
     val chan = ArrayList<SideEntry>()
-    chan.add(SideEntry(if (Library.isFav(item.id)) "Aus Favoriten entfernen" else "Zu Favoriten", AIcon.Star) { Library.toggleFav(ctx, item.id) })
+    chan.add(SideEntry(if (Library.isFav(item.id)) "Aus den Favoriten entfernen" else "Zu den Favoriten hinzufügen") { Library.toggleFav(ctx, item.id) })
+    chan.add(SideEntry(if (ChLock.isLocked(item.id)) "Kanal entsperren" else "Kanal sperren") {
+        if (!Parental.pinSet) Toast.makeText(ctx, Lang.tr("Bitte zuerst unter Einstellungen > Kindersicherung eine PIN festlegen."), Toast.LENGTH_LONG).show()
+        else {
+            val on = ChLock.toggle(ctx, item.id)
+            Toast.makeText(ctx, Lang.tr(if (on) "Kanal gesperrt" else "Kanal entsperrt"), Toast.LENGTH_SHORT).show()
+        }
+    })
     if (onRename != null) {
-        chan.add(SideEntry("Umbenennen …", AIcon.Edit, onPick = onRename))
         val hidden = ChannelEdit.isHidden(item.id)
-        chan.add(SideEntry(if (hidden) "Wieder einblenden" else "Sender ausblenden", if (hidden) AIcon.Eye else AIcon.EyeOff) {
+        chan.add(SideEntry(if (hidden) "Kanal einblenden" else "Kanal ausblenden") {
             ChannelEdit.toggleHidden(ctx, item.id)
             Toast.makeText(ctx, Lang.tr(if (hidden) "Sender wieder eingeblendet" else "Sender ausgeblendet. Zurückholen: „Ausgeblendete Sender“ links."), Toast.LENGTH_SHORT).show()
         })
+        chan.add(SideEntry("Umbenennen …", onPick = onRename))
     }
-    // Abschnitt 3: eigene Senderlisten
+    // eigene Senderlisten
     val lists = ArrayList<SideEntry>()
     if (inList != null) {
         lists.add(SideEntry("Nach oben", AIcon.Up) { ChannelLists.move(ctx, inList.id, item.id, -1) })
@@ -618,14 +645,17 @@ fun ChannelMenu(
         else lists.add(SideEntry("Zu „${l.name}“", AIcon.Plus) { ChannelLists.add(ctx, l.id, item.id) })
     }
     if (onNewList != null) lists.add(SideEntry("Neue Senderliste …", AIcon.Plus, onPick = onNewList))
-    SideMenu(
+    if (open) SideMenu(
         listOf(
-            SideSection(next?.let { hhmm(it.start) + "  " + it.title }, prog),
+            SideSection(null, top),
+            SideSection(prog?.title ?: ChannelEdit.title(item), pe),
             SideSection(ChannelEdit.title(item), chan),
             SideSection(Lang.tr("Senderlisten"), lists)
-        ),
-        onClose
-    )
+        )
+    ) { open = false }
+    LaunchedEffect(open, desc, custom) { if (!open && desc == null && !custom) onClose() }
+    desc?.let { e -> ProgDescDialog(item, e) { desc = null; onClose() } }
+    if (custom) CustomRecDialog(item, prog) { custom = false; onClose() }
 }
 
 /**

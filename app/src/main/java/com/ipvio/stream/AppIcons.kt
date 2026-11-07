@@ -34,7 +34,9 @@ enum class AIcon {
     Sparkle, Music, Tag, Live, Download, Person, Lock, Storage, Pulse, Backspace, History,
     Tomato, Rewind, FastForward, Catchup, Eye, EyeOff, Globe,
     // Runde 14
-    Edit, Heart, HeartFilled, Sliders, Layers
+    Edit, Heart, HeartFilled, Sliders, Layers,
+    // TiviMate-Menü: Suchen, Aufnahme
+    Search, Rec
 }
 
 @Composable
@@ -195,6 +197,8 @@ private fun DrawScope.drawAIcon(icon: AIcon, c: Color) {
         AIcon.Right -> poly(c, u, 2.4f, false, 9f, 5.5f, 15.5f, 12f, 9f, 18.5f)
         AIcon.Caret -> fillPoly(c, u, 7f, 9.5f, 17f, 9.5f, 12f, 15.5f)
         AIcon.Dot -> drawCircle(c, radius = 4.5f * u, center = Offset(12f * u, 12f * u))
+        AIcon.Search -> { ring(c, u, 10.5f, 10.5f, 6.2f, 2.3f); l(c, u, 15f, 15f, 20f, 20f, 2.6f) }
+        AIcon.Rec -> { ring(c, u, 12f, 12f, 8.5f, 2f); drawCircle(c, radius = 4.6f * u, center = Offset(12f * u, 12f * u)) }
         AIcon.Gear -> {
             for (i in 0 until 8) {
                 val a = i * PI / 4 + PI / 8

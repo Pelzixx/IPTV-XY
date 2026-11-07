@@ -128,6 +128,11 @@ object Tm {
     const val REM_TIMEOUT = "rem_timeout"         // Popup-Timeout in Sekunden
     const val REM_ACTION = "rem_action"           // Standardaktion nach dem Timeout: 0 Anschauen, 1 Schließen
     const val REM_WAKE = "rem_wake"               // Gerät aus dem Schlafmodus wecken
+    const val REC_DIR = "rec_dir"                 // Aufnahmeverzeichnis (leer = App-Ordner, smb://… = Netzwerk)
+    const val REC_SMB_USER = "rec_smb_user"
+    const val REC_SMB_PASS = "rec_smb_pass"
+    const val REC_BEFORE = "rec_before"           // Beginn der Aufnahme vorher (Minuten)
+    const val REC_AFTER = "rec_after"             // Aufnahme stoppen nach (Minuten)
 
     val SORT_NAMES = listOf("Anordnung in der Wiedergabeliste", "Name (A–Z)", "Name (Z–A)")
 

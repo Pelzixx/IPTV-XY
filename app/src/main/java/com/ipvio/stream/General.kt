@@ -228,6 +228,7 @@ class BootReceiver : BroadcastReceiver() {
         if (a != Intent.ACTION_BOOT_COMPLETED && a != "android.intent.action.QUICKBOOT_POWERON") return
         // Erinnerungen an Sendungen: Wecker nach dem Neustart neu stellen
         runCatching { Reminders.schedule(c) }
+        runCatching { Recorder.schedule(c) }
         if (!General.autoStartEnabled(c)) return
         try {
             c.startActivity(Intent(c, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))

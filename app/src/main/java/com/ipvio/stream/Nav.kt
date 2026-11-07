@@ -82,6 +82,8 @@ object AppNav {
     @Volatile var focusTab = -1
     /** Beim nächsten Start des Players gleich den TV-Guide öffnen (Live TV > „TV-Guide“). */
     @Volatile var openGuide = false
+    /** Sofort zu einem Bereich wechseln (Menü im TV-Guide: „Suchen“); -1 = nichts. */
+    var tabNow by androidx.compose.runtime.mutableIntStateOf(-1)
 }
 
 object RowStates {

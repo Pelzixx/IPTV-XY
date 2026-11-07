@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Hält CPU und WLAN während der Wiedergabe wach -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <!-- Nötig, damit die App sich ab Android 10 nach dem Start des Geräts im Vordergrund öffnen darf -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- Erinnerungen an Sendungen: Benachrichtigung (Android 13+ fragt einmal) und pünktlicher Wecker -->
@@ -56,6 +58,8 @@
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
         <receiver android:name=".ReminderReceiver" android:exported="false" />
+        <receiver android:name=".RecReceiver" android:exported="false" />
+        <service android:name=".RecService" android:exported="false" android:foregroundServiceType="dataSync" />
         <receiver android:name=".BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
