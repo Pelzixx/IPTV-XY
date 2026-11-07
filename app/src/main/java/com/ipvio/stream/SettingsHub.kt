@@ -2196,6 +2196,12 @@ private fun TmPlayback(ctx: Context, open: (String, String) -> Unit) {
     SelectRow("Automatische Anpassung der Framerate (AFR)", afr[if (AppSettings.autoFps) 1 else 0], afr, if (AppSettings.autoFps) 1 else 0) {
         AppSettings.setAutoFps(ctx, it == 1)
     }
+    if (AppSettings.autoFps) {
+        val am = listOf(Lang.tr("Nahtlos (ohne Bildaussetzer)"), Lang.tr("Anzeigemodus wechseln"))
+        val ami = Tm.i(Tm.PB_AFR_MODE, 0)
+        SelectRow("AFR-Methode", am[ami], am, ami) { Tm.set(ctx, Tm.PB_AFR_MODE, it) }
+        if (ami == 1) ToggleRow("Amlogic Fix", Lang.tr("Beim Umschalten die aktuelle Auflösung beibehalten (Amlogic-Geräte)"), Tm.b(Tm.PB_AFR_AMLOGIC, false)) { Tm.set(ctx, Tm.PB_AFR_AMLOGIC, it) }
+    }
     ToggleRow("Wähle standardmäßig die Surround-Audiospur aus", null, Tm.b(Tm.PB_SURROUND, false)) { Tm.set(ctx, Tm.PB_SURROUND, it) }
     val offs = (-1000..1000 step 50).toList()
     SelectRow("Audioversatz (ms)", (if (AudioOffset.ms > 0) "+" else "") + AudioOffset.ms, offs.map { (if (it > 0) "+" else "") + it }, offs.indexOf(AudioOffset.ms).coerceAtLeast(0)) { AudioOffset.set(ctx, offs[it]) }

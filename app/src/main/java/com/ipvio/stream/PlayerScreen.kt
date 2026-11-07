@@ -169,7 +169,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
             .build()
             .also {
                 // Bildrate: nur wechseln, wenn der Fernseher das nahtlos kann (kein Aufblitzen); abschaltbar unter Einstellungen > Player
-                it.videoChangeFrameRateStrategy = if (AppSettings.autoFps) C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_ONLY_IF_SEAMLESS else C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_OFF
+                it.videoChangeFrameRateStrategy = if (AppSettings.autoFps && Tm.i(Tm.PB_AFR_MODE, 0) == 0) C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_ONLY_IF_SEAMLESS else C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_OFF
             }
     }
     val h = remember { Handler(Looper.getMainLooper()) }
@@ -821,6 +821,8 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                 autoSubs()
                 val vf = player.videoFormat
                 if (vf != null) showInfo(vf.width, vf.height)
+                // AFR wie TiviMate: Anzeigemodus des Fernsehers passend zur Bildrate (Einstellungen > Wiedergabe)
+                if (vf != null && AppSettings.autoFps && Tm.i(Tm.PB_AFR_MODE, 0) == 1 && vf.frameRate > 0f) findActivity(ctx)?.let { DisplayAfr.apply(it, vf.frameRate) }
             }
             override fun onVideoSizeChanged(videoSize: VideoSize) { showInfo(videoSize.width, videoSize.height) }
             override fun onRenderedFirstFrame() { frameShown = true }
@@ -831,6 +833,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
         AppNav.playing = true
         findActivity(ctx)?.let { Pip.allow(it, true) }
         onDispose {
+            DisplayAfr.restore(findActivity(ctx))
             AppNav.playing = false
             AppNav.playingId = null
             findActivity(ctx)?.let { Pip.allow(it, false) }

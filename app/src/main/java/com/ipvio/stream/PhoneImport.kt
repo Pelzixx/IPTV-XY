@@ -28,6 +28,13 @@ object PhoneImportLogic {
     /** Prüft Eingaben; null = ungültig. */
     /** [noHostOk]: fest eingebaute Server vorhanden – dann darf das Server-Feld leer bleiben (die App nimmt den gewählten). */
     fun toInput(f: Map<String, String>, noHostOk: Boolean = false): PhoneInput? {
+        // Stalker-Portal (wie TiviMate): Portal und MAC, optional Seriennummer und Geräte-ID
+        val portal = f["portal"].orEmpty().trim()
+        val mac = f["mac"].orEmpty().trim()
+        if (portal.isNotEmpty() || mac.isNotEmpty()) {
+            val ok = (portal.startsWith("http://") || portal.startsWith("https://")) && Regex("^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$").matches(mac)
+            return if (ok) PhoneInput(Stalker.listUrl(portal, mac, f["sn"].orEmpty(), f["dev"].orEmpty()), "", "", "") else null
+        }
         val url = f["url"].orEmpty().trim()
         if (url.isNotEmpty()) return if (url.startsWith("http://") || url.startsWith("https://")) PhoneInput(url, "", "", "") else null
         val host = f["host"].orEmpty().trim()
@@ -76,6 +83,13 @@ button{width:100%;padding:14px;margin-top:10px;border:0;border-radius:10px;backg
 <input name="host" placeholder="${t("Server (z. B. http://server.tld:8080)", "Server (e.g. http://server.tld:8080)")}">
 <input name="user" placeholder="${t("Benutzername", "Username")}" autocapitalize="off">
 <input name="pass" placeholder="${t("Passwort", "Password")}" autocapitalize="off">
+<button type="submit">${t("An den Fernseher senden", "Send to TV")}</button></form>
+<form method="post" action="/send"><h2>${t("oder Stalker-Portal", "or Stalker portal")}</h2>
+<input name="code" inputmode="numeric" maxlength="4" placeholder="${t("Code vom Fernseher", "Code from the TV")}" required>
+<input name="portal" placeholder="${t("Portal (z. B. http://portal.tld:8080/c/)", "Portal (e.g. http://portal.tld:8080/c/)")}" autocapitalize="off">
+<input name="mac" placeholder="MAC (00:1A:79:XX:XX:XX)" autocapitalize="off">
+<input name="sn" placeholder="${t("Seriennummer (optional)", "Serial number (optional)")}" autocapitalize="off">
+<input name="dev" placeholder="${t("Geräte-ID (optional)", "Device ID (optional)")}" autocapitalize="off">
 <button type="submit">${t("An den Fernseher senden", "Send to TV")}</button></form></body></html>"""
     }
 

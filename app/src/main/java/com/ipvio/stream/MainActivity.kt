@@ -458,7 +458,7 @@ private fun AppContent() {
             } }
             // Filme/Serien im Aufbau von TiviMate (Gruppen links, Infos oben, Posterraster)
             (tab == 1 || tab == 2) && Tm.b(Tm.VOD_TM, true) -> Box(Modifier.fillMaxSize().screenEnter(tab)) { VodTab(
-                tab, onTab = { goTab(it) }, onOpen = open,
+                tab, onTab = { goTab(it) }, onOpen = open, onAdd = { adding = true },
                 onPlay = { i -> LastFocus.pending = i.id; if (i.kind == Kind.SERIES) pushTop(i) else { pushTop(i); start(i, i.title, i.url) } }
             ) }
             tab == 4 && all.isNotEmpty() -> Box(Modifier.fillMaxSize().screenEnter()) { SearchScreen(

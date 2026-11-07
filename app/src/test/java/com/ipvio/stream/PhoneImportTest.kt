@@ -17,6 +17,9 @@ class PhoneImportTest {
         assertTrue(PhoneImportLogic.toInput(mapOf("host" to "h", "user" to "u", "pass" to "p"))!!.isXtream)
         assertNull(PhoneImportLogic.toInput(mapOf("host" to "h", "user" to "u")))
         assertNull(PhoneImportLogic.toInput(emptyMap()))
+        // Stalker-Portal: Portal + gültige MAC
+        assertTrue(PhoneImportLogic.toInput(mapOf("portal" to "http://p.tld/c/", "mac" to "00:1A:79:12:34:56"))!!.url.startsWith("stalker://"))
+        assertNull(PhoneImportLogic.toInput(mapOf("portal" to "http://p.tld/c/", "mac" to "falsch")))
     }
 
     @Test fun codeHatVierStellen() {

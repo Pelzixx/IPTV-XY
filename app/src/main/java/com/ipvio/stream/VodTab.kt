@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 
 /*
  * Filme und Serien im Aufbau von TiviMate:
@@ -71,7 +72,7 @@ object VodPrefs {
 private class VodGroup(val key: String, val name: String, val raw: Boolean, val items: List<Item>)
 
 @Composable
-fun VodTab(tab: Int, onTab: (Int) -> Unit, onOpen: (Item) -> Unit, onPlay: (Item) -> Unit) {
+fun VodTab(tab: Int, onTab: (Int) -> Unit, onOpen: (Item) -> Unit, onPlay: (Item) -> Unit, onAdd: () -> Unit = {}) {
     val ctx = LocalContext.current
     val kind = if (tab == 1) Kind.MOVIE else Kind.SERIES
     val all = PlaylistStore.channels
@@ -218,9 +219,18 @@ fun VodTab(tab: Int, onTab: (Int) -> Unit, onOpen: (Item) -> Unit, onPlay: (Item
                 }
             }
         }
-        Sidebar(tab, onTab, Modifier.align(Alignment.CenterStart), sideFocus) { inSidebar = it }
+        Sidebar(tab, { id -> if (id == MenuLogic.SETTINGS) SettingsOpen.value = true else onTab(id) }, Modifier.align(Alignment.CenterStart), sideFocus) { inSidebar = it }
+        // Einstellungen öffnen sich wie auf den anderen Seiten als Leiste rechts
+        if (SettingsOpen.value) {
+            val scope = rememberCoroutineScope()
+            Box(Modifier.fillMaxSize().background(Color(0x99000000)))
+            SettingsPanel(onAdd, { PlaylistStore.savedUrl(ctx)?.let { u -> scope.launch { PlaylistStore.load(ctx, u, false) } } }) { SettingsOpen.value = false; runCatching { sideFocus.requestFocus() } }
+        }
         // Nach dem Verlassen des Rasters die Gruppe wieder markieren
-        LaunchedEffect(gridMode) { if (!gridMode) { kotlinx.coroutines.delay(30); runCatching { groupReq.requestFocus() } } }
+        // Gruppen der Playlist kommen etwas später: so lange versuchen, bis die gewählte Gruppe da ist
+        LaunchedEffect(gridMode, providerGroups.size) {
+            if (!gridMode && !inSidebar) repeat(12) { kotlinx.coroutines.delay(60); if (runCatching { groupReq.requestFocus() }.isSuccess) return@LaunchedEffect }
+        }
     }
     when (menu) {
         1 -> {

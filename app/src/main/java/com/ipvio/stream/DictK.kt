@@ -454,6 +454,12 @@ Kopieren nach¦Copy to¦Şuraya kopyala¦Kopiraj u¦Kopiraj u¦Kopiraj u¦Copiar
 Verschieben nach¦Move to¦Şuraya taşı¦Premjesti u¦Premjesti u¦Premesti u¦Mover a¦Déplacer vers¦Sposta in
 Playlist Typ¦Playlist type¦Oynatma listesi türü¦Vrsta liste¦Vrsta popisa¦Vrsta liste¦Tipo de lista¦Type de playlist¦Tipo di playlist
 Gruppenoptionen¦Group options¦Grup seçenekleri¦Opcije grupe¦Opcije grupe¦Opcije grupe¦Opciones de grupo¦Options du groupe¦Opzioni gruppo
+oder Stalker-Portal¦or Stalker portal¦veya Stalker portalı¦ili Stalker portal¦ili Stalker portal¦ili Stalker portal¦o portal Stalker¦ou portail Stalker¦o portale Stalker
+AFR-Methode¦AFR method¦AFR yöntemi¦AFR metoda¦AFR metoda¦AFR metoda¦Método AFR¦Méthode AFR¦Metodo AFR
+Nahtlos (ohne Bildaussetzer)¦Seamless (no blackout)¦Kesintisiz (görüntü kesilmeden)¦Bez prekida slike¦Bez prekida slike¦Bez prekida slike¦Sin cortes (sin pantalla negra)¦Fluide (sans écran noir)¦Senza interruzioni (senza schermo nero)
+Anzeigemodus wechseln¦Switch display mode¦Ekran modunu değiştir¦Promijeni način prikaza¦Promijeni način prikaza¦Promeni režim prikaza¦Cambiar modo de pantalla¦Changer le mode d'affichage¦Cambia modalità di visualizzazione
+Amlogic Fix¦Amlogic fix¦Amlogic düzeltmesi¦Amlogic popravka¦Amlogic popravak¦Amlogic popravka¦Corrección Amlogic¦Correctif Amlogic¦Correzione Amlogic
+Beim Umschalten die aktuelle Auflösung beibehalten (Amlogic-Geräte)¦Keep the current resolution when switching (Amlogic devices)¦Geçişte mevcut çözünürlüğü koru (Amlogic cihazlar)¦Zadrži trenutnu rezoluciju pri prebacivanju (Amlogic uređaji)¦Zadrži trenutnu razlučivost pri prebacivanju (Amlogic uređaji)¦Zadrži trenutnu rezoluciju pri prebacivanju (Amlogic uređaji)¦Mantener la resolución actual al cambiar (dispositivos Amlogic)¦Conserver la résolution actuelle lors du changement (appareils Amlogic)¦Mantieni la risoluzione attuale al cambio (dispositivi Amlogic)
 Gruppe umbenennen¦Rename group¦Grubu yeniden adlandır¦Preimenuj grupu¦Preimenuj grupu¦Preimenuj grupu¦Renombrar grupo¦Renommer le groupe¦Rinomina gruppo
 Gruppennamen wiederherstellen¦Restore group name¦Grup adını geri yükle¦Vrati naziv grupe¦Vrati naziv grupe¦Vrati naziv grupe¦Restaurar nombre del grupo¦Restaurer le nom du groupe¦Ripristina nome gruppo
 Wie allgemein eingestellt¦As set in general¦Genel ayardaki gibi¦Kao opće postavke¦Kao opće postavke¦Kao opšta podešavanja¦Como en la configuración general¦Comme le réglage général¦Come impostato in generale
