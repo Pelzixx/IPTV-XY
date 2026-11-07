@@ -1222,11 +1222,32 @@ private fun PlaylistEpgPage(ctx: Context, idx: Int) {
             else android.widget.Toast.makeText(ctx, Lang.tr("Ungültige Adresse."), android.widget.Toast.LENGTH_SHORT).show()
         }
     })
+    // Stand einer Quelle aus dem letzten Laden (Anzahl Sender oder Fehler)
+    fun stateOf(label: String, kind: Int): String? = Xmltv.sources.firstOrNull { it.kind == kind && (kind == EpgSrc.PROVIDER || it.label == label) }?.let { s ->
+        when (s.state) {
+            EpgSourceStat.DONE -> "${s.channels} " + Lang.tr("Sender")
+            EpgSourceStat.ERROR -> Lang.tr("Fehler") + (s.error?.let { ": $it" } ?: "")
+            EpgSourceStat.LOADING -> Lang.tr("Wird geladen …")
+            else -> null
+        }
+    }
+    // TiviMate: feste Quelle (Panel) und die Quelle aus dem Xtream-Zugang sind immer dabei, eigene kommen dazu
+    val server = Presets.servers.firstOrNull { it.name.equals(pl.name, ignoreCase = true) }
+    val fixed = (server?.epg.orEmpty().map { it to EpgSrc.SERVER } + Presets.epg.map { it to EpgSrc.FIXED }).distinctBy { it.first }
+    if (fixed.isNotEmpty() || LoadLogic.xtreamParts(pl.url) != null) {
+        PanelSection(Lang.tr("Automatische Quellen"))
+        fixed.forEach { (u, k) ->
+            val label = EpgSources.label(EpgSrc(u, k, null))
+            SettingRow(label, listOfNotNull(Lang.tr("Feste Quelle"), stateOf(label, k)).joinToString(" · "), rawTitle = true, rawValue = true, onClick = {})
+        }
+        if (LoadLogic.xtreamParts(pl.url) != null) SettingRow("Anbieter-EPG",
+            listOfNotNull(Lang.tr("Aus dem Xtream-Zugang"), stateOf("", EpgSrc.PROVIDER)).joinToString(" · "), rawValue = true, onClick = {})
+    }
     PanelSection(Lang.tr("Zugewiesene Quellen"))
     epgs.forEachIndexed { i, u ->
         SettingRow(EpgSources.label(EpgSrc(u, EpgSrc.PL_EPG, null)), u, rawTitle = true, rawValue = true, onClick = { epgMenu = i })
     }
-    SettingRow("EPG des Anbieters", Lang.tr("Wird immer zuletzt gelesen und füllt Lücken"), onClick = {})
+    if (epgs.isEmpty()) Hint("Weitere Quellen mit „Quelle hinzufügen“.")
     epgs.getOrNull(epgMenu)?.let { u ->
         val i = epgMenu
         fun move(d: Int) { val m = epgs.toMutableList(); val j = i + d; if (j in m.indices) { m.add(j, m.removeAt(i)); saveList(m) } }
@@ -1430,7 +1451,6 @@ private fun AboutPage(ctx: Context, open: (String, String) -> Unit) {
             busy = false
         }
     })
-    SettingRow("Hinweise und Lizenzen", null, onClick = { open("about_legal", "Hinweise und Lizenzen") })
     SettingRow("Systemeinstellungen der App", null, onClick = {
         runCatching {
             ctx.startActivity(
@@ -1442,8 +1462,8 @@ private fun AboutPage(ctx: Context, open: (String, String) -> Unit) {
     SettingRow("Alle Einstellungen zurücksetzen", Lang.tr("Playlists, Favoriten und Verlauf bleiben erhalten"), onClick = { confirmReset = true })
     InfoRow("Gerätename", (android.os.Build.MANUFACTURER.replaceFirstChar { it.uppercase() } + " " + android.os.Build.MODEL).trim())
     InfoRow("Version", appVersion(ctx))
-    Text("IPTV-XY ist ein Player und liefert selbst keine Inhalte. Nutze nur Quellen, für die du eine Berechtigung hast.",
-        color = Tok.TextMid, fontSize = 13.sp, lineHeight = 17.sp, modifier = Modifier.padding(horizontal = 25.dp, vertical = 12.dp))
+    // Hinweise und Lizenzen direkt auf der Seite (Wunsch des Nutzers), jede Zeile mit Hoch/Runter erreichbar
+    AboutLegal()
     if (confirmReset) SideMenu(
         listOf(SideSection(Lang.tr("Alle Einstellungen zurücksetzen"), listOf(
             SideEntry("Zurücksetzen", AIcon.Refresh) { AppSettings.resetAll(ctx); General.resetAll(ctx) },
@@ -1703,7 +1723,7 @@ private fun TmGeneral(ctx: Context) {
 @Composable
 private fun TmEpg(ctx: Context, onSources: () -> Unit) {
     val custom = Xmltv.customUrls(ctx)
-    SettingRow("EPG Quellen", if (custom.isEmpty()) Lang.tr("Nur von den Wiedergabelisten") else custom.size.toString() + " " + Lang.tr("Quellen"),
+    SettingRow("EPG Quellen", if (Xmltv.sources.isNotEmpty()) Xmltv.sources.size.toString() + " " + Lang.tr("Quellen aktiv") else if (custom.isEmpty()) Lang.tr("Nur von den Wiedergabelisten") else custom.size.toString() + " " + Lang.tr("Quellen"),
         rawValue = true, onClick = onSources)
     val days = EpgPrefs.DAY_OPTS
     SelectRow("Vergangene Tage, um EPG zu behalten", EpgPrefs.keepDays.toString(), days.map { it.toString() }, days.indexOf(EpgPrefs.keepDays).coerceAtLeast(0)) {
@@ -1733,7 +1753,29 @@ private fun TmEpgSources(ctx: Context) {
     var menu by remember { mutableIntStateOf(-1) }
     fun save(l: List<String>) {
         urls = l.distinct(); Xmltv.setCustomUrls(ctx, urls)
-        Xmltv.start(ctx, PlaylistStore.epgUrls, PlaylistStore.channels, force = true)
+        Xmltv.start(ctx, (PlaylistStore.epgUrls + PlaylistStore.extraEpg).distinct(), PlaylistStore.channels, force = true)
+    }
+    // TiviMate: alle genutzten Quellen auf einen Blick – feste Quelle (Panel), EPG aus dem Xtream-Zugang, eigene – mit Stand
+    val active = Xmltv.sources
+    if (active.isNotEmpty()) {
+        PanelSection(Lang.tr("Aktive Quellen"))
+        active.forEach { s ->
+            val kind = Lang.tr(when (s.kind) {
+                EpgSrc.FIXED -> "Feste Quelle"
+                EpgSrc.SERVER -> "Quelle des Servers"
+                EpgSrc.PROVIDER -> "Aus dem Xtream-Zugang"
+                EpgSrc.PL_EPG -> "Quelle der Wiedergabeliste"
+                EpgSrc.PLAYLIST -> "Aus der Wiedergabeliste"
+                else -> "Eigene Quelle"
+            })
+            val state = when (s.state) {
+                EpgSourceStat.LOADING -> Lang.tr("Wird geladen …") + if (s.mb > 0) " ${s.mb} MB" else ""
+                EpgSourceStat.DONE -> "${s.channels} " + Lang.tr("Sender")
+                EpgSourceStat.ERROR -> Lang.tr("Fehler") + (s.error?.let { ": $it" } ?: "")
+                else -> Lang.tr("Wartet")
+            }
+            SettingRow(if (s.kind == EpgSrc.PROVIDER) Lang.tr("Anbieter-EPG") else s.label, "$kind · $state", rawTitle = true, rawValue = true, onClick = {})
+        }
     }
     SettingRow("Quelle hinzufügen", null, onClick = {
         ask = Ask("EPG-Quelle hinzufügen", "", "https://…/epg.xml.gz") { u ->

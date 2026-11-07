@@ -27,6 +27,7 @@ android {
 
     defaultConfig {
         applicationId = "com.pelzixx.iptvxy"
+        manifestPlaceholders["appLabel"] = "IPTV-XY"
         minSdk = 24
         targetSdk = 37
         // Release-Builds der GitHub-Action setzen Versionsnummer und -namen (siehe .github/workflows/release.yml)
@@ -56,6 +57,7 @@ android {
         // Test-Builds laufen neben der installierten App (eigene App-ID, eigene Daten)
         debug {
             applicationIdSuffix = ".debug"
+            manifestPlaceholders["appLabel"] = "XY Test"
         }
         release {
             if (keystoreFile != null) signingConfig = signingConfigs.getByName("release")
@@ -70,6 +72,7 @@ android {
         create("staging") {
             initWith(getByName("release"))
             applicationIdSuffix = ".debug"
+            manifestPlaceholders["appLabel"] = "XY Test"
             signingConfig = signingConfigs.getByName("debug")
             matchingFallbacks += listOf("release")
         }

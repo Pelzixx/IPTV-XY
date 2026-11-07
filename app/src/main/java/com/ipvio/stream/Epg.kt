@@ -101,6 +101,10 @@ object Xmltv {
     fun setCustomUrls(c: Context, urls: List<String>) { prefs(c).edit().putString("custom", PresetLogic.joinUrls(urls)).apply() }
 
     fun has(id: String?): Boolean = id != null && progs.containsKey(id.lowercase())
+
+    /** Programm eines Senders: über die EPG-Kennung (tvg-id), sonst über den Sendernamen (wie TiviMate). */
+    fun forItem(item: Item): List<EpgEntry> = EpgNames.keys(item).firstNotNullOfOrNull { progs[it] } ?: emptyList()
+    fun hasItem(item: Item): Boolean = EpgNames.keys(item).any { progs.containsKey(it) }
     fun forChannel(id: String?): List<EpgEntry> = if (id == null) emptyList() else progs[id.lowercase()] ?: emptyList()
 
     /**
@@ -123,8 +127,9 @@ object Xmltv {
         val tagged = EpgSources.pickTagged(urls, Presets.epg, server?.epg.orEmpty(), customUrls(c), plName, pl?.epg.orEmpty())
         val all = tagged.map { it.url }
         if (all.isEmpty()) { status = "Keine EPG-Adresse gefunden"; return }
-        val wanted = items.filter { it.kind == Kind.LIVE }.mapNotNull { it.tvgId?.lowercase() }.toSet()
-        if (wanted.isEmpty()) { status = "Playlist enthält keine Sender-IDs (tvg-id)"; return }
+        // Sender ohne EPG-Kennung (tvg-id) werden über ihren Namen zugeordnet – viele Xtream-Listen liefern keine Kennung
+        val wanted = items.filter { it.kind == Kind.LIVE }.flatMapTo(HashSet()) { EpgNames.keys(it) }
+        if (wanted.isEmpty()) { status = "Playlist enthält keine Sender"; return }
         job?.cancel()
         val file = java.io.File(c.cacheDir, "xmltv.bin")
         val key = XmltvCache.key(all)
@@ -153,10 +158,8 @@ object Xmltv {
             // Sender mit Archiv (Catchup): auch vergangene Sendungen behalten (höchstens 7 Tage, Speicher)
             val past = HashMap<String, Int>()
             for (it in items) {
-                val id = it.tvgId ?: continue
                 val d = Catchup.of(it)?.days ?: continue
-                val k = id.lowercase()
-                past[k] = maxOf(past[k] ?: 0, d.coerceAtMost(EpgPrefs.keepDays))
+                for (k in EpgNames.keys(it)) past[k] = maxOf(past[k] ?: 0, d.coerceAtMost(EpgPrefs.keepDays))
             }
             val fresh = sources.toMutableList()
             for ((i, u) in all.withIndex()) {
@@ -250,11 +253,30 @@ object Xmltv {
             p.setInput(ins, null)
             val now = System.currentTimeMillis() / 1000
             val pool = StringPool()
+            // Namens-Zuordnung: XMLTV-Kennung -> Schlüssel „n:<name>“ eines Senders der Playlist (über <display-name>)
+            val names = wanted.filter { it.startsWith(EpgNames.PFX) }.mapTo(HashSet()) { it.removePrefix(EpgNames.PFX) }
+            val alias = HashMap<String, String>()
             var seen = 0
             var ev = p.eventType
             while (ev != XmlPullParser.END_DOCUMENT) {
-                if (ev == XmlPullParser.START_TAG && p.name == "programme") {
-                    val ch = p.getAttributeValue(null, "channel")?.lowercase()
+                if (ev == XmlPullParser.START_TAG && p.name == "channel" && names.isNotEmpty()) {
+                    val cid = p.getAttributeValue(null, "id")?.lowercase()
+                    var inner = p.next()
+                    while (!(inner == XmlPullParser.END_TAG && p.name == "channel") && inner != XmlPullParser.END_DOCUMENT) {
+                        if (inner == XmlPullParser.START_TAG && p.name == "display-name" && cid != null && cid !in wanted && cid !in alias) {
+                            val n = EpgNames.norm(p.nextText())
+                            if (n in names) alias[cid] = EpgNames.PFX + n
+                        }
+                        inner = p.next()
+                    }
+                    // Auch die Kennung selbst (z. B. „DasErste.de“) als Name versuchen
+                    if (cid != null && cid !in wanted && cid !in alias) {
+                        val n = EpgNames.norm(cid.substringBeforeLast('.'))
+                        if (n in names) alias[cid] = EpgNames.PFX + n
+                    }
+                } else if (ev == XmlPullParser.START_TAG && p.name == "programme") {
+                    val raw = p.getAttributeValue(null, "channel")?.lowercase()
+                    val ch = if (raw == null) null else if (raw in wanted) raw else alias[raw]
                     val s = parseTime(p.getAttributeValue(null, "start"))
                     val e = parseTime(p.getAttributeValue(null, "stop"))
                     var title = ""
@@ -299,7 +321,7 @@ object Epg {
     fun trim() = cache.clear()
     private val LIVE_RE = Regex("""^(https?://[^/]+)/(?:live/)?([^/]+)/([^/]+)/(\d+)(?:\.\w+)?(?:\?.*)?$""")
 
-    fun supported(item: Item): Boolean = LIVE_RE.matches(item.url) || Xmltv.has(item.tvgId)
+    fun supported(item: Item): Boolean = LIVE_RE.matches(item.url) || Xmltv.hasItem(item)
 
     /** Adresse der Xtream-Programmabfrage [action] für einen Sender oder null, wenn der Sender keine Xtream-Adresse hat. */
     internal fun xtreamApi(item: Item, action: String): String? {
@@ -340,7 +362,7 @@ object Epg {
         val nowMs = System.currentTimeMillis()
         val nowSec = nowMs / 1000
         cache[item.id]?.let { if (nowMs - it.first < 120_000) return it.second }
-        val local = Xmltv.forChannel(item.tvgId).filter { it.end > nowSec }
+        val local = Xmltv.forItem(item).filter { it.end > nowSec }
         if (local.isNotEmpty() && current(local) != null) return local.take(8)
         val url = xtreamApi(item, "get_short_epg")
         if (url != null) {
@@ -361,7 +383,7 @@ object Epg {
         val nowMs = System.currentTimeMillis()
         cache[item.id]?.let { if (nowMs - it.first < 120_000) return it.second }
         val nowSec = nowMs / 1000
-        return Xmltv.forChannel(item.tvgId).filter { it.end > nowSec }.take(8)
+        return Xmltv.forItem(item).filter { it.end > nowSec }.take(8)
     }
 
     fun current(list: List<EpgEntry>): EpgEntry? {

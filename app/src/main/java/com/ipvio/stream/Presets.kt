@@ -49,9 +49,14 @@ object Presets {
         } ?: return
         val cfg = PresetLogic.parseConfig(body) ?: return
         val old = servers
+        val oldEpg = epg
         prefs(c).edit().putString("remote", body).apply()
         remote = cfg
         PlaylistStore.retarget(c, old, servers)
+        // Feste EPG-Quellen aus dem Panel kamen erst nach dem Start des EPG an (z. B. erste Installation): jetzt mitladen
+        if (epg != oldEpg && PlaylistStore.hasData) withContext(Dispatchers.Main) {
+            Xmltv.start(c, (PlaylistStore.epgUrls + PlaylistStore.extraEpg).distinct(), PlaylistStore.channels)
+        }
     }
 }
 
