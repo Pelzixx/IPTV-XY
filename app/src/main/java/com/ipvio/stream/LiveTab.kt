@@ -370,7 +370,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                             onRename = { ask = NameAsk("Sender umbenennen", ChannelEdit.title(ch)) { ChannelEdit.rename(ctx, ch.id, it) } },
                             onLeft = { catOpen = true; catFocusReq++ },
                             onFocus = { focus.target = ch; catOpen = false },
-                            onProg = { focus.prog = it }, onShift = { d -> tOff = (tOff + d).coerceIn(0, 96) }, onProgOk = { e -> progOk(ch, e) },
+                            onProg = { focus.prog = it }, onShift = { d -> tOff = (tOff + d).coerceIn(-14 * 48, 96) }, onProgOk = { e -> progOk(ch, e) },
                             onKeyAct = { a -> guideAct(a) }
                         ) {
                             if (addList != null) {
@@ -506,7 +506,7 @@ private fun ChannelLine(
     // TiviMate: Rechts/Links wählt einzelne Sendungen (auch über das Zeitfenster hinaus, die Zeitleiste läuft mit)
     // TiviMate: ohne EPG volle Stunden als Blöcke mit dem Sendernamen (anwählbar wie Sendungen)
     val all = remember(item.id, Xmltv.channelCount, Xmltv.status, nowSec / 300) {
-        Xmltv.forItem(item).filter { it.end > nowSec }.ifEmpty { epg }.ifEmpty {
+        Xmltv.forItem(item).filter { it.end > nowSec - (if (Catchup.has(item)) (Catchup.of(item)?.days ?: 0) * 86400L else 0L) }.ifEmpty { epg }.ifEmpty {
             val h0 = nowSec / 3600 * 3600
             val t = ChannelEdit.title(item)
             (0 until 48).map { k -> EpgEntry(t, "", h0 + k * 3600L, h0 + (k + 1) * 3600L) }
@@ -525,6 +525,7 @@ private fun ChannelLine(
     val ctx = LocalContext.current
     var descE by remember { mutableStateOf<EpgEntry?>(null) }
     var longFired by remember { mutableStateOf(false) }
+    var leftDone by remember { mutableStateOf(false) }
     fun act(a: EAct): Boolean {
         val sel = all.getOrNull(pi)
         when (a) {
@@ -565,9 +566,16 @@ private fun ChannelLine(
                 else true
             }
             // Links/Rechts: Standard = vorherige Sendung bzw. Gruppen, nächste Sendung
-            EKey.LEFT -> if (!down) false else {
+            EKey.LEFT -> {
                 val a = GuideKeys.action(EKey.LEFT)
-                if (a == EAct.GROUPS) { if (pi <= nowIdx || pi <= 0) onLeft() else pick(pi - 1); true } else act(a)
+                if (a != EAct.GROUPS) { if (down) act(a) else false }
+                // An der laufenden Sendung: kurz = Gruppen, lang = in die vergangenen Sendungen (TiviMate, nur mit Archiv)
+                else if (up && leftDone) { leftDone = false; longFired = false; true }
+                else if (down && ke.repeatCount == 0 && (pi > nowIdx || pi in 1 until nowIdx)) { leftDone = true; pick(pi - 1); true }
+                else if (down && ke.repeatCount == 1 && pi > 0 && !leftDone) { longFired = true; leftDone = true; pick(pi - 1); true }
+                else if (down && ke.repeatCount > 1 && pi > 0) { pick(pi - 1); true }
+                else if (up) { if (!longFired) onLeft(); longFired = false; true }
+                else true
             }
             EKey.RIGHT -> if (!down) false else act(GuideKeys.action(EKey.RIGHT))
             // Zurück: kurz = zurück (System), lang = Zurück zum Player
