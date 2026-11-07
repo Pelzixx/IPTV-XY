@@ -120,6 +120,7 @@ fun ChannelOverlay(
     val chanList = when {
         chanCat == FAV_CAT -> favItems
         chanCat == "ALL" -> liveAll
+        chanCat == "RECENT" -> History.ids.mapNotNull { byId[it] }
         curList != null -> ChannelListLogic.resolve(curList, byId)
         else -> groups[chanCat].orEmpty()
     }
@@ -129,7 +130,7 @@ fun ChannelOverlay(
     val fc = focusedCh ?: curItem
     val fe by produceState(emptyList<EpgEntry>(), fc?.id) { value = if (fc != null) EpgFull.get(fc) else emptyList() }
     val nowSec = System.currentTimeMillis() / 1000
-    val catLabel = when { chanCat == FAV_CAT -> "Favoriten"; chanCat == "ALL" -> "Alle Sender"; curList != null -> curList.name; else -> chanCat }
+    val catLabel = when { chanCat == FAV_CAT -> "Favoriten"; chanCat == "ALL" -> "Alle Sender"; chanCat == "RECENT" -> "Verlauf"; curList != null -> curList.name; else -> chanCat }
 
     // Dunkler Verlauf von links, rechts bleibt das Bild sichtbar
     Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to Color(0xF2050608), 0.55f to Color(0xD9050608), 0.8f to Color(0x66050608), 1f to Color.Transparent))) {
@@ -175,7 +176,7 @@ fun ChannelOverlay(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(catLabel, color = Tok.TextMid, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                raw = curList != null || (chanCat != FAV_CAT && chanCat != "ALL"), modifier = Modifier.padding(start = 6.dp))
+                raw = curList != null || (chanCat != FAV_CAT && chanCat != "ALL" && chanCat != "RECENT"), modifier = Modifier.padding(start = 6.dp))
             LazyColumn(state = ls) {
                 itemsIndexed(chanList) { i, it ->
                     ChannelRow(
@@ -364,4 +365,65 @@ fun LiveTopBar(modifier: Modifier = Modifier, trailing: @Composable () -> Unit =
         Text(raw = true, text = longDay(nowS) + ", " + hhmm(nowS), color = Color.White, fontSize = 20.sp, maxLines = 1)
         trailing()
     }
+}
+
+/**
+ * TiviMate: Zeile unter der Senderinfo (OK im Live-Player): „EPG“, „Verlauf“ und die zuletzt gesehenen Sender
+ * mit Logo, laufender Sendung und Fortschritt. Runter öffnet darunter die Menüleiste.
+ */
+@Composable
+fun LiveRecentRow(
+    firstReq: FocusRequester, recent: List<Item>, modifier: Modifier = Modifier,
+    onEpg: () -> Unit, onHistory: () -> Unit, onPick: (Item) -> Unit
+) {
+    val st = rememberLazyListState()
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        LazyRow(state = st, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            item(key = "epg") {
+                RecentTile(Modifier.focusRequester(firstReq), onEpg) { f ->
+                    PlayerIcon(PIcon.Guide, Color.White, size = 40.dp)
+                    Text("EPG", color = Color.White, fontSize = 20.sp, modifier = Modifier.padding(top = 8.dp))
+                }
+            }
+            item(key = "hist") {
+                RecentTile(Modifier, onHistory) { f ->
+                    AppIcon(AIcon.History, Color.White, size = 40.dp)
+                    Text("Verlauf", color = Color.White, fontSize = 20.sp, modifier = Modifier.padding(top = 8.dp))
+                }
+            }
+            items(recent, key = { it.id }) { ch ->
+                RecentTile(Modifier, { onPick(ch) }, pad = false) { f ->
+                    val epg by produceState(emptyList<EpgEntry>(), ch.id) { value = Epg.now(ch) }
+                    val nowE = Epg.current(epg)
+                    Box(Modifier.fillMaxWidth().weight(1f).padding(horizontal = 14.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
+                        if (ch.logo != null) AsyncImage(ch.logo, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                        else Text(raw = true, text = ch.title, color = Color.White, fontSize = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                    Text(raw = true, text = nowE?.title ?: ch.title, color = Accent2, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp))
+                    val frac = if (nowE != null) ((System.currentTimeMillis() / 1000 - nowE.start).toFloat() / (nowE.end - nowE.start).coerceAtLeast(1)).coerceIn(0f, 1f) else 0f
+                    Box(Modifier.padding(top = 6.dp).fillMaxWidth().height(3.dp).background(DS.Overlay3)) {
+                        Box(Modifier.fillMaxWidth(frac).fillMaxHeight().background(Color.White))
+                    }
+                }
+            }
+        }
+        AppIcon(AIcon.Down, Tok.TextMid, size = 22.dp, modifier = Modifier.padding(top = 6.dp))
+    }
+}
+
+@Composable
+private fun RecentTile(modifier: Modifier, onClick: () -> Unit, pad: Boolean = true, content: @Composable androidx.compose.foundation.layout.ColumnScope.(Boolean) -> Unit) {
+    var f by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(8.dp)
+    Column(
+        modifier.size(width = 140.dp, height = 106.dp).clip(shape)
+            .background(if (f) Color(0xFF2C3036) else Color(0xE61C1F23))
+            .border(2.dp, if (f) Color.White else Color.Transparent, shape)
+            .onFocusChanged { f = it.isFocused }
+            .clickable(onClick = onClick)
+            .padding(if (pad) 8.dp else 0.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = if (pad) Arrangement.Center else Arrangement.Top
+    ) { content(f) }
 }

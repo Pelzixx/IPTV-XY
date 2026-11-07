@@ -255,7 +255,10 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     val curItem = remember(cur.itemId, liveAll, zapSrc) { liveAll.firstOrNull { it.id == cur.itemId } ?: zapSrc.firstOrNull { it.id == cur.itemId } }
     val curIdx = remember(cur.itemId, zapSrc) { zapSrc.indexOfFirst { it.id == cur.itemId } }
     val step = AppSettings.seekStep * 1000L
-    val firstFocus = if (cur.live) liveFirst else playBtn
+    // TiviMate: OK zeigt erst Senderinfo + Verlaufszeile; Runter öffnet die Menüleiste
+    var liveMenu by remember { mutableStateOf(false) }
+    val recentFirst = remember { FocusRequester() }
+    val firstFocus = if (cur.live) (if (liveMenu) liveFirst else recentFirst) else playBtn
 
     // Serien: Folgenliste für Vorherige/Nächste Folge und das Folgen-Menü
     val epList = remember(seriesItem) {
@@ -283,6 +286,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     fun ping() { miniBar = true; miniTick++ }
 
     fun openChannels() { controls = false; focusedCh = curItem; showCats = false; chanCat = playCat; showChannels = true }
+    fun openRecent() { controls = false; focusedCh = curItem; showCats = false; chanCat = "RECENT"; showChannels = true }
 
     fun togglePlay() { if (player.isPlaying) player.pause() else player.play() }
 
@@ -864,8 +868,8 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
             }
         }
     }
-    LaunchedEffect(controls) { if (!controls) { lastPanel = Panel.NONE; focusSeek = false; ctrlLabel = "" } }
-    LaunchedEffect(controls, panel, showChannels, showCats, showGuide) {
+    LaunchedEffect(controls) { if (!controls) { lastPanel = Panel.NONE; focusSeek = false; ctrlLabel = ""; liveMenu = false } }
+    LaunchedEffect(controls, panel, showChannels, showCats, showGuide, liveMenu) {
         delay(40)
         // Der Fokus wird bis zu 6-mal versucht: Listen brauchen manchmal einen Moment, bis das Ziel gezeichnet ist.
         // Ohne Fokus würden die Tasten ins Leere laufen und die Liste wirkt "festgefahren".
@@ -1250,9 +1254,29 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                         val sVal = remember(tracksVer, controls) {
                             collectTracks(player, C.TRACK_TYPE_TEXT).firstOrNull { it.selected }?.label ?: Lang.tr("Aus")
                         }
-                        Row(
+                        if (!liveMenu) {
+                            LiveInfoBlock(curItem, cur.title, if (curIdx >= 0) curIdx + 1 else 0, epg)
+                            Spacer(Modifier.height(18.dp))
+                            val recent = remember(History.ids.size, cur.itemId) {
+                                val byId = liveAll.associateBy { it.id }
+                                History.ids.asSequence().filter { it != cur.itemId }.mapNotNull { byId[it] }.take(12).toList()
+                            }
+                            LiveRecentRow(
+                                recentFirst, recent,
+                                Modifier.onPreviewKeyEvent { e ->
+                                    if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionDown) { liveMenu = true; true }
+                                    else if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionUp) { controls = false; true }
+                                    else false
+                                },
+                                onEpg = { AppNav.toGuide = true; onBack() },
+                                onHistory = { openRecent() },
+                                onPick = { ch -> switchTo(ch, zapSrc.takeIf { l -> l.any { it.id == ch.id } } ?: liveAll) }
+                            )
+                        } else Row(
                             Modifier.onPreviewKeyEvent { e ->
-                                if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionDown) { controls = false; true } else false
+                                if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionDown) { controls = false; true }
+                                else if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionUp) { liveMenu = false; true }
+                                else false
                             }.horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Top
                         ) {
