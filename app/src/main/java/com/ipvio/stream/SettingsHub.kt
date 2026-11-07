@@ -1086,8 +1086,20 @@ private fun PlaylistMainPage(ctx: Context, idx: Int, onXtream: () -> Unit, onEpg
     var ask by remember { mutableStateOf<Ask?>(null) }
     var confirmDelete by remember { mutableStateOf(false) }
     val epgs = PresetLogic.parseUrls(pl.epg)
-    ToggleRow("Aktivieren", if (isActive) Lang.tr("Diese Wiedergabeliste wird angezeigt") else null, isActive) { on ->
-        if (on && !isActive) { PlaylistStore.activate(ctx, idx); scope.launch { PlaylistStore.load(ctx, pl.url, false) } }
+    // TiviMate: mehrere Playlists gleichzeitig aktiv. Die erste aktive ist die Haupt-Playlist, weitere kommen dazu.
+    ToggleRow("Aktivieren", if (isActive) Lang.tr("Haupt-Wiedergabeliste") else null, isActive || pl.on) { on ->
+        if (isActive) {
+            // Haupt-Playlist aus: eine andere eingeschaltete übernimmt; ist keine an, bleibt sie an (eine ist immer aktiv)
+            val other = PlaylistStore.lists.indexOfFirst { it.on }
+            if (!on && other >= 0) {
+                PlaylistStore.setOn(ctx, other, false)
+                PlaylistStore.activate(ctx, other)
+                scope.launch { PlaylistStore.load(ctx, PlaylistStore.lists[other].url, false) }
+            }
+        } else {
+            PlaylistStore.setOn(ctx, idx, on)
+            scope.launch { PlaylistStore.loadExtras(ctx) }
+        }
     }
     SettingRow("Playlist Name", pl.name, rawValue = true, onClick = { ask = Ask("Playlist Name", pl.name, "Name der Wiedergabeliste") { if (it.isNotEmpty()) savePlaylist(ctx, scope, idx, name = it) } })
     if (xtream) SettingRow("Xtream Codes Parameter", null, onClick = onXtream)
@@ -1204,7 +1216,7 @@ private fun PlaylistPage(ctx: Context, onAdd: () -> Unit, reload: () -> Unit, on
         // Haken links wie in TV-Playern (aktive Liste); sonst gleicher Einzug
         SettingRow(pl.name, info, rawTitle = true, rawValue = true, onClick = { onOpen(i) }, leading = { f ->
             Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) {
-                if (active) Box(Modifier.size(30.dp).clip(CircleShape).background(if (f) DS.FocusInk else Accent2), contentAlignment = Alignment.Center) {
+                if (active || pl.on) Box(Modifier.size(30.dp).clip(CircleShape).background(if (f) DS.FocusInk else Accent2), contentAlignment = Alignment.Center) {
                     AppIcon(AIcon.Check, if (f) TvFocusFill else Color.White, size = 20.dp)
                 }
             }

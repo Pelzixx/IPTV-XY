@@ -39,7 +39,8 @@ import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 
 /** Gespeicherte Playlist. [epg] = eigene XMLTV-Adresse (ersetzt die des Anbieters), leer = automatisch. */
-data class PL(val name: String, val url: String, val epg: String = "")
+/** [on] = zusätzlich zur aktiven Playlist eingeschaltet (TiviMate: mehrere Playlists gleichzeitig aktiv). */
+data class PL(val name: String, val url: String, val epg: String = "", val on: Boolean = false)
 
 /**
  * Playlists: Liste der gespeicherten Zugänge, Laden, Zwischenspeicher.
@@ -76,6 +77,27 @@ object PlaylistStore {
         if (DeadLinks.hide) r = DeadLinks.filter(r)
         return r
     }
+    /** Sender weiterer eingeschalteter Playlists (aus deren Zwischenspeicher, siehe [loadExtras]). */
+    private var extraItems by mutableStateOf<List<Item>>(emptyList())
+    var extraEpg: List<String> = emptyList()
+        private set
+    @Volatile private var mergedFor: List<Item>? = null
+    @Volatile private var mergedX: List<Item>? = null
+    @Volatile private var mergedAll: List<Item> = emptyList()
+
+    /** Aktive Playlist plus weitere eingeschaltete; doppelte Einträge (gleiche Adresse) nur einmal. */
+    private fun merged(): List<Item> {
+        val r = rawChannels
+        val x = extraItems
+        if (x.isEmpty()) return r
+        if (r !== mergedFor || x !== mergedX) {
+            val ids = HashSet<String>(r.size * 2)
+            r.forEach { ids.add(it.id) }
+            mergedAll = r + x.filter { ids.add(it.id) }
+            mergedFor = r; mergedX = x
+        }
+        return mergedAll
+    }
     @Volatile private var filteredFor: List<Item>? = null
     @Volatile private var filteredVer = -1
     @Volatile private var filtered: List<Item> = emptyList()
@@ -92,7 +114,7 @@ object PlaylistStore {
     /** Alle Einträge, wie sie die App zeigt: ohne ausgeblendete Sprachen und mit aktivem Jugendschutz ohne Erwachsenen-Inhalte. */
     val channels: List<Item>
         get() {
-            val raw = rawChannels
+            val raw = merged()
             val ver = filterVer()
             if (!Parental.hideAdult && !DeadLinks.hide) return raw
             if (raw !== filteredFor || ver != filteredVer) {
@@ -207,7 +229,7 @@ object PlaylistStore {
                 val u = o.getString("url")
                 // Früher hieß eine Playlist wie ihr Server – die Adresse soll nirgends zu sehen sein
                 val n = o.getString("name").let { if (it == hostOf(u)) displayName(u, lists.size) else it }
-                lists.add(PL(n, u, o.optString("epg", "")))
+                lists.add(PL(n, u, o.optString("epg", ""), o.optBoolean("on", false)))
             }
         } catch (e: Exception) {
         }
@@ -229,7 +251,7 @@ object PlaylistStore {
 
     private fun persist(c: Context) {
         val a = JSONArray()
-        for (l in lists) a.put(JSONObject().put("name", l.name).put("url", l.url).put("epg", l.epg))
+        for (l in lists) a.put(JSONObject().put("name", l.name).put("url", l.url).put("epg", l.epg).put("on", l.on))
         val e = prefs(c).edit().putInt("active", active).remove("url")
         val token = Secrets.encrypt(a.toString())
         if (token != null) e.putString("lists_enc", token).remove("lists")
@@ -296,6 +318,9 @@ object PlaylistStore {
 
     fun activate(c: Context, i: Int) { ensure(c); if (i in lists.indices) { active = i; persist(c) } }
 
+    /** Weitere Playlist ein- oder ausschalten (ihre Sender erscheinen zusätzlich zu denen der aktiven). */
+    fun setOn(c: Context, i: Int, on: Boolean) { ensure(c); if (i in lists.indices) { lists[i] = lists[i].copy(on = on); persist(c) } }
+
     fun rename(c: Context, i: Int, name: String) {
         ensure(c)
         if (i in lists.indices && name.isNotBlank()) { lists[i] = lists[i].copy(name = name.trim()); persist(c) }
@@ -311,7 +336,7 @@ object PlaylistStore {
         val old = lists[i]
         val urlChanged = url.isNotBlank() && url != old.url
         if (urlChanged) deleteFiles(c, old.url)
-        lists[i] = PL(name.trim().ifEmpty { old.name }, if (urlChanged) url else old.url, epg.trim())
+        lists[i] = PL(name.trim().ifEmpty { old.name }, if (urlChanged) url else old.url, epg.trim(), old.on)
         persist(c)
         return urlChanged && i == active
     }
@@ -712,8 +737,8 @@ object PlaylistStore {
         ask: Boolean = true, resumed: Boolean = false
     ): Boolean {
         if (!loadLock.tryLock()) return rawChannels.isNotEmpty()
-        try {
-            return loadInner(c, url, save, skipNetworkWhenCached, ask, resumed)
+        val ok = try {
+            loadInner(c, url, save, skipNetworkWhenCached, ask, resumed)
         } finally {
             loading = false   // auch bei Abbruch: sonst bliebe der Ladezustand (und die Bildschirm-Wachhaltung) hängen
             heavy = false
@@ -723,6 +748,9 @@ object PlaylistStore {
             job = null
             loadLock.unlock()
         }
+        // Weitere eingeschaltete Playlists dazuholen (erst nach dem Freigeben der Sperre, sie laden ggf. selbst)
+        if (ok) runCatching { loadExtras(c) }
+        return ok
     }
 
     private suspend fun loadInner(c: Context, url: String, save: Boolean, skipNetworkWhenCached: Boolean, ask: Boolean, resumed: Boolean): Boolean {
@@ -792,6 +820,36 @@ object PlaylistStore {
         }
         loading = false
         return ok
+    }
+
+    /**
+     * TiviMate: mehrere Playlists gleichzeitig. Liest die Sender aller weiteren eingeschalteten Playlists aus ihrem
+     * Zwischenspeicher (fehlt er, wird er erst geladen) und hängt sie an die aktive an. EPG-Quellen werden zusammengeführt.
+     */
+    suspend fun loadExtras(c: Context) {
+        ensure(c)
+        val others = lists.filterIndexed { i, l -> i != active && l.on }
+        if (others.isEmpty()) {
+            if (extraItems.isNotEmpty()) { extraItems = emptyList(); extraEpg = emptyList(); Xmltv.start(c, epgUrls, merged()) }
+            return
+        }
+        val res = withContext(Dispatchers.IO) {
+            val items = ArrayList<Item>()
+            val epg = ArrayList<String>()
+            for (l in others) {
+                val u = PlaylistLogic.normalizeUrl(l.url) ?: continue
+                var cached = runCatching { readCache(c, u, LangFilter.hidden) }.getOrNull()
+                if (cached == null || cached.counts.isEmpty()) {
+                    refreshCacheOnly(c, u)
+                    cached = runCatching { readCache(c, u, LangFilter.hidden) }.getOrNull()
+                }
+                if (cached != null) { items.addAll(cached.items); epg.addAll(cached.epg) }
+            }
+            items to epg
+        }
+        extraItems = res.first
+        extraEpg = res.second
+        Xmltv.start(c, (epgUrls + extraEpg).distinct(), merged())
     }
 
     /** Neu hinzugefügte Playlist erfolgreich geladen: in die Liste übernehmen und den gemerkten Auftrag löschen. */
