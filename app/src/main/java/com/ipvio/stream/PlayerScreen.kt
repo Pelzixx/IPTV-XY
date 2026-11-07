@@ -493,7 +493,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
         var p = player.trackSelectionParameters.buildUpon()
         val audios = TrackLogic.audioPrefs(AppSettings.audioLang, AppSettings.audioLang2, mem?.first)
         p = p.setPreferredAudioLanguages(*audios.toTypedArray())
-        val subOn = if (mem != null) mem.second != null else AppSettings.subMode == TrackLogic.SUB_ALWAYS
+        val subOn = if (mem != null) mem.second != null else AppSettings.subMode == TrackLogic.SUB_ALWAYS || (cur.live && Tm.b(Tm.PB_SUB_ALL, false))
         val subLang = mem?.second ?: AppSettings.subLangEffective()
         p = p.setPreferredTextLanguages(subLang)
             .setPreferredTextRoleFlags(if (AppSettings.ccPref) C.ROLE_FLAG_CAPTION or C.ROLE_FLAG_DESCRIBES_MUSIC_AND_SOUND else 0)

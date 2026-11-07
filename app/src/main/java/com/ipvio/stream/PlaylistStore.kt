@@ -78,6 +78,9 @@ object PlaylistStore {
         if (DeadLinks.hide) r = DeadLinks.filter(r)
         // Wiedergabeliste > Gruppen verwalten (TiviMate): ausgeblendete Gruppen fehlen überall in Live-TV
         if (PlOpts.anyHidden) r = PlOpts.filter(r) { owners[it.id] ?: lists.getOrNull(active)?.name }
+        // Aktive Liste ist eine VOD-Playlist: ihre TV-Sender nicht zeigen
+        val main = lists.getOrNull(active)?.name
+        if (PlOpts.vod(main)) r = r.filter { it.kind != Kind.LIVE || owners[it.id] != null }
         return r
     }
     /** Sender weiterer eingeschalteter Playlists (aus deren Zwischenspeicher, siehe [loadExtras]). */
@@ -954,7 +957,10 @@ object PlaylistStore {
 
     suspend fun loadExtras(c: Context) {
         ensure(c)
+        val mainName = lists.getOrNull(active)?.name
+        // VOD-Playlists mit übergeordneter Liste nur zusammen mit dieser
         val others = lists.filterIndexed { i, l -> i != active && l.on }
+            .filter { l -> !PlOpts.vod(l.name) || PlOpts.parent(l.name).let { p -> p.isEmpty() || p.equals(mainName, ignoreCase = true) } }
         if (others.isEmpty()) {
             if (extraItems.isNotEmpty()) { extraLists = emptyList(); extraItems = emptyList(); extraEpg = emptyList(); Xmltv.start(c, epgUrls, merged()) }
             return
@@ -975,7 +981,8 @@ object PlaylistStore {
                     if (cached == null) lastBgError = lastBgError ?: if (ok) "Zwischenspeicher nicht lesbar" else "Laden fehlgeschlagen"
                 }
                 if (cached != null) {
-                    items.addAll(cached.items); epg.addAll(cached.epg); per.add(l.name to cached.items)
+                    val its = if (PlOpts.vod(l.name)) cached.items.filter { it.kind != Kind.LIVE } else cached.items
+                    items.addAll(its); epg.addAll(cached.epg); per.add(l.name to its)
                     st[l.name] = "Kanäle: " + cached.items.count { it.kind == Kind.LIVE } + if (cached.items.isEmpty()) " (" + cached.counts.values.sum() + " ausgeblendet)" else ""
                 } else st[l.name] = "Nicht geladen: " + (lastBgError ?: "unbekannt")
                 extraStatus = st.toMap()

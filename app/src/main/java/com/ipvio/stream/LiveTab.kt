@@ -96,6 +96,10 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     // TiviMate: Sichtbarkeit (1), Sperren (2) oder Favoriten (3) verwalten: OK schaltet je Sender um
     var manage by remember { mutableIntStateOf(0) }
     var moveFor by remember { mutableStateOf<Item?>(null) }
+    // Kanäle auswählen (TiviMate): markierte Sender, Menü für Auswahl bzw. Kopieren/Verschieben
+    val picked = remember { androidx.compose.runtime.mutableStateListOf<String>() }
+    var pickMenu by remember { mutableIntStateOf(0) }   // 1 = Auswahloptionen, 2 = Kopieren/Verschieben
+    LaunchedEffect(manage) { if (manage != 6) { picked.clear(); pickMenu = 0 } }
     androidx.activity.compose.BackHandler(enabled = manage != 0) { manage = 0 }
     val showHidden = sel == HIDDEN_CAT
     // Nur neu filtern, wenn sich Auswahl oder Daten ändern – nicht bei jedem Fokuswechsel (tausende Sender)
@@ -233,7 +237,16 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     }
     // OK auf einer gewählten Sendung (TiviMate): vergangen = Archiv, künftig = Erinnerung, laufend = Sender
     fun progOk(ch: Item, e: EpgEntry) = progAction(ctx, ch, e) { open(it) }
-    Box(Modifier.fillMaxSize()) {
+    // Vorschaumodus > „Timeout für Vollbildumschaltung“ (TiviMate): ohne Tastendruck nach N Sekunden ins Vollbild
+    var idleTick by remember { mutableIntStateOf(0) }
+    val fsTo = Tm.i(Tm.CV_FS_TIMEOUT, 0)
+    LaunchedEffect(idleTick, playingCh?.id, fsTo, manage) {
+        if (fsTo <= 0 || !AppSettings.livePreview || manage != 0) return@LaunchedEffect
+        val ch = (if (Tm.b(Tm.CV_AUTOPLAY, false)) focus.shown else null) ?: playingCh ?: return@LaunchedEffect
+        kotlinx.coroutines.delay(fsTo * 1000L)
+        open(ch)
+    }
+    Box(Modifier.fillMaxSize().onPreviewKeyEvent { if (it.type == KeyEventType.KeyDown) idleTick++; false }) {
     // Zeitleiste: ab der laufenden halben Stunde, 2 Stunden breit; „jetzt“ wird alle 30 s nachgeführt
     val nowSec by produceState(System.currentTimeMillis() / 1000) {
         while (true) { kotlinx.coroutines.delay(30_000); value = System.currentTimeMillis() / 1000 }
@@ -346,7 +359,18 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                 }
                 Spacer(Modifier.height(14.dp))
                 if (list.isNotEmpty()) TimelineHeader(ws, nowSec)
-                if (manage != 0) Row(
+                if (manage == 6) Row(
+                    Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    AppIcon(AIcon.Check, Accent1, size = 20.dp)
+                    Text(raw = true, text = Lang.tr("Kanäle auswählen") + ": " + picked.size + " " + Lang.tr("ausgewählt"),
+                        color = Color.White, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    PillButton("Auswahl") { pickMenu = 1 }
+                    PillButton("Kopieren / Verschieben") { if (picked.isEmpty()) Toast.makeText(ctx, Lang.tr("Keine Kanäle ausgewählt"), Toast.LENGTH_SHORT).show() else pickMenu = 2 }
+                    PillButton("Fertig", light = true) { manage = 0 }
+                }
+                if (manage != 0 && manage != 6) Row(
                     Modifier.fillMaxWidth().padding(bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
@@ -390,11 +414,13 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                             onLeft = { catOpen = true; catFocusReq++ },
                             onFocus = { focus.target = ch; catOpen = false },
                             onProg = { focus.prog = it }, onShift = { d -> tOff = (tOff + d).coerceIn(-14 * 48, 96) }, onProgOk = { e -> progOk(ch, e) },
-                            onKeyAct = { a -> guideAct(a) }, onManage = { m -> if (m == 5) { ChOrder.reset(ctx, sel); Toast.makeText(ctx, Lang.tr("Positionen zurückgesetzt"), Toast.LENGTH_SHORT).show() } else manage = m }
+                            onKeyAct = { a -> guideAct(a) }, onManage = { m -> if (m == 5) { ChOrder.reset(ctx, sel); Toast.makeText(ctx, Lang.tr("Positionen zurückgesetzt"), Toast.LENGTH_SHORT).show() } else manage = m },
+                            picked = if (manage == 6) ch.id in picked else null
                         ) {
                             if (manage != 0) {
                                 when (manage) {
                                     4 -> moveFor = ch
+                                    6 -> if (ch.id in picked) picked.remove(ch.id) else picked.add(ch.id)
                                     1 -> ChannelEdit.toggleHidden(ctx, ch.id)
                                     2 -> if (Parental.pinSet) ChLock.toggle(ctx, ch.id) else Toast.makeText(ctx, Lang.tr("Bitte zuerst unter Einstellungen > Kindersicherung eine PIN festlegen."), Toast.LENGTH_LONG).show()
                                     else -> Library.toggleFav(ctx, ch.id)
@@ -416,6 +442,29 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
         }
         }
     }
+        if (pickMenu == 1) {
+            val ids = list.map { it.id }
+            SideMenu(listOf(SideSection(Lang.tr("Auswahl"), listOf(
+                SideEntry("Alle markieren", AIcon.Check) { picked.clear(); picked.addAll(ids) },
+                SideEntry("Alle abwählen") { picked.clear() },
+                SideEntry("Auswahl umkehren") { val inv = ids.filter { it !in picked }; picked.clear(); picked.addAll(inv) }
+            ))), { pickMenu = 0 })
+        }
+        if (pickMenu == 2) {
+            val ids = picked.toList()
+            fun copyTo(id: Int, move: Boolean) {
+                ids.forEach { ChannelLists.add(ctx, id, it) }
+                if (move && curList != null && curList.id != id) ids.forEach { ChannelLists.remove(ctx, curList.id, it) }
+                Toast.makeText(ctx, Lang.tr(if (move) "Sender wurden verschoben" else "Sender wurden kopiert") + " (" + ids.size + ")", Toast.LENGTH_SHORT).show()
+                picked.clear(); manage = 0
+            }
+            val targets = ChannelLists.lists.filter { it.id != curList?.id }
+            val copy = targets.map { l -> SideEntry(l.name, AIcon.Lists, raw = true) { copyTo(l.id, false) } } +
+                SideEntry("Neue Gruppe …", AIcon.Plus) { ask = NameAsk("Gruppe erstellen", "") { n -> val id = ChannelLists.create(ctx, n); copyTo(id, false) } }
+            val secs = arrayListOf(SideSection(Lang.tr("Kopieren nach"), copy))
+            if (curList != null && targets.isNotEmpty()) secs.add(SideSection(Lang.tr("Verschieben nach"), targets.map { l -> SideEntry(l.name, AIcon.Lists, raw = true) { copyTo(l.id, true) } }))
+            SideMenu(secs, { pickMenu = 0 })
+        }
         // Kanäle neu anordnen: Ziel für den gewählten Sender
         moveFor?.let { mv ->
             val i = list.indexOfFirst { it.id == mv.id }
@@ -530,7 +579,7 @@ private fun ChannelLine(
     item: Item, num: Int, look: GuideLook, ws: Long, nowSec: Long, tlW: androidx.compose.ui.unit.Dp, modifier: Modifier, inList: ChList?,
     onNewList: () -> Unit, onRename: () -> Unit, onLeft: () -> Unit,
     onFocus: () -> Unit = {}, onProg: (EpgEntry?) -> Unit = {}, onShift: (Int) -> Unit = {}, onProgOk: (EpgEntry) -> Unit = {},
-    onKeyAct: (EAct) -> Boolean = { false }, onManage: (Int) -> Unit = {}, onClick: () -> Unit
+    onKeyAct: (EAct) -> Boolean = { false }, onManage: (Int) -> Unit = {}, picked: Boolean? = null, onClick: () -> Unit
 ) {
     var f by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
@@ -660,6 +709,10 @@ private fun ChannelLine(
         ) {
             if (look.numbers) Text(raw = true, text = num.toString(), color = Tok.TextMid, fontSize = 15.sp, style = TNUM,
                 textAlign = androidx.compose.ui.text.style.TextAlign.End, modifier = Modifier.width(34.dp))
+            // Kanäle auswählen (TiviMate): Kästchen je Sender
+            if (picked != null) Box(Modifier.size(22.dp).border(2.dp, if (picked) Accent1 else Muted, RoundedCornerShape(4.dp)).background(if (picked) Accent1 else Color.Transparent, RoundedCornerShape(4.dp)), contentAlignment = Alignment.Center) {
+                if (picked) AppIcon(AIcon.Check, Color.Black, size = 16.dp)
+            }
             Box(Modifier.size(width = 54.dp, height = 32.dp), contentAlignment = Alignment.Center) {
                 if (Logos.of(item) != null) AsyncImage(Logos.of(item), null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                 else Text(raw = true, text = item.title.take(2).uppercase(), color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Bold)
@@ -797,6 +850,7 @@ fun ChannelMenu(
         }
         chan.add(SideEntry("Sperren verwalten") { onManage(2) })
         chan.add(SideEntry("Favoriten verwalten") { onManage(3) })
+        chan.add(SideEntry("Kanäle auswählen") { onManage(6) })
     }
     // eigene Senderlisten
     val lists = ArrayList<SideEntry>()

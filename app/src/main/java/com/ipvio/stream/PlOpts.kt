@@ -42,6 +42,13 @@ object PlOpts {
     fun maxConn(list: String?): Int = if (list == null) 0 else Tm.i(k(list, "maxconn"), 0)
     fun setMaxConn(c: Context, list: String, v: Int) = Tm.set(c, k(list, "maxconn"), v)
 
+    // Playlist-Typ (TiviMate): TV-Playlist oder VOD-Playlist ohne TV-Kanäle, die zu einer übergeordneten Playlist gehört
+    fun vod(list: String?): Boolean = list != null && Tm.b(k(list, "vod"), false)
+    fun setVod(c: Context, list: String, v: Boolean) { Tm.set(c, k(list, "vod"), v); version++ }
+    /** Übergeordnete Wiedergabeliste einer VOD-Playlist ("" = mit jeder Liste zeigen). */
+    fun parent(list: String?): String = if (list == null) "" else Tm.s(k(list, "parent")).trim()
+    fun setParent(c: Context, list: String, v: String) = Tm.set(c, k(list, "parent"), v.trim())
+
     // ---------------------------------------------------------------- Gruppen verwalten
     private const val HIDDEN = "plo_hidden_groups"
     private const val SEP = "\n"

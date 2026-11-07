@@ -1911,6 +1911,23 @@ private fun TmEpg(ctx: Context, onSources: () -> Unit) {
         Xmltv.start(ctx, PlaylistStore.epgUrls, PlaylistStore.channels, force = true)
     })
     SettingRow("Letzter Aktualisierungsstatus", Xmltv.status, rawValue = false, onClick = {})
+    // TiviMate „Nicht zugewiesene Kanäle anzeigen“: Sender ohne EPG-Daten, OK = EPG zuweisen
+    var unassigned by remember { mutableStateOf<List<Item>?>(null) }
+    var assignFor by remember { mutableStateOf<Item?>(null) }
+    val scope = rememberCoroutineScope()
+    SettingRow("Nicht zugewiesene Kanäle anzeigen", null, onClick = {
+        scope.launch {
+            unassigned = withContext(Dispatchers.Default) {
+                PlaylistStore.channels.filter { it.kind == Kind.LIVE && Xmltv.forItem(it).isEmpty() }
+            }
+        }
+    })
+    unassigned?.let { l ->
+        val e = if (l.isEmpty()) listOf(SideEntry(Lang.tr("Alle Kanäle haben EPG-Daten")) { })
+            else l.take(500).map { ch -> SideEntry(ChannelEdit.title(ch) + (ch.group.takeIf { it.isNotBlank() }?.let { "  ·  $it" } ?: ""), raw = true) { assignFor = ch } }
+        SideMenu(listOf(SideSection(Lang.tr("Nicht zugewiesene Kanäle") + " (" + l.size + ")", e)), { unassigned = null })
+    }
+    assignFor?.let { ch -> EpgAssignDialog(ch) { assignFor = null } }
 }
 
 /** EPG Quellen für alle Wiedergabelisten (zusätzlich zu den Quellen je Liste). */
@@ -2093,6 +2110,9 @@ private fun TmLpList(ctx: Context) {
     ToggleRow("Animierter Übergang", null, Tm.b(Tm.CV_ANIM, true)) { Tm.set(ctx, Tm.CV_ANIM, it) }
     ToggleRow("Kanäle automatisch abspielen", null, Tm.b(Tm.CV_AUTOPLAY, false)) { Tm.set(ctx, Tm.CV_AUTOPLAY, it) }
     ToggleRow("Bleib in der Liste beim Sender wechseln", null, Tm.b(Tm.CV_STAY, true)) { Tm.set(ctx, Tm.CV_STAY, it) }
+    val fsOpts = listOf(0, 5, 10, 15, 20, 30, 60)
+    val fsCur = Tm.i(Tm.CV_FS_TIMEOUT, 0)
+    SelectRow("Timeout für Vollbildumschaltung, Sek", if (fsCur == 0) Lang.tr("Aus") else fsCur.toString(), fsOpts.map { if (it == 0) "Aus" else "$it" }, fsOpts.indexOf(fsCur).coerceAtLeast(0)) { Tm.set(ctx, Tm.CV_FS_TIMEOUT, fsOpts[it]) }
 }
 
 /** Optik > Player > Infofeld (TiviMate). */
@@ -2172,6 +2192,7 @@ private fun TmPlayback(ctx: Context, open: (String, String) -> Unit) {
     SelectRow("Audioversatz (ms)", (if (AudioOffset.ms > 0) "+" else "") + AudioOffset.ms, offs.map { (if (it > 0) "+" else "") + it }, offs.indexOf(AudioOffset.ms).coerceAtLeast(0)) { AudioOffset.set(ctx, offs[it]) }
     ToggleRow("Audio-Passthrough", null, Tm.b(Tm.PB_PASSTHROUGH, false)) { Tm.set(ctx, Tm.PB_PASSTHROUGH, it) }
     ToggleRow("Getunnelte Wiedergabe", null, Tm.b(Tm.PB_TUNNEL, false)) { Tm.set(ctx, Tm.PB_TUNNEL, it) }
+    ToggleRow("Falls verfügbar, Untertitel für alle Kanäle anzeigen", null, Tm.b(Tm.PB_SUB_ALL, false)) { Tm.set(ctx, Tm.PB_SUB_ALL, it) }
     val ext = listOf(Lang.tr("Nein"), Lang.tr("Ja"), Lang.tr("Nur für Filme und Serien"))
     SelectRow("Externen Player nutzen", ext[Tm.i(Tm.PB_EXTERNAL, 0)], ext, Tm.i(Tm.PB_EXTERNAL, 0)) { Tm.set(ctx, Tm.PB_EXTERNAL, it) }
     val pipOk = android.os.Build.VERSION.SDK_INT >= 26 && ctx.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)
@@ -2255,6 +2276,22 @@ private fun TmSearch(ctx: Context) {
 /** Wiedergabeliste (TiviMate): Logo Priorität, Archiv, User-Agent, Gruppen verwalten. */
 @Composable
 private fun PlaylistTmRows(ctx: Context, name: String, onGroups: () -> Unit, ask: (Ask) -> Unit) {
+    // TiviMate: Playlist Typ – TV-Playlist oder VOD-Playlist (ohne TV-Kanäle) mit übergeordneter Playlist
+    @Suppress("UNUSED_VARIABLE") val pv = PlOpts.version
+    val types = listOf(Lang.tr("TV Playlist"), Lang.tr("VOD Playlist (ohne TV Kanäle)"))
+    val isVod = PlOpts.vod(name)
+    SelectRow("Playlist Typ", types[if (isVod) 1 else 0], types, if (isVod) 1 else 0) {
+        PlOpts.setVod(ctx, name, it == 1); PlaylistStore.loadExtrasInBackground(ctx)
+    }
+    if (isVod) {
+        val others = PlaylistStore.lists.map { it.name }.filter { !it.equals(name, ignoreCase = true) }
+        val opts = listOf(Lang.tr("Keine (mit jeder Liste zeigen)")) + others
+        val cur = PlOpts.parent(name)
+        val ci = (others.indexOfFirst { it.equals(cur, ignoreCase = true) } + 1).coerceAtLeast(0)
+        SelectRow("Übergeordnete Wiedergabeliste", opts[ci], opts, ci) {
+            PlOpts.setParent(ctx, name, if (it == 0) "" else others[it - 1]); PlaylistStore.loadExtrasInBackground(ctx)
+        }
+    }
     val lp = PlOpts.logoPrio(name)
     val lpNames = listOf(Lang.tr("Wie unter Optik > Logos")) + Logos.PRIO_NAMES.map { Lang.tr(it) }
     SelectRow("Logo Priorität", lpNames[lp + 1], lpNames, lp + 1) { PlOpts.setLogoPrio(ctx, name, it - 1) }

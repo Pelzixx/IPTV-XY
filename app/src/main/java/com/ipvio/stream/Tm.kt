@@ -70,6 +70,7 @@ object Tm {
     const val CV_ANIM = "cv_anim"
     const val CV_AUTOPLAY = "cv_autoplay"
     const val CV_STAY = "cv_stay"
+    const val CV_FS_TIMEOUT = "cv_fs_timeout"   // Sekunden ohne Taste bis Vollbild (0 = aus)
     // Infofeld
     const val IF_CARD = "if_card"
     const val IF_BOTTOM = "if_bottom"          // Kartenstil: Info-Feld beim Kanalwechsel unten statt oben
@@ -123,6 +124,7 @@ object Tm {
     const val PB_VIDEO_DEC = "pb_video_dec"          // 0 Hardware, 1 Software
     const val PB_SURROUND = "pb_surround"
     const val PB_PASSTHROUGH = "pb_passthrough"
+    const val PB_SUB_ALL = "pb_sub_all"          // Live: Untertitel, falls vorhanden, immer an
     const val PB_TUNNEL = "pb_tunnel"
     const val PB_EXTERNAL = "pb_external"            // 0 Nein, 1 Ja, 2 Nur für VOD
     const val PB_STEP_TL_BACK = "pb_step_tl_back"    // Sekunden

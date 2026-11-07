@@ -433,6 +433,30 @@ Auf- und zuklappen¦Expand and collapse¦Aç ve kapat¦Proširi i skupi¦Prošir
 Alle Kanäle der Liste zeigen¦Show all channels of the list¦Listenin tüm kanallarını göster¦Prikaži sve kanale liste¦Prikaži sve programe popisa¦Prikaži sve kanale liste¦Mostrar todos los canales de la lista¦Afficher toutes les chaînes de la liste¦Mostra tutti i canali della lista
 Beim Antippen einer Wiedergabeliste¦When selecting a playlist¦Bir oynatma listesi seçildiğinde¦Pri odabiru liste¦Pri odabiru popisa¦Pri izboru liste¦Al seleccionar una lista¦En sélectionnant une playlist¦Selezionando una playlist
 Fehlerprotokoll¦Error log¦Hata günlüğü¦Dnevnik grešaka¦Dnevnik pogrešaka¦Dnevnik grešaka¦Registro de errores¦Journal des erreurs¦Registro errori
+Timeout für Vollbildumschaltung, Sek¦Full screen switching timeout, sec¦Tam ekrana geçiş zaman aşımı, sn¦Vrijeme do prelaska na cijeli ekran, sek¦Vrijeme do prelaska na cijeli zaslon, sek¦Vreme do prelaska na ceo ekran, sek¦Tiempo para pasar a pantalla completa, s¦Délai avant le plein écran, s¦Timeout passaggio a schermo intero, s
+Falls verfügbar, Untertitel für alle Kanäle anzeigen¦Show subtitles for all channels if available¦Varsa tüm kanallar için altyazı göster¦Prikaži titlove za sve kanale ako su dostupni¦Prikaži titlove za sve programe ako su dostupni¦Prikaži titlove za sve kanale ako su dostupni¦Mostrar subtítulos en todos los canales si existen¦Afficher les sous-titres pour toutes les chaînes si disponibles¦Mostra sottotitoli per tutti i canali se disponibili
+Nicht zugewiesene Kanäle anzeigen¦Show unassigned channels¦Atanmamış kanalları göster¦Prikaži nedodijeljene kanale¦Prikaži nedodijeljene programe¦Prikaži nedodeljene kanale¦Mostrar canales sin asignar¦Afficher les chaînes non attribuées¦Mostra canali non assegnati
+Alle Kanäle haben EPG-Daten¦All channels have EPG data¦Tüm kanalların EPG verisi var¦Svi kanali imaju EPG podatke¦Svi programi imaju EPG podatke¦Svi kanali imaju EPG podatke¦Todos los canales tienen datos EPG¦Toutes les chaînes ont des données EPG¦Tutti i canali hanno dati EPG
+Nicht zugewiesene Kanäle¦Unassigned channels¦Atanmamış kanallar¦Nedodijeljeni kanali¦Nedodijeljeni programi¦Nedodeljeni kanali¦Canales sin asignar¦Chaînes non attribuées¦Canali non assegnati
+Kanäle auswählen¦Select channels¦Kanalları seç¦Odaberi kanale¦Odaberi programe¦Izaberi kanale¦Seleccionar canales¦Sélectionner des chaînes¦Seleziona canali
+ausgewählt¦selected¦seçildi¦odabrano¦odabrano¦izabrano¦seleccionados¦sélectionnées¦selezionati
+Auswahl¦Selection¦Seçim¦Odabir¦Odabir¦Izbor¦Selección¦Sélection¦Selezione
+Kopieren / Verschieben¦Copy / move¦Kopyala / taşı¦Kopiraj / premjesti¦Kopiraj / premjesti¦Kopiraj / premesti¦Copiar / mover¦Copier / déplacer¦Copia / sposta
+Keine Kanäle ausgewählt¦No channels selected¦Kanal seçilmedi¦Nema odabranih kanala¦Nema odabranih programa¦Nema izabranih kanala¦No hay canales seleccionados¦Aucune chaîne sélectionnée¦Nessun canale selezionato
+Alle markieren¦Select all¦Tümünü seç¦Označi sve¦Označi sve¦Označi sve¦Marcar todos¦Tout sélectionner¦Seleziona tutti
+Alle abwählen¦Deselect all¦Tüm seçimi kaldır¦Poništi sve¦Poništi sve¦Poništi sve¦Desmarcar todos¦Tout désélectionner¦Deseleziona tutti
+Auswahl umkehren¦Invert selection¦Seçimi tersine çevir¦Obrni odabir¦Obrni odabir¦Obrni izbor¦Invertir selección¦Inverser la sélection¦Inverti selezione
+Sender wurden verschoben¦Channels were moved¦Kanallar taşındı¦Kanali su premješteni¦Programi su premješteni¦Kanali su premešteni¦Canales movidos¦Chaînes déplacées¦Canali spostati
+Sender wurden kopiert¦Channels were copied¦Kanallar kopyalandı¦Kanali su kopirani¦Programi su kopirani¦Kanali su kopirani¦Canales copiados¦Chaînes copiées¦Canali copiati
+Neue Gruppe …¦New group …¦Yeni grup …¦Nova grupa …¦Nova grupa …¦Nova grupa …¦Nuevo grupo …¦Nouveau groupe …¦Nuovo gruppo …
+Gruppe erstellen¦Create group¦Grup oluştur¦Kreiraj grupu¦Stvori grupu¦Napravi grupu¦Crear grupo¦Créer un groupe¦Crea gruppo
+Kopieren nach¦Copy to¦Şuraya kopyala¦Kopiraj u¦Kopiraj u¦Kopiraj u¦Copiar a¦Copier vers¦Copia in
+Verschieben nach¦Move to¦Şuraya taşı¦Premjesti u¦Premjesti u¦Premesti u¦Mover a¦Déplacer vers¦Sposta in
+Playlist Typ¦Playlist type¦Oynatma listesi türü¦Vrsta liste¦Vrsta popisa¦Vrsta liste¦Tipo de lista¦Type de playlist¦Tipo di playlist
+TV Playlist¦TV playlist¦TV listesi¦TV lista¦TV popis¦TV lista¦Lista de TV¦Playlist TV¦Playlist TV
+VOD Playlist (ohne TV Kanäle)¦VOD playlist (no TV channels)¦VOD listesi (TV kanalı yok)¦VOD lista (bez TV kanala)¦VOD popis (bez TV programa)¦VOD lista (bez TV kanala)¦Lista VOD (sin canales de TV)¦Playlist VOD (sans chaînes TV)¦Playlist VOD (senza canali TV)
+Übergeordnete Wiedergabeliste¦Parent playlist¦Üst oynatma listesi¦Nadređena lista¦Nadređeni popis¦Nadređena lista¦Lista principal¦Playlist parente¦Playlist principale
+Keine (mit jeder Liste zeigen)¦None (show with every list)¦Yok (her listeyle göster)¦Nijedna (prikaži uz svaku listu)¦Nijedan (prikaži uz svaki popis)¦Nijedna (prikaži uz svaku listu)¦Ninguna (mostrar con cada lista)¦Aucune (afficher avec chaque liste)¦Nessuna (mostra con ogni lista)
 Bericht speichern¦Save report¦Raporu kaydet¦Sačuvaj izvještaj¦Spremi izvješće¦Sačuvaj izveštaj¦Guardar informe¦Enregistrer le rapport¦Salva rapporto
 Protokoll leeren¦Clear log¦Günlüğü temizle¦Obriši dnevnik¦Očisti dnevnik¦Obriši dnevnik¦Vaciar registro¦Vider le journal¦Svuota registro
 Speichern fehlgeschlagen¦Saving failed¦Kaydetme başarısız¦Spremanje nije uspjelo¦Spremanje nije uspjelo¦Čuvanje nije uspelo¦Error al guardar¦Échec de l'enregistrement¦Salvataggio non riuscito
