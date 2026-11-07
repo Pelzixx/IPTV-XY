@@ -257,6 +257,8 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     val step = AppSettings.seekStep * 1000L
     // TiviMate: OK zeigt erst Senderinfo + Verlaufszeile; Runter öffnet die Menüleiste
     var liveMenu by remember { mutableStateOf(false) }
+    var okHeld by remember { mutableStateOf(false) }
+    var okLong by remember { mutableStateOf(false) }
     val recentFirst = remember { FocusRequester() }
     val seekBarReq = remember { FocusRequester() }
     val firstFocus = if (cur.live) (if (liveMenu) liveFirst else recentFirst) else playBtn
@@ -945,6 +947,22 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                 if (e.key == Key.Back) {
                     if (e.type == KeyEventType.KeyUp) handleBack()
                     true
+                } else if ((e.key == Key.DirectionCenter || e.key == Key.Enter) && (okHeld || (cur.live && !controls &&
+                        panel == Panel.NONE && !showChannels && !showGuide && digitBuf.isEmpty() && !showNextCard))) {
+                    // TiviMate: kurz OK = Senderinfo mit Verlaufszeile, lang OK = Menüleiste. Bis zum Loslassen gehört OK hierher,
+                    // damit das Loslassen nicht noch einen Knopf der gerade geöffneten Leiste auslöst.
+                    when (e.type) {
+                        KeyEventType.KeyDown -> {
+                            if (e.nativeKeyEvent.repeatCount == 0) { okHeld = true; okLong = false }
+                            else if (!okLong) { okLong = true; liveMenu = true; controls = true }
+                        }
+                        KeyEventType.KeyUp -> {
+                            if (okHeld && !okLong) { liveMenu = false; controls = true }
+                            okHeld = false; okLong = false
+                        }
+                        else -> {}
+                    }
+                    true
                 } else false
             }
             .onKeyEvent { e ->
@@ -1303,10 +1321,10 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                             }.horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Top
                         ) {
-                            PBarButton(label = "Suchen", onLabel = setLabel, onClick = { AppNav.toSearch = true; onBack() }) {
+                            PBarButton(Modifier.focusRequester(liveFirst), label = "Suchen", onLabel = setLabel, onClick = { AppNav.toSearch = true; onBack() }) {
                                 PlayerIcon(PIcon.Search, it)
                             }
-                            PBarButton(Modifier.focusRequester(liveFirst), label = "Senderliste", onLabel = setLabel, onClick = { openChannels() }) {
+                            PBarButton(label = "Senderliste", onLabel = setLabel, onClick = { openChannels() }) {
                                 PlayerIcon(PIcon.Channels, it)
                             }
                             PBarButton(label = "TV-Guide", onLabel = setLabel, onClick = { AppNav.toGuide = true; onBack() }) {
