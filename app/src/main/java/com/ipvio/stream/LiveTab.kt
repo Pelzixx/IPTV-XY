@@ -48,6 +48,7 @@ object LiveMemory {
 /** Eingabe eines Namens (neue Senderliste, Umbenennen). */
 private class NameAsk(val title: String, val initial: String, val onSave: (String) -> Unit)
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>, onOpen: (Item) -> Unit) {
     val ctx = LocalContext.current
@@ -72,7 +73,8 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     val names = listOf("GUIDE", FAV_CAT) + myLists.map { ChannelListLogic.key(it) } + listOf("ALL") + hiddenCat + favCats + groups.keys.filter { it !in favCats }
     val curList = ChannelLists.byKey(sel)
     val showHidden = sel == HIDDEN_CAT
-    val list = ChannelEditLogic.visible(
+    // Nur neu filtern, wenn sich Auswahl oder Daten ändern – nicht bei jedem Fokuswechsel (tausende Sender)
+    val list = remember(sel, live, favs, groups, curList, editVersion, showHidden) { ChannelEditLogic.visible(
         when {
             sel == FAV_CAT -> favs
             sel == "ALL" || showHidden -> live
@@ -80,7 +82,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
             else -> groups[sel].orEmpty()
         },
         { it.id }, ChannelEdit::isHidden, showHidden
-    )
+    ) }
     // Letzter ausgeblendeter Sender wieder eingeblendet: Kategorie gibt es nicht mehr
     LaunchedEffect(showHidden, hiddenCat.isEmpty()) { if (showHidden && hiddenCat.isEmpty()) sel = "ALL" }
     val firstChan = remember { FocusRequester() }
@@ -123,7 +125,11 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     // Rechts aus den Gruppen: Senderliste nach oben holen (sonst gibt es den ersten Sender noch nicht) und so lange
     // fokussieren, bis ein Sender den Fokus hat (dann klappen die Gruppen zu)
     val chanScope = rememberCoroutineScope()
+    // Gruppe erst nach kurzem Verweilen anzeigen: beim schnellen Blättern durch die Gruppen wird nicht jede Senderliste geladen
+    var pendingSel by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(pendingSel) { val p = pendingSel ?: return@LaunchedEffect; kotlinx.coroutines.delay(280); sel = p }
     fun toChannels() {
+        pendingSel?.let { sel = it }
         chanScope.launch {
             runCatching { chanState.scrollToItem(0) }
             repeat(15) {
@@ -154,10 +160,8 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
 
     // Markierter Sender bestimmt die Anzeige oben (Sendung und Vorschau).
     // Erst nach kurzem Verweilen wechseln (beim schnellen Durchblättern kein Laden von Logo, Programm und Vorschau)
-    var focusedCh by remember { mutableStateOf<Item?>(null) }
-    var focusTarget by remember { mutableStateOf<Item?>(null) }
-    LaunchedEffect(focusTarget) { if (focusedCh != null) kotlinx.coroutines.delay(300); focusedCh = focusTarget }
-    val shown = focusedCh ?: list.firstOrNull()
+    // Markierter Sender: nur der Kopf (Vorschau, Sendung) liest ihn – die Liste wird beim Blättern nicht neu aufgebaut
+    val focus = remember { GuideFocusState() }
     // Vorschau nur, solange ein Sender in der Liste markiert ist (nicht beim Wechseln der Kategorie)
     val preview = remember { LivePreviewPlayer(ctx) }
     DisposableEffect(Unit) { onDispose { preview.release() } }
@@ -169,6 +173,8 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     }
     val ws = nowSec / 1800 * 1800
     Column(Modifier.fillMaxSize().background(Bg).padding(start = 16.dp, end = 16.dp, top = 12.dp)) {
+        // Ohne Scroll-Animation (Gruppen und Sender): beim schnellen Blättern staut sich nichts
+        CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides InstantSpec) {
         Row(Modifier.fillMaxWidth().weight(1f)) {
             // Links: Kategorien und Listen
             LazyColumn(
@@ -213,7 +219,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                         CatRow(
                             label, count, n == sel,
                             if (n == sel) Modifier.focusRequester(catSelReq).then(if (list.isEmpty()) Modifier.focusRequester(ContentFocus.req) else Modifier) else Modifier,
-                            onFocus = { sel = n }, onRight = { toChannels() },
+                            onFocus = { pendingSel = n }, onRight = { toChannels() },
                             onFav = { if (ml != null) listMenu = true else if (n != FAV_CAT && n != "ALL" && n != HIDDEN_CAT) CatFavs.toggle(ctx, n) },
                             icon = icon, raw = ml != null
                         ) { toChannels() }
@@ -239,8 +245,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
             // Rechts: oben Vorschau und Sendung, darunter Zeitleiste und Sender
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 Row(Modifier.fillMaxWidth().height(220.dp), horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-                    LivePreview(preview, focusedCh, Modifier.fillMaxHeight().aspectRatio(16f / 9f), fallback = shown)
-                    LiveInfo(shown, Modifier.weight(1f).fillMaxHeight())
+                    GuideTop(focus, list.firstOrNull(), preview)
                 }
                 Spacer(Modifier.height(14.dp))
                 if (list.isNotEmpty()) TimelineHeader(ws, nowSec)
@@ -264,16 +269,20 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                     action = if (curList != null) "Sender hinzufügen" else null,
                     actionModifier = Modifier.focusRequester(firstChan),
                     onAction = if (curList != null) ({ addTo = curList.id; sel = "ALL" }) else null
-                ) else LazyColumn(state = chanState, verticalArrangement = Arrangement.spacedBy(2.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
+                ) else BoxWithConstraints(Modifier.fillMaxSize()) {
+                    val tlW = maxWidth - CH_W
+                    // Ohne Scroll-Animation: beim Halten der Taste staut sich nichts (wie in TV-Playern)
+                    CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides InstantSpec) {
+                    LazyColumn(state = chanState, verticalArrangement = Arrangement.spacedBy(2.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
                     // In eigenen Listen wandert der Fokus beim Verschieben mit dem Sender mit (Schlüssel = Sender)
                     itemsIndexed(list, key = if (curList != null) { _, ch -> ch.id } else null) { i, ch ->
                         ChannelLine(
-                            ch, ws, nowSec, (if (i == 0) Modifier.focusRequester(firstChan).focusRequester(ContentFocus.req) else Modifier)
+                            ch, ws, nowSec, tlW, (if (i == 0) Modifier.focusRequester(firstChan).focusRequester(ContentFocus.req) else Modifier)
                                 .then(if (ch.id == restoreId) Modifier.focusRequester(restoreReq) else Modifier), curList,
                             onNewList = { newList(ch.id) },
                             onRename = { ask = NameAsk("Sender umbenennen", ChannelEdit.title(ch)) { ChannelEdit.rename(ctx, ch.id, it) } },
                             onLeft = { catOpen = true; catFocusReq++ },
-                            onFocus = { focusTarget = ch; catOpen = false }
+                            onFocus = { focus.target = ch; catOpen = false }
                         ) {
                             if (addList != null) {
                                 val has = ch.id in addList.ids
@@ -283,7 +292,10 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                         }
                     }
                 }
+                    }
+                }
             }
+        }
         }
     }
         ask?.let { a -> NameDialog(a.title, a.initial, onDismiss = { ask = null }) { a.onSave(it); ask = null } }
@@ -376,14 +388,15 @@ private fun TimelineHeader(ws: Long, nowSec: Long) {
 
 @Composable
 private fun ChannelLine(
-    item: Item, ws: Long, nowSec: Long, modifier: Modifier, inList: ChList?, onNewList: () -> Unit, onRename: () -> Unit, onLeft: () -> Unit,
+    item: Item, ws: Long, nowSec: Long, tlW: androidx.compose.ui.unit.Dp, modifier: Modifier, inList: ChList?, onNewList: () -> Unit, onRename: () -> Unit, onLeft: () -> Unit,
     onFocus: () -> Unit = {}, onClick: () -> Unit
 ) {
     var f by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     // Neu zeichnen, wenn der Sender umbenannt wurde
     @Suppress("UNUSED_VARIABLE") val editVersion = ChannelEdit.version
-    val epg by produceState(emptyList<EpgEntry>(), item.id) { value = Epg.now(item) }
+    // Ohne Netz (gespeichertes EPG): beim schnellen Scrollen startet je Zeile kein Abruf mehr. Neu, wenn das EPG geladen ist.
+    val epg = remember(item.id, Xmltv.channelCount, nowSec / 300) { Epg.nowLocal(item) }
     Box {
     if (menu) ChannelMenu(item, inList, onNewList, onRename, next = epg.firstOrNull { it.start > nowSec }) { menu = false }
     val cell = RoundedCornerShape(4.dp)
@@ -415,8 +428,9 @@ private fun ChannelLine(
             if (Catchup.version >= 0 && Catchup.has(item)) AppIcon(AIcon.Catchup, Accent2, size = 14.dp)
             if (DeadLinks.isDead(item.url)) AppIcon(AIcon.Warning, DS.Gold, size = 14.dp)
         }
-        BoxWithConstraints(Modifier.weight(1f).fillMaxHeight().padding(vertical = 2.dp)) {
-            val w = maxWidth
+        // Breite der Zeitleiste wird einmal für die ganze Liste gemessen (nicht je Zeile)
+        Box(Modifier.width(tlW).fillMaxHeight().padding(vertical = 2.dp)) {
+            val w = tlW
             val shownE = epg.filter { it.end > ws && it.start < ws + SPAN }
             if (shownE.isEmpty()) {
                 // Kein Programm: eine Fläche mit dem Sendernamen über die ganze Breite
@@ -538,4 +552,20 @@ fun ReminderCard(r: Reminder, modifier: Modifier, onClose: () -> Unit, onSwitch:
 /** TiviMate: Im TV-Guide ist die Symbolleiste links ausgeblendet; sie erscheint erst zusammen mit den Gruppen („Links“). */
 object LiveUi {
     var groupsOpen by mutableStateOf(false)
+}
+
+/** Markierter Sender im TV-Guide (eigener Zustand, damit nur der Kopf neu zeichnet). */
+@Stable
+class GuideFocusState {
+    var target by mutableStateOf<Item?>(null)
+    var shown by mutableStateOf<Item?>(null)
+}
+
+/** Kopf des TV-Guides: Vorschau und Sendung des markierten Senders (wechselt erst nach kurzem Verweilen). */
+@Composable
+private fun RowScope.GuideTop(focus: GuideFocusState, first: Item?, preview: LivePreviewPlayer) {
+    LaunchedEffect(focus.target) { if (focus.shown != null) kotlinx.coroutines.delay(300); focus.shown = focus.target }
+    val shown = focus.shown ?: first
+    LivePreview(preview, focus.shown, Modifier.fillMaxHeight().aspectRatio(16f / 9f), fallback = shown)
+    LiveInfo(shown, Modifier.weight(1f).fillMaxHeight())
 }

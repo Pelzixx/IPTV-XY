@@ -353,6 +353,17 @@ object Epg {
         return local.take(8)
     }
 
+    /**
+     * Schnell und ohne Netz (für die Zeilen im TV-Guide): gespeichertes XMLTV bzw. schon geholtes Anbieter-Programm.
+     * Beim Scrollen durch tausende Sender darf nicht je Zeile ein Abruf beim Anbieter starten.
+     */
+    fun nowLocal(item: Item): List<EpgEntry> {
+        val nowMs = System.currentTimeMillis()
+        cache[item.id]?.let { if (nowMs - it.first < 120_000) return it.second }
+        val nowSec = nowMs / 1000
+        return Xmltv.forChannel(item.tvgId).filter { it.end > nowSec }.take(8)
+    }
+
     fun current(list: List<EpgEntry>): EpgEntry? {
         val n = System.currentTimeMillis() / 1000
         return list.firstOrNull { n >= it.start && n < it.end }

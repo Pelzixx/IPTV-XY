@@ -1655,7 +1655,7 @@ object SettingsOpen {
 
 /** Ins Bild holen ohne Animation (Einstellungs-Panel). */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-private val InstantSpec = object : androidx.compose.foundation.gestures.BringIntoViewSpec {
+internal val InstantSpec = object : androidx.compose.foundation.gestures.BringIntoViewSpec {
     override val scrollAnimationSpec: androidx.compose.animation.core.AnimationSpec<Float> = androidx.compose.animation.core.snap()
 }
 
