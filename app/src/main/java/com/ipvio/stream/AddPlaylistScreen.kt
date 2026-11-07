@@ -40,6 +40,9 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
     var user by remember { mutableStateOf(pendX?.second ?: "") }
     var pass by remember { mutableStateOf(pendX?.third ?: "") }
     var showPass by remember { mutableStateOf(false) }
+    // TiviMate: Stalker-Portal mit MAC-Adresse
+    var stalker by remember { mutableStateOf(false) }
+    var mac by remember { mutableStateOf("00:1A:79:") }
     var localFiles by remember { mutableStateOf<List<java.io.File>?>(null) }
     // Lokale M3U-Datei wählen; dauerhafte Leseberechtigung, damit „Aktualisieren“ die Datei neu liest
     val pickFile = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
@@ -138,16 +141,21 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
                 )
             } else {
             Text("Playlist hinzufügen", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                FocusButton("M3U-Link", Modifier.focusRequester(startFocus), primary = !xtream) { xtream = false }
-                FocusButton("Xtream-Login", primary = xtream) { xtream = true }
+            @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                FocusButton("M3U-Link", Modifier.focusRequester(startFocus), primary = !xtream && !stalker) { xtream = false; stalker = false }
+                FocusButton("Xtream-Login", primary = xtream) { xtream = true; stalker = false }
+                FocusButton("Stalker-Portal", primary = stalker) { stalker = true; xtream = false }
                 // TiviMate: Playlist aus einer lokalen Datei (USB, Download-Ordner …)
                 FocusButton("Datei") {
                     // Viele TV-Geräte haben keine Dateiauswahl: eigene Liste (App-Ordner auf Gerät und USB), dazu die System-Auswahl
                     localFiles = LocalM3u.find(ctx)
                 }
             }
-            if (!xtream) {
+            if (stalker) {
+                Field(host, { host = it }, "Portal (z. B. http://portal.tld:8080/c/)")
+                Field(mac, { mac = it }, "MAC-Adresse (00:1A:79:XX:XX:XX)")
+            } else if (!xtream) {
                 Field(url, { url = it }, "http://…/playlist.m3u")
                 FocusButton("Aus Zwischenablage einfügen") {
                     val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -163,8 +171,9 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 FocusButton(if (PlaylistStore.loading) "Lade…" else "Hinzufügen", primary = true) {
                     if (PlaylistStore.loading) return@FocusButton
-                    val finalUrl = if (xtream) PlaylistStore.xtreamUrl(host, user, pass) else url
-                    if (finalUrl == null) PlaylistStore.error = "Angaben unvollständig: Server, Benutzername und Passwort nötig."
+                    val macOk = Regex("^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$").matches(mac.trim())
+                    val finalUrl = if (stalker) (if (host.isNotBlank() && macOk) Stalker.listUrl(host, mac) else null) else if (xtream) PlaylistStore.xtreamUrl(host, user, pass) else url
+                    if (finalUrl == null) PlaylistStore.error = if (stalker) "Angaben unvollständig: Portal-Adresse und gültige MAC-Adresse nötig." else "Angaben unvollständig: Server, Benutzername und Passwort nötig."
                     else scope.launch { if (PlaylistStore.load(ctx, finalUrl, true)) onDone() }
                 }
                 if (canCancel) FocusButton("Abbrechen") { PlaylistStore.clearPending(ctx); onDone() }

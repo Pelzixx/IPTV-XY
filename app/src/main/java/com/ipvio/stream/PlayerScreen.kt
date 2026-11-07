@@ -899,7 +899,9 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
         val loaded = player.currentMediaItem?.localConfiguration?.uri?.toString()
         if (loaded != cur.url) {
             httpRef[0]?.setUserAgent(TmNet.userAgentFor(cur.itemId))
-            player.setMediaItem(MediaItem.fromUri(TmNet.playUrl(cur.url)), if (cur.startMs > 0) cur.startMs else 0L)
+            // Stalker-Portal: echte Adresse erst jetzt holen (create_link)
+            val real = if (Stalker.isPlay(cur.url)) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Stalker.playable(cur.url) } else cur.url
+            player.setMediaItem(MediaItem.fromUri(TmNet.playUrl(real)), if (cur.startMs > 0) cur.startMs else 0L)
             player.prepare(); player.playWhenReady = true
         }
     }

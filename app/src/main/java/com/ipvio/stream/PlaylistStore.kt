@@ -567,6 +567,12 @@ object PlaylistStore {
      */
     private fun download(c: Context, u: String): Pair<File, Charset> {
         val raw = rawFile(c, u)
+        // Stalker-Portal (MAC): Sender über die Portal-Schnittstelle holen und als M3U ablegen
+        if (Stalker.isList(u)) {
+            phase = "Portal wird geladen …"
+            java.io.OutputStreamWriter(BufferedOutputStream(FileOutputStream(raw), 1 shl 16), Charsets.UTF_8).use { w -> Stalker.m3u(u, w) { bytesRead = it.toLong() } }
+            return raw to Charsets.UTF_8
+        }
         // Lokale Datei: bei jedem Laden frisch aus der Quelle lesen (Dateiauswahl mit dauerhafter Berechtigung)
         if (u.startsWith("content://", true) || u.startsWith("file:///", true)) {
             phase = "Datei wird gelesen …"

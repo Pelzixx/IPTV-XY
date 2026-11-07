@@ -95,7 +95,7 @@ fun LivePreview(p: LivePreviewPlayer, ch: Item?, modifier: Modifier = Modifier, 
         if (ch == null || !AppSettings.livePreview) { p.stop(); return@LaunchedEffect }
         // Beim Durchblättern nicht jeden Sender anspielen
         delay(700)
-        p.play(ch.url)
+        p.play(if (Stalker.isPlay(ch.url)) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Stalker.playable(ch.url) } else ch.url)
     }
     val shape = RoundedCornerShape(DS.RadiusS)
     Box(modifier.clip(shape).background(Color.Black), contentAlignment = Alignment.Center) {

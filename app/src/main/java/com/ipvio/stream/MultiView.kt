@@ -59,11 +59,14 @@ private fun MultiCell(item: Item, audio: Boolean, focused: Boolean, modifier: Mo
             .setAllowCrossProtocolRedirects(true).setConnectTimeoutMs(10_000).setReadTimeoutMs(15_000)
         ExoPlayer.Builder(ctx, SoftAudio.factory(ctx))
             .setMediaSourceFactory(DefaultMediaSourceFactory(ctx).setDataSourceFactory(DefaultDataSource.Factory(ctx, http)))
-            .build().apply {
-                setMediaItem(MediaItem.fromUri(TmNet.playUrl(item.url)))
-                prepare()
-                playWhenReady = true
-            }
+            .build()
+    }
+    // Adresse (bei Stalker-Portalen erst über das Portal) setzen und starten
+    LaunchedEffect(player) {
+        val real = if (Stalker.isPlay(item.url)) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Stalker.playable(item.url) } else item.url
+        player.setMediaItem(MediaItem.fromUri(TmNet.playUrl(real)))
+        player.prepare()
+        player.playWhenReady = true
     }
     DisposableEffect(player) { onDispose { player.release() } }
     LaunchedEffect(audio) { player.volume = if (audio) 1f else 0f }

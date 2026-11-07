@@ -25,6 +25,7 @@ object PlaylistLogic {
         val noCred = u.replaceFirst(Regex("""^(https?://)[^/@\s]*@""", RegexOption.IGNORE_CASE), "$1")
         // Lokale Datei (TiviMate: Playlist aus Datei): nur content:// aus der Dateiauswahl, keine getippten Pfade
         if (u.startsWith("content://", true)) return u
+        if (u.startsWith("stalker://", true) && u.contains("mac=")) return u
         if (u.startsWith("file:///", true) && u.contains("/Android/data/") && !u.contains("..")) return u
         return if (HTTP_URL.matches(noCred)) u else null
     }

@@ -304,7 +304,7 @@ class RecService : Service() {
                 out = RecStore.open(ctx, target)
                 val stopAt = r.end + Recorder.after()
                 val ua = TmNet.userAgentFor(r.chId)
-                val url = TmNet.playUrl(r.url)
+                val url = TmNet.playUrl(Stalker.playable(r.url))
                 while (isActive && System.currentTimeMillis() / 1000 < stopAt) {
                     try {
                         written += RecNet.copy(url, ua, out, stopAt) { n ->
