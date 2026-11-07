@@ -820,6 +820,7 @@ private fun DiagPage(ctx: Context, reload: () -> Unit) {
                     (if (it.second == "aus") Lang.tr("aus") else Lang.tr("an") + it.second.removePrefix("an"))
             },
         "Weiterschauen" to (ResumeLog.also { it.init(ctx) }.lines.take(12).joinToString("\n").ifBlank { "noch nichts gemerkt" }),
+        "Fehlerprotokoll" to (Diag.history.joinToString("\n") { DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.MEDIUM).format(Date(it.first)) + "  " + it.second }.ifBlank { "leer" }),
         "Letzter Absturz" to (CrashLog.last(ctx)?.let { it.first + "  (" + DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(it.second)) + ")" } ?: "keiner")
     )
     lines.forEach { (k, v) ->
@@ -829,11 +830,42 @@ private fun DiagPage(ctx: Context, reload: () -> Unit) {
         }
     }
     // Hinweis vor den Knöpfen: Text unter dem letzten Knopf scrollt die Liste nie ins Bild (nichts darunter ist anwählbar)
-    Hint("Der Bericht enthält keine Adressen, Benutzernamen oder Passwörter. Er wird nur in die Zwischenablage kopiert und nirgendwohin gesendet.")
+    Hint("Der Bericht enthält keine Adressen, Benutzernamen oder Passwörter. Er wird nur kopiert oder dort gespeichert, wo du es auswählst.")
+    // TiviMate „Logs senden“: Bericht samt Fehlerprotokoll auf dem Gerät oder einer SMB-Freigabe ablegen
+    val scope = rememberCoroutineScope()
+    var saveMenu by remember { mutableStateOf(false) }
+    var saved by remember { mutableStateOf<String?>(null) }
+    saved?.let { Text(it, color = Muted, fontSize = 15.sp) }
+    fun report() = lines.joinToString("\n") { it.first + ": " + it.second }
+    if (saveMenu) {
+        val name = "iptv-xy-diagnose-" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(Date()) + ".txt"
+        val e = ArrayList<SideEntry>()
+        val local = java.io.File(ctx.getExternalFilesDir(null) ?: ctx.filesDir, name)
+        e.add(SideEntry(Lang.tr("Gerätespeicher") + ": " + local.absolutePath, raw = true) {
+            scope.launch {
+                val ok = withContext(Dispatchers.IO) { runCatching { local.writeText(report()) }.isSuccess }
+                saved = if (ok) Lang.tr("Gespeichert") + ": " + local.absolutePath else Lang.tr("Speichern fehlgeschlagen")
+            }
+        })
+        SmbConns.list().forEach { sc ->
+            e.add(SideEntry("SMB: " + sc.name + " · " + sc.url, raw = true) {
+                scope.launch {
+                    val path = sc.url.trimEnd('/') + "/" + name
+                    val err = withContext(Dispatchers.IO) { runCatching { Smb.output(path).use { it.write(report().toByteArray()) } }.exceptionOrNull() }
+                    saved = if (err == null) Lang.tr("Gespeichert") + ": " + path else Lang.tr("Speichern fehlgeschlagen") + " " + (err.message ?: "")
+                }
+            })
+        }
+        SideMenu(listOf(SideSection(Lang.tr("Bericht speichern"), e)), { saveMenu = false })
+    }
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         PillButton("Playlist neu laden", light = true, icon = AIcon.Refresh) { reload() }
+        PillButton("Bericht speichern") { saveMenu = true }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        PillButton("Protokoll leeren") { Diag.clear() }
         PillButton("Bericht kopieren") {
-            val text = lines.joinToString("\n") { it.first + ": " + it.second }
+            val text = report()
             runCatching {
                 val cm = ctx.getSystemService(android.content.ClipboardManager::class.java)
                 cm?.setPrimaryClip(android.content.ClipData.newPlainText("IPTV-XY Diagnose", text))

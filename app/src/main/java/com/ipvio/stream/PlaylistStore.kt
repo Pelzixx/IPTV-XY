@@ -921,6 +921,7 @@ object PlaylistStore {
             } catch (e: Exception) {
                 if (cancelled()) { if (save) failPending(c, MSG_CANCEL); throw CancellationException("abgebrochen") }
                 val msg = if (e is ParseStop) MSG_TOO_BIG else PlaylistLogic.friendlyError(e)
+                Diag.report("Playlist: " + msg)
                 if (e is ParseStop) askNext = true
                 if (rawChannels.isEmpty() || save) error = msg
                 if (save) failPending(c, msg)

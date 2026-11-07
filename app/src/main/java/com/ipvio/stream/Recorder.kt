@@ -324,6 +324,7 @@ class RecService : Service() {
                 // gestoppt
             } catch (e: Exception) {
                 lastErr = e.message ?: e.javaClass.simpleName
+                Diag.report("Aufnahme: " + lastErr)
             } finally {
                 runCatching { out?.flush(); out?.close() }
                 val ok = written > 0

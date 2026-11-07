@@ -79,7 +79,8 @@ object CrashLog {
             runCatching {
                 val frames = e.stackTrace.filter { it.className.startsWith("com.ipvio") }.take(4)
                     .joinToString(" < ") { it.fileName + ":" + it.lineNumber }
-                val kind = e.javaClass.simpleName + (if (e is OutOfMemoryError) " (Speicher voll)" else "")
+                val kind = e.javaClass.simpleName + (if (e is OutOfMemoryError) " (Speicher voll)" else "") +
+                    (e.message?.let { ": " + Diag.clean(it).take(100) } ?: "")
                 app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
                     .putString("last", kind + (if (frames.isNotEmpty()) " · " + frames else ""))
                     .putLong("at", System.currentTimeMillis()).commit()

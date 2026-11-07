@@ -216,6 +216,7 @@ object Xmltv {
                 truncated -> "Geladen: ${progs.size} Sender mit Programm (gekürzt, Speicher knapp)"
                 else -> "Geladen: ${progs.size} Sender mit Programm"
             }
+            if (progs.isEmpty() || map.isEmpty()) Diag.report("EPG: " + status)
             // Von Hand aktualisiert (TiviMate): Meldung „EPG für N Kanäle aktualisiert“ bzw. Fehler mit Quelle und Uhrzeit
             if (manual) {
                 manual = false

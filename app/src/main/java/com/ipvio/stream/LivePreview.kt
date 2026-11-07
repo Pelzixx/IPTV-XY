@@ -60,22 +60,25 @@ class LivePreviewPlayer(ctx: Context) {
             .also { it.volume = 0f }
     }
     private var url: String? = null
+    private var released = false
 
     fun play(u: String) {
-        if (u == url) return
+        if (u == url || released) return
         url = u
-        player.setMediaItem(MediaItem.fromUri(u))
-        player.prepare()
-        player.playWhenReady = true
+        runCatching {
+            player.setMediaItem(MediaItem.fromUri(u))
+            player.prepare()
+            player.playWhenReady = true
+        }.onFailure { url = null; Diag.report("Vorschau: " + (it.message ?: it.javaClass.simpleName)) }
     }
 
     fun stop() {
         url = null
-        player.stop()
-        player.clearMediaItems()
+        if (released) return
+        runCatching { player.stop(); player.clearMediaItems() }
     }
 
-    fun release() { url = null; player.release() }
+    fun release() { url = null; if (!released) { released = true; player.release() } }
 }
 
 /** Vorschaufenster: spielt den markierten Sender nach kurzer Pause ab; bis dahin (und bei Fehlern) das Senderlogo. */
