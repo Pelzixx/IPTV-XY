@@ -258,6 +258,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     // TiviMate: OK zeigt erst Senderinfo + Verlaufszeile; Runter öffnet die Menüleiste
     var liveMenu by remember { mutableStateOf(false) }
     val recentFirst = remember { FocusRequester() }
+    val seekBarReq = remember { FocusRequester() }
     val firstFocus = if (cur.live) (if (liveMenu) liveFirst else recentFirst) else playBtn
 
     // Serien: Folgenliste für Vorherige/Nächste Folge und das Folgen-Menü
@@ -861,7 +862,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     }
     // Steuerleiste nach einstellbarer Zeit ohne Tastendruck ausblenden. Jeder Tastendruck startet die Zeit neu.
     LaunchedEffect(controls, panel, showChannels, showGuide, playing) {
-        if (controls && panel == Panel.NONE && !showChannels && !showGuide && (playing || cur.live)) {
+        if (controls && panel == Panel.NONE && !showChannels && !showGuide && playing) {
             snapshotFlow { interact }.collectLatest {
                 delay(AppSettings.hideSec * 1000L)
                 controls = false
@@ -909,9 +910,14 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     // Abstand zum Live-Bild: bei HLS vom Player, sonst als Summe der Pausenzeit
     LaunchedEffect(cur.url, cur.live) {
         behindSec = 0L
+        // HLS läuft immer etwas hinter dem Live-Bild (Puffer des Anbieters). Gezählt wird nur, was darüber hinausgeht
+        // (Pause, Zurückspulen) – der kleinste Abstand während der Wiedergabe gilt als „live“.
+        var baseOff = Long.MAX_VALUE
         while (cur.live) {
             delay(1000)
-            val off = player.currentLiveOffset
+            val raw = player.currentLiveOffset
+            if (raw != C.TIME_UNSET && player.isPlaying) baseOff = minOf(baseOff, raw)
+            val off = if (raw != C.TIME_UNSET && baseOff != Long.MAX_VALUE) (raw - baseOff).coerceAtLeast(0L) else raw
             if (off != C.TIME_UNSET) behindSec = if (off > 3000) off / 1000 else 0L
             else if (!player.playWhenReady && player.playbackState == Player.STATE_READY) behindSec++
         }
@@ -951,9 +957,10 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                     return@onKeyEvent (k == Key.DirectionLeft || k == Key.DirectionRight)
                 }
                 when {
-                    k == Key.MediaPlayPause || k == Key.Spacebar -> { togglePlay(); true }
+                    // Live: Pause zeigt wie bei TiviMate die Senderinfo mit Fortschritt (bleibt stehen, solange pausiert)
+                    k == Key.MediaPlayPause || k == Key.Spacebar -> { val was = player.isPlaying; togglePlay(); if (cur.live && was && !controls) controls = true; true }
                     k == Key.MediaPlay -> { player.play(); true }
-                    k == Key.MediaPause -> { player.pause(); true }
+                    k == Key.MediaPause -> { player.pause(); if (cur.live && !controls) controls = true; true }
                     k == Key.MediaFastForward && !cur.live -> { stepSeek(1); true }
                     k == Key.MediaRewind && !cur.live -> { stepSeek(-1); true }
                     k == Key.MediaNext && cur.live -> { zap(1); true }
@@ -1256,7 +1263,23 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                         }
                         if (!liveMenu) {
                             LiveInfoBlock(curItem, cur.title, if (curIdx >= 0) curIdx + 1 else 0, epg)
-                            Spacer(Modifier.height(18.dp))
+                            Spacer(Modifier.height(14.dp))
+                            // TiviMate: Fortschritt der Sendung; OK = Pause/Weiter, Links/Rechts = spulen im Zeitversatz
+                            LiveSeekBar(
+                                epg, behindSec, !playing, Modifier.focusRequester(seekBarReq),
+                                onToggle = { togglePlay() },
+                                onSeek = { d ->
+                                    if (player.isCurrentMediaItemSeekable) {
+                                        val dd = player.duration
+                                        var t = (player.currentPosition + d * 10_000L).coerceAtLeast(0L)
+                                        if (dd > 0) t = t.coerceAtMost(dd)
+                                        player.seekTo(t)
+                                    } else flash = Flash(null, "Spulen ist bei diesem Sender nicht möglich")
+                                },
+                                onDown = { runCatching { recentFirst.requestFocus() } },
+                                onUp = { controls = false }
+                            )
+                            Spacer(Modifier.height(14.dp))
                             val recent = remember(History.ids.size, cur.itemId) {
                                 val byId = liveAll.associateBy { it.id }
                                 History.ids.asSequence().filter { it != cur.itemId }.mapNotNull { byId[it] }.take(12).toList()
@@ -1265,7 +1288,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                                 recentFirst, recent,
                                 Modifier.onPreviewKeyEvent { e ->
                                     if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionDown) { liveMenu = true; true }
-                                    else if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionUp) { controls = false; true }
+                                    else if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionUp) { runCatching { seekBarReq.requestFocus() }; true }
                                     else false
                                 },
                                 onEpg = { AppNav.toGuide = true; onBack() },

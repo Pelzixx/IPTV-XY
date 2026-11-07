@@ -1,5 +1,8 @@
 package com.ipvio.stream
 
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -426,4 +429,58 @@ private fun RecentTile(modifier: Modifier, onClick: () -> Unit, pad: Boolean = t
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = if (pad) Arrangement.Center else Arrangement.Top
     ) { content(f) }
+}
+
+/**
+ * TiviMate: Fortschrittsbalken der laufenden Sendung im Live-Player (über die ganze Breite).
+ * Blau bis zur Wiedergabeposition (bei Pause/Zeitversatz hinter „jetzt“), heller Rest bis „jetzt“, Punkt = Position.
+ * Ohne Programm gilt die laufende halbe Stunde. Markiert: OK = Pause/Weiter, Links/Rechts = spulen (falls möglich).
+ */
+@Composable
+fun LiveSeekBar(
+    epg: List<EpgEntry>, behindSec: Long, paused: Boolean, modifier: Modifier = Modifier,
+    onToggle: () -> Unit, onSeek: (Int) -> Unit, onDown: () -> Unit, onUp: () -> Unit
+) {
+    var f by remember { mutableStateOf(false) }
+    val nowS by produceState(System.currentTimeMillis() / 1000) {
+        while (true) { kotlinx.coroutines.delay(1000); value = System.currentTimeMillis() / 1000 }
+    }
+    val e = Epg.current(epg)
+    val start = e?.start ?: (nowS / 1800 * 1800)
+    val end = e?.end ?: (start + 1800)
+    val span = (end - start).coerceAtLeast(1).toFloat()
+    val live = ((nowS - start) / span).coerceIn(0f, 1f)
+    val pos = ((nowS - behindSec - start) / span).coerceIn(0f, 1f)
+    Row(
+        modifier.fillMaxWidth().height(34.dp)
+            .onFocusChanged { f = it.isFocused }
+            .onPreviewKeyEvent { k ->
+                if (k.type != KeyEventType.KeyDown) false
+                else when (k.key) {
+                    Key.DirectionLeft -> { onSeek(-1); true }
+                    Key.DirectionRight -> { onSeek(1); true }
+                    Key.DirectionDown -> { onDown(); true }
+                    Key.DirectionUp -> { onUp(); true }
+                    else -> false
+                }
+            }
+            .clickable(onClick = onToggle),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        // Bei Pause (oder markiertem Balken) steht vorne das Symbol, wie bei TiviMate
+        if (paused || f) Box(Modifier.size(30.dp).clip(CircleShape).background(if (f) Color.White else Color(0x33FFFFFF)), contentAlignment = Alignment.Center) {
+            PlayerIcon(if (paused) PIcon.Play else PIcon.Pause, if (f) PT.Ink else Color.White, size = 20.dp)
+        }
+        BoxWithConstraints(Modifier.weight(1f).height(16.dp), contentAlignment = Alignment.CenterStart) {
+            val w = maxWidth
+            val h = if (f) 5.dp else 3.dp
+            Box(Modifier.fillMaxWidth().height(h).clip(RoundedCornerShape(2.dp)).background(Color(0x40FFFFFF)))
+            Box(Modifier.fillMaxWidth(live).height(h).clip(RoundedCornerShape(2.dp)).background(Color(0x80FFFFFF)))
+            Box(Modifier.fillMaxWidth(pos).height(h).clip(RoundedCornerShape(2.dp)).background(Accent2))
+            val d = if (f) 16.dp else 12.dp
+            Box(Modifier.offset(x = (w * pos - d / 2).coerceAtLeast(0.dp)).size(d).clip(CircleShape).background(if (f) Color.White else Color(0xFFD0D3D8)))
+        }
+        if (behindSec >= 3) Text(raw = true, text = "−" + (behindSec / 60).toString() + ":" + (behindSec % 60).toString().padStart(2, '0'),
+            color = Color.White, fontSize = 15.sp, style = TNUM)
+    }
 }
