@@ -713,6 +713,13 @@ fun ChannelMenu(
         })
     }
     if (prog != null && prog.end <= now && Catchup.has(item)) pe.add(SideEntry("Aus dem Archiv abspielen") { AppNav.archiveStart = item.id to prog; AppNav.openChannel = item.id })
+    if (prog != null) {
+        val inMy = ProgList.has(item.id, prog.start)
+        pe.add(SideEntry(if (inMy) "Aus meiner Liste entfernen" else "Zu meiner Liste hinzufügen") {
+            val on = ProgList.toggle(ctx, item, prog)
+            Toast.makeText(ctx, Lang.tr(if (on) "Zu meiner Liste hinzugefügt" else "Aus meiner Liste entfernt"), Toast.LENGTH_SHORT).show()
+        })
+    }
     if (prog != null) pe.add(SideEntry("Programmbeschreibung") { desc = prog })
     // Kanal
     val chan = ArrayList<SideEntry>()

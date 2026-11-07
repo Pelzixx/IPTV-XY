@@ -545,7 +545,19 @@ fun HomeScreen(
                             item(key = "mltop") { header(Modifier) }
                             val wm = watchList.filter { it.kind == Kind.MOVIE }
                             val ws = watchList.filter { it.kind == Kind.SERIES }
-                            if (wm.isEmpty() && ws.isEmpty()) {
+                            // TiviMate: auch TV-Sendungen in „Meine Liste“
+                            ProgList.init(ctx)
+                            val wp = ProgList.list.toList()
+                            if (wp.isNotEmpty()) {
+                                item(key = "mlph") { RowTitle("Meine Liste · TV-Sendungen", null, null, onAll = null) }
+                                item(key = "mlp") {
+                                    ProgMarkRow(wp, ContentFocus.req, onOk = { m ->
+                                        val ch = PlaylistStore.channels.firstOrNull { it.id == m.chId }
+                                        if (ch != null) progAction(ctx, ch, EpgEntry(m.title, "", m.start, m.end)) { onOpen(it) }
+                                    }, onRemove = { m -> ProgList.remove(ctx, m) })
+                                }
+                            }
+                            if (wm.isEmpty() && ws.isEmpty() && wp.isEmpty()) {
                                 item(key = "mlh") { RowTitle("Meine Liste", null, null, onAll = null) }
                                 item(key = "mle") {
                                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -556,11 +568,11 @@ fun HomeScreen(
                             }
                             if (wm.isNotEmpty()) {
                                 item(key = "mlmh") { RowTitle("Meine Liste · Filme", null, null, onAll = null) }
-                                item(key = "mlm") { CardGridRows(wm, CARD_POSTER, ContentFocus.req, onOpen) }
+                                item(key = "mlm") { CardGridRows(wm, CARD_POSTER, if (wp.isEmpty()) ContentFocus.req else null, onOpen) }
                             }
                             if (ws.isNotEmpty()) {
                                 item(key = "mlsh") { RowTitle("Meine Liste · Serien", null, null, onAll = null) }
-                                item(key = "mls") { CardGridRows(ws, CARD_POSTER, if (wm.isEmpty()) ContentFocus.req else null, onOpen) }
+                                item(key = "mls") { CardGridRows(ws, CARD_POSTER, if (wm.isEmpty() && wp.isEmpty()) ContentFocus.req else null, onOpen) }
                             }
                         }
                         MenuLogic.VERLAUF -> {

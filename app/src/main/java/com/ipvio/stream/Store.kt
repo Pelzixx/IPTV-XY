@@ -705,3 +705,49 @@ object WatchLog {
 
     fun clear(c: Context) { list.clear(); save(c) }
 }
+
+/** Meine Liste > TV-Sendungen (TiviMate: Sendung im Guide „zu meiner Liste hinzufügen“). */
+data class ProgMark(val chId: String, val chTitle: String, val title: String, val start: Long, val end: Long) {
+    val key get() = "$chId|$start"
+}
+
+object ProgList {
+    val list = mutableStateListOf<ProgMark>()
+    @Volatile private var inited = false
+    private fun prefs(c: Context) = c.applicationContext.getSharedPreferences("ipvio_proglist", Context.MODE_PRIVATE)
+
+    @Synchronized
+    fun init(c: Context) {
+        if (inited) return
+        inited = true
+        val arr = runCatching { org.json.JSONArray(prefs(c).getString("l", "[]")) }.getOrNull() ?: org.json.JSONArray()
+        for (i in 0 until arr.length()) {
+            val o = arr.optJSONObject(i) ?: continue
+            list.add(ProgMark(o.optString("c"), o.optString("ct"), o.optString("t"), o.optLong("s"), o.optLong("e")))
+        }
+        // Ältere als 14 Tage fallen heraus (Archiv reicht meist nicht weiter)
+        val old = System.currentTimeMillis() / 1000 - 14 * 86400L
+        if (list.removeAll { it.end < old }) save(c)
+    }
+
+    private fun save(c: Context) {
+        val a = org.json.JSONArray()
+        list.forEach { a.put(org.json.JSONObject().put("c", it.chId).put("ct", it.chTitle).put("t", it.title).put("s", it.start).put("e", it.end)) }
+        prefs(c).edit().putString("l", a.toString()).apply()
+    }
+
+    fun has(chId: String, start: Long) = list.any { it.chId == chId && it.start == start }
+
+    /** An/aus; true = jetzt in der Liste. */
+    @Synchronized
+    fun toggle(c: Context, ch: Item, e: EpgEntry): Boolean {
+        init(c)
+        val i = list.indexOfFirst { it.chId == ch.id && it.start == e.start }
+        val on = if (i >= 0) { list.removeAt(i); false } else { list.add(ProgMark(ch.id, ChannelEdit.title(ch), e.title, e.start, e.end)); true }
+        list.sortBy { it.start }
+        save(c)
+        return on
+    }
+
+    fun remove(c: Context, m: ProgMark) { list.removeAll { it.key == m.key }; save(c) }
+}

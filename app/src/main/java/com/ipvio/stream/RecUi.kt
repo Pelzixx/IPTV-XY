@@ -270,3 +270,34 @@ fun EpgAssignDialog(item: Item, onClose: () -> Unit) {
         }
     }
 }
+
+/** Meine Liste > TV-Sendungen: Karten mit Sendung, Sender und Zeit; OK wie im Guide, lang OK = entfernen. */
+@Composable
+fun ProgMarkRow(list: List<ProgMark>, firstReq: FocusRequester?, onOk: (ProgMark) -> Unit, onRemove: (ProgMark) -> Unit) {
+    val now = System.currentTimeMillis() / 1000
+    androidx.compose.foundation.lazy.LazyRow(
+        contentPadding = PaddingValues(horizontal = DS.PageX, vertical = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        items(list.size) { i ->
+            val m = list[i]
+            var f by remember { mutableStateOf(false) }
+            val shape = RoundedCornerShape(DS.RadiusM)
+            val running = now in m.start until m.end
+            Column(
+                Modifier.width(320.dp).then(if (i == 0 && firstReq != null) Modifier.focusRequester(firstReq) else Modifier)
+                    .clip(shape).background(if (f) TvFocusFill else Surf)
+                    .onFocusChanged { f = it.isFocused }
+                    .menuKeys(onMenu = { onRemove(m) }, onLong = { onRemove(m) })
+                    .clickable { onOk(m) }
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(raw = true, text = m.title, color = if (f) DS.FocusInk else Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(raw = true, text = m.chTitle, color = if (f) Color(0xFF3A3D42) else Muted, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(raw = true, text = dayLabel(m.start) + " " + hhmm(m.start) + " — " + hhmm(m.end) + if (running) "  ·  " + Lang.tr("Läuft jetzt") else "",
+                    color = if (running && !f) Accent2 else if (f) Color(0xFF3A3D42) else Muted, fontSize = 14.sp, maxLines = 1)
+            }
+        }
+    }
+}

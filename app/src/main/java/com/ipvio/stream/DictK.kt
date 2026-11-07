@@ -378,6 +378,11 @@ Rücktaste¦Backspace¦Geri tuşu¦Tipka za brisanje¦Tipka za brisanje¦Taster 
 Vorschaumodus¦Preview mode¦Önizleme modu¦Način pregleda¦Način pregleda¦Režim pregleda¦Modo vista previa¦Mode aperçu¦Modalità anteprima
 Animierter Übergang¦Animated transition¦Animasyonlu geçiş¦Animirani prijelaz¦Animirani prijelaz¦Animirani prelaz¦Transición animada¦Transition animée¦Transizione animata
 Noch keine Sendungen im Verlauf¦No programs in history yet¦Geçmişte henüz program yok¦Još nema emisija u historiji¦Još nema emisija u povijesti¦Još nema emisija u istoriji¦Aún no hay programas en el historial¦Aucun programme dans l’historique¦Nessun programma nella cronologia
+Zu meiner Liste hinzufügen¦Add to my list¦Listeme ekle¦Dodaj u moju listu¦Dodaj na moj popis¦Dodaj u moju listu¦Añadir a mi lista¦Ajouter à ma liste¦Aggiungi alla mia lista
+Aus meiner Liste entfernen¦Remove from my list¦Listemden kaldır¦Ukloni iz moje liste¦Ukloni s mog popisa¦Ukloni iz moje liste¦Quitar de mi lista¦Retirer de ma liste¦Rimuovi dalla mia lista
+Zu meiner Liste hinzugefügt¦Added to my list¦Listeme eklendi¦Dodano u moju listu¦Dodano na moj popis¦Dodato u moju listu¦Añadido a mi lista¦Ajouté à ma liste¦Aggiunto alla mia lista
+Aus meiner Liste entfernt¦Removed from my list¦Listemden kaldırıldı¦Uklonjeno iz moje liste¦Uklonjeno s mog popisa¦Uklonjeno iz moje liste¦Quitado de mi lista¦Retiré de ma liste¦Rimosso dalla mia lista
+Meine Liste · TV-Sendungen¦My list · TV programs¦Listem · TV programları¦Moja lista · TV emisije¦Moj popis · TV emisije¦Moja lista · TV emisije¦Mi lista · Programas de TV¦Ma liste · Programmes TV¦La mia lista · Programmi TV
 Info¦Info¦Bilgi¦Info¦Info¦Info¦Info¦Info¦Info
 Guide¦Guide¦Rehber¦Vodič¦Vodič¦Vodič¦Guía¦Guide¦Guida
 """
