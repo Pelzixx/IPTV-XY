@@ -211,6 +211,19 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     val preview = remember { LivePreviewPlayer(ctx) }
     DisposableEffect(Unit) { onDispose { preview.release() } }
     fun open(ch: Item) { preview.stop(); ZapContext.list = list; ZapContext.key = sel; LiveMemory.setSel(ctx, sel); onOpen(ch) }
+    // Fernbedienung > EPG: Aktionen, die die ganze Liste betreffen
+    val fmGuide = androidx.compose.ui.platform.LocalFocusManager.current
+    fun guideAct(a: EAct): Boolean = when (a) {
+        EAct.PAGE_UP, EAct.PAGE_DOWN -> {
+            val dir = if (a == EAct.PAGE_UP) androidx.compose.ui.focus.FocusDirection.Up else androidx.compose.ui.focus.FocusDirection.Down
+            val n = (chanState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
+            repeat(n) { fmGuide.moveFocus(dir) }
+            true
+        }
+        EAct.TO_PLAYER -> { History.ids.firstNotNullOfOrNull { id -> list.firstOrNull { it.id == id } ?: PlaylistStore.channels.firstOrNull { it.id == id && it.kind == Kind.LIVE } }?.let { open(it) }; true }
+        EAct.SEARCH -> { AppNav.tabNow = MenuLogic.SEARCH; true }
+        else -> false
+    }
     // OK auf einer gewählten Sendung (TiviMate): vergangen = Archiv, künftig = Erinnerung, laufend = Sender
     fun progOk(ch: Item, e: EpgEntry) = progAction(ctx, ch, e) { open(it) }
     Box(Modifier.fillMaxSize()) {
@@ -355,7 +368,8 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                             onRename = { ask = NameAsk("Sender umbenennen", ChannelEdit.title(ch)) { ChannelEdit.rename(ctx, ch.id, it) } },
                             onLeft = { catOpen = true; catFocusReq++ },
                             onFocus = { focus.target = ch; catOpen = false },
-                            onProg = { focus.prog = it }, onShift = { d -> tOff = (tOff + d).coerceIn(0, 96) }, onProgOk = { e -> progOk(ch, e) }
+                            onProg = { focus.prog = it }, onShift = { d -> tOff = (tOff + d).coerceIn(0, 96) }, onProgOk = { e -> progOk(ch, e) },
+                            onKeyAct = { a -> guideAct(a) }
                         ) {
                             if (addList != null) {
                                 val has = ch.id in addList.ids
@@ -474,7 +488,8 @@ data class GuideLook(
 private fun ChannelLine(
     item: Item, num: Int, look: GuideLook, ws: Long, nowSec: Long, tlW: androidx.compose.ui.unit.Dp, modifier: Modifier, inList: ChList?,
     onNewList: () -> Unit, onRename: () -> Unit, onLeft: () -> Unit,
-    onFocus: () -> Unit = {}, onProg: (EpgEntry?) -> Unit = {}, onShift: (Int) -> Unit = {}, onProgOk: (EpgEntry) -> Unit = {}, onClick: () -> Unit
+    onFocus: () -> Unit = {}, onProg: (EpgEntry?) -> Unit = {}, onShift: (Int) -> Unit = {}, onProgOk: (EpgEntry) -> Unit = {},
+    onKeyAct: (EAct) -> Boolean = { false }, onClick: () -> Unit
 ) {
     var f by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
@@ -501,8 +516,76 @@ private fun ChannelLine(
         else if (e.end <= ws) onShift(-(((ws - e.start) / 1800) + 1).toInt())
         onProg(e)
     }
+    // Fernbedienung > EPG (TiviMate): jede Taste mit eigener Aktion
+    val ctx = LocalContext.current
+    var descE by remember { mutableStateOf<EpgEntry?>(null) }
+    var longFired by remember { mutableStateOf(false) }
+    fun act(a: EAct): Boolean {
+        val sel = all.getOrNull(pi)
+        when (a) {
+            EAct.NONE -> {}
+            EAct.WATCH -> if (sel != null && !(nowSec in sel.start until sel.end)) onProgOk(sel) else onClick()
+            EAct.MENU -> menu = true
+            EAct.GROUPS -> onLeft()
+            EAct.NEXT_PROG -> if (pi in 0 until all.lastIndex) pick(pi + 1)
+            EAct.PREV_PROG -> if (pi > 0) pick(pi - 1)
+            EAct.DESC -> descE = sel
+            EAct.EXTERNAL -> openExternal(ctx, item.url, ChannelEdit.title(item))
+            EAct.FAV -> Library.toggleFav(ctx, item.id)
+            EAct.RECORD -> {
+                val now = System.currentTimeMillis() / 1000
+                val r = if (sel != null) Recorder.isPlanned(item.id, sel.start) else Recorder.runningFor(item.id)
+                if (r != null) { Recorder.stop(ctx, r.id); Toast.makeText(ctx, Lang.tr("Aufnahme abgebrochen"), Toast.LENGTH_SHORT).show() }
+                else if (sel == null || sel.end > now) {
+                    if (sel != null) Recorder.add(ctx, item, sel.title, maxOf(sel.start, now), sel.end) else Recorder.recordNow(ctx, item)
+                    Toast.makeText(ctx, Lang.tr(if (sel == null || sel.start <= now) "Aufnahme läuft" else "Aufnahme geplant"), Toast.LENGTH_SHORT).show()
+                }
+            }
+            else -> return onKeyAct(a)
+        }
+        return true
+    }
+    fun guideKey(ke: android.view.KeyEvent): Boolean {
+        val code = ke.keyCode
+        val down = ke.action == android.view.KeyEvent.ACTION_DOWN
+        val up = ke.action == android.view.KeyEvent.ACTION_UP
+        val short = EKey.of(code, false) ?: return false
+        val longK = EKey.of(code, true)
+        return when (short) {
+            // OK: Standard (ansehen/Menü) bleibt beim Klick-Verhalten der Zeile
+            EKey.OK -> {
+                if (GuideKeys.action(EKey.OK) == EAct.WATCH && GuideKeys.action(EKey.OK_LONG) == EAct.MENU) false
+                else if (down && ke.repeatCount == 1) { longFired = true; act(GuideKeys.action(EKey.OK_LONG)); true }
+                else if (up) { if (!longFired) act(GuideKeys.action(EKey.OK)); longFired = false; true }
+                else true
+            }
+            // Links/Rechts: Standard = vorherige Sendung bzw. Gruppen, nächste Sendung
+            EKey.LEFT -> if (!down) false else {
+                val a = GuideKeys.action(EKey.LEFT)
+                if (a == EAct.GROUPS) { if (pi <= nowIdx || pi <= 0) onLeft() else pick(pi - 1); true } else act(a)
+            }
+            EKey.RIGHT -> if (!down) false else act(GuideKeys.action(EKey.RIGHT))
+            // Zurück: kurz = zurück (System), lang = Zurück zum Player
+            EKey.BACK -> {
+                val la = GuideKeys.action(EKey.BACK_LONG)
+                if (down && ke.repeatCount == 1 && la != EAct.NONE && la != EAct.BACK) { longFired = true; act(la); true }
+                else if (up && longFired) { longFired = false; true }
+                else if (up && GuideKeys.action(EKey.BACK) != EAct.BACK) act(GuideKeys.action(EKey.BACK))
+                else false
+            }
+            else -> {
+                if (longK != null) {
+                    // Taste mit Lang-Belegung (Play/Pause): kurz erst beim Loslassen
+                    if (down && ke.repeatCount == 1) { longFired = true; act(GuideKeys.action(longK)); true }
+                    else if (up) { if (!longFired) act(GuideKeys.action(short)); longFired = false; true }
+                    else true
+                } else if (down && ke.repeatCount == 0) act(GuideKeys.action(short)) else down
+            }
+        }
+    }
     Box {
     if (menu) ChannelMenu(item, inList, onNewList, onRename, prog = all.getOrNull(pi)) { menu = false }
+    descE?.let { e -> ProgDescDialog(item, e) { descE = null } }
     val cell = RoundedCornerShape(4.dp)
     val titleLines = if (look.twoLineTitles) 2 else 1
     Row(
@@ -514,16 +597,8 @@ private fun ChannelLine(
                 // TiviMate: markiert ist die laufende (bzw. erste sichtbare) Sendung der Zeile
                 if (it.isFocused) { onFocus(); pick(all.indexOfFirst { e -> e.end > maxOf(nowSec, ws) }.let { i -> if (i < 0) nowIdx else i }) }
             }
-            .onPreviewKeyEvent { e ->
-                if (e.type != KeyEventType.KeyDown) false
-                else when (e.key) {
-                    // Links: vorherige Sendung; an der laufenden Sendung die Gruppenliste
-                    Key.DirectionLeft -> { if (pi <= nowIdx || pi <= 0) onLeft() else pick(pi - 1); true }
-                    Key.DirectionRight -> { if (pi in 0 until all.lastIndex) pick(pi + 1); true }
-                    else -> false
-                }
-            }
-            .menuKeys(onMenu = { menu = true }, onLong = { menu = true })
+            .onPreviewKeyEvent { e -> guideKey(e.nativeKeyEvent) }
+            .menuKeys(onMenu = { menu = true }, onLong = { if (GuideKeys.action(EKey.OK_LONG) == EAct.MENU) menu = true })
             .clickable {
                 val sel = all.getOrNull(pi)
                 if (sel != null && !(nowSec in sel.start until sel.end)) onProgOk(sel) else onClick()

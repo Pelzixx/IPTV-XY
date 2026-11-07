@@ -1726,6 +1726,7 @@ fun SettingsPanel(onAdd: () -> Unit, reload: () -> Unit, onClose: () -> Unit) {
                             "play_steps" -> TmSteps(ctx)
                             "look_logos" -> TmLogos(ctx)
                             "rc_player" -> TmRemotePlayer(ctx)
+                            "rc_epg" -> TmRemoteEpg(ctx)
                             "look_groups" -> TmLookGroups(ctx) { stack.add(SP.Lang) }
                             "look_vod", "misc_vod" -> ViewPage(ctx)
                             "look_menu" -> MenuPage(ctx)
@@ -2136,6 +2137,7 @@ private fun TmSteps(ctx: Context) {
 /** Fernbedienung (TiviMate): Tastenbelegung im Player und Spuloptionen. */
 @Composable
 private fun TmRemote(ctx: Context, open: (String, String) -> Unit) {
+    SettingRow("EPG", Lang.tr("Aktion für jede Taste im TV-Guide"), onClick = { open("rc_epg", "EPG") })
     SettingRow("Player", Lang.tr("Aktion für jede Taste und jeden langen Druck"), onClick = { open("rc_player", "Player") })
     PanelSection(Lang.tr("Spuloptionen"))
     ToggleRow("Verwende RW / FF / Pause zum Suchen / Pausieren, während du anschaust", null, Tm.b(Tm.SP_RWFF, true)) { Tm.set(ctx, Tm.SP_RWFF, it) }
@@ -2327,4 +2329,16 @@ private fun primaryCounts(): String {
     PlaylistStore.primaryMovieCount.takeIf { it > 0 }?.let { parts.add(Lang.tr("Filme") + ": " + it) }
     PlaylistStore.primarySeriesCount.takeIf { it > 0 }?.let { parts.add(Lang.tr("Serien") + ": " + it) }
     return parts.joinToString(", ")
+}
+
+/** Fernbedienung > EPG (TiviMate): jede Taste im TV-Guide mit eigener Aktion. */
+@Composable
+private fun TmRemoteEpg(ctx: Context) {
+    val acts = EAct.entries
+    val labels = acts.map { Lang.tr(it.label) }
+    EKey.entries.forEach { k ->
+        val a = GuideKeys.action(k)
+        SelectRow(k.label, Lang.tr(a.label), labels, a.ordinal) { GuideKeys.set(ctx, k, acts[it]) }
+    }
+    SettingRow("Auf Standard zurücksetzen", null, onClick = { GuideKeys.reset(ctx) })
 }

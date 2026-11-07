@@ -364,4 +364,17 @@ Gruppe wählen¦Choose group¦Grup seç¦Odaberi grupu¦Odaberi grupu¦Izaberi g
 Wiedergabe nicht möglich¦Playback not possible¦Oynatılamıyor¦Reprodukcija nije moguća¦Reprodukcija nije moguća¦Reprodukcija nije moguća¦No se puede reproducir¦Lecture impossible¦Riproduzione non possibile
 Hinweis: Die Wiedergabeliste erlaubt nur¦Note: the playlist only allows¦Not: Oynatma listesi yalnızca¦Napomena: lista dozvoljava samo¦Napomena: popis dopušta samo¦Napomena: lista dozvoljava samo¦Aviso: la lista solo permite¦Remarque : la playlist n’autorise que¦Nota: la playlist consente solo
 Verbindungen.¦connections.¦bağlantıya izin veriyor.¦veza.¦veza.¦veza.¦conexiones.¦connexions.¦connessioni.
+Sender ansehen¦Watch channel¦Kanalı izle¦Gledaj kanal¦Gledaj program¦Gledaj kanal¦Ver canal¦Regarder la chaîne¦Guarda canale
+Gehe zurück¦Go back¦Geri dön¦Idi nazad¦Idi natrag¦Idi nazad¦Volver¦Retour¦Indietro
+Zurück zum Player¦Back to player¦Oynatıcıya dön¦Nazad na plejer¦Natrag na player¦Nazad na plejer¦Volver al reproductor¦Retour au lecteur¦Torna al player
+Zeige Gruppen¦Show groups¦Grupları göster¦Prikaži grupe¦Prikaži grupe¦Prikaži grupe¦Mostrar grupos¦Afficher les groupes¦Mostra gruppi
+Zum nächsten Programm scrollen¦Scroll to next program¦Sonraki programa kaydır¦Na sljedeću emisiju¦Na sljedeću emisiju¦Na sledeću emisiju¦Ir al siguiente programa¦Programme suivant¦Vai al programma successivo
+Zum vorherigen Programm scrollen¦Scroll to previous program¦Önceki programa kaydır¦Na prethodnu emisiju¦Na prethodnu emisiju¦Na prethodnu emisiju¦Ir al programa anterior¦Programme précédent¦Vai al programma precedente
+Sender nach oben scrollen¦Scroll channels up¦Kanalları yukarı kaydır¦Kanali stranica gore¦Programi stranica gore¦Kanali stranica gore¦Desplazar canales arriba¦Faire défiler les chaînes vers le haut¦Scorri canali in su
+Sender nach unten scrollen¦Scroll channels down¦Kanalları aşağı kaydır¦Kanali stranica dolje¦Programi stranica dolje¦Kanali stranica dole¦Desplazar canales abajo¦Faire défiler les chaînes vers le bas¦Scorri canali in giù
+Aktion für jede Taste im TV-Guide¦Action for each key in the TV guide¦TV rehberinde her tuş için eylem¦Radnja za svaku tipku u TV vodiču¦Radnja za svaku tipku u TV vodiču¦Radnja za svaki taster u TV vodiču¦Acción para cada tecla en la guía de TV¦Action pour chaque touche dans le guide TV¦Azione per ogni tasto nella guida TV
+Links¦Left¦Sol¦Lijevo¦Lijevo¦Levo¦Izquierda¦Gauche¦Sinistra
+Rücktaste¦Backspace¦Geri tuşu¦Tipka za brisanje¦Tipka za brisanje¦Taster za brisanje¦Retroceso¦Retour arrière¦Backspace
+Info¦Info¦Bilgi¦Info¦Info¦Info¦Info¦Info¦Info
+Guide¦Guide¦Rehber¦Vodič¦Vodič¦Vodič¦Guía¦Guide¦Guida
 """
