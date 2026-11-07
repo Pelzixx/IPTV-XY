@@ -329,6 +329,8 @@ internal fun SelectRow(label: String, value: String, options: List<String>, sele
 /** Ziffernblock für die PIN: Pfeiltasten + OK oder direkt die Zifferntasten der Fernbedienung. */
 @Composable
 internal fun PinPad(title: String, hint: String?, error: String?, onSubmit: (String) -> Unit, onCancel: () -> Unit) {
+    // Kindersicherung > PIN-Eingabe (TiviMate): Zahlenschloss mit 4 Rädern statt Ziffernfeld
+    if (Tm.i(Tm.PC_INPUT, 0) == 1) { PinWheel(title, hint, error, onSubmit, onCancel); return }
     var pin by remember { mutableStateOf("") }
     val start = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { start.requestFocus() } }
@@ -434,6 +436,9 @@ private fun ParentalPage(ctx: Context, onExit: () -> Unit) {
                 PillButton(if (Parental.pinSet) "PIN ändern" else "PIN festlegen", light = !Parental.pinSet) { err = null; step = 2 }
                 if (Parental.pinSet) ConfirmPill("PIN entfernen") { Parental.clearPin(ctx) }
             }
+            val pins = listOf(Lang.tr("Ziffernfeld"), Lang.tr("Zahlenschloss"))
+            val pmi = Tm.i(Tm.PC_INPUT, 0).coerceIn(0, 1)
+            SelectRow("PIN-Eingabe", pins[pmi], pins, pmi) { Tm.set(ctx, Tm.PC_INPUT, it) }
             // TiviMate: wofür die PIN gilt und wie lange ein Entsperren hält
             if (Parental.pinSet) {
                 ToggleRow("PIN für Einstellungen erforderlich", null, Tm.b(Tm.PC_SETTINGS, false)) { Tm.set(ctx, Tm.PC_SETTINGS, it) }
@@ -2385,4 +2390,52 @@ private fun TmRemoteEpg(ctx: Context) {
         SelectRow(k.label, Lang.tr(a.label), labels, a.ordinal) { GuideKeys.set(ctx, k, acts[it]) }
     }
     SettingRow("Auf Standard zurücksetzen", null, onClick = { GuideKeys.reset(ctx) })
+}
+
+/** PIN-Eingabe wie TiviMate: vier Ziffern, Hoch/Runter ändert, Links/Rechts wechselt die Stelle, OK bestätigt; Zifferntasten gehen auch. */
+@Composable
+private fun PinWheel(title: String, hint: String?, error: String?, onSubmit: (String) -> Unit, onCancel: () -> Unit) {
+    val digits = remember { mutableStateListOf(0, 0, 0, 0) }
+    var pos by remember { mutableIntStateOf(0) }
+    val fr = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { fr.requestFocus() } }
+    BackHandler { onCancel() }
+    Column(
+        Modifier.focusRequester(fr).focusable().onPreviewKeyEvent { e ->
+            val ne = e.nativeKeyEvent
+            if (ne.action != android.view.KeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
+            val kc = ne.keyCode
+            when {
+                kc == android.view.KeyEvent.KEYCODE_DPAD_UP -> { digits[pos] = (digits[pos] + 1) % 10; true }
+                kc == android.view.KeyEvent.KEYCODE_DPAD_DOWN -> { digits[pos] = (digits[pos] + 9) % 10; true }
+                kc == android.view.KeyEvent.KEYCODE_DPAD_LEFT -> { pos = (pos - 1).coerceAtLeast(0); true }
+                kc == android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> { pos = (pos + 1).coerceAtMost(3); true }
+                kc == android.view.KeyEvent.KEYCODE_DPAD_CENTER || kc == android.view.KeyEvent.KEYCODE_ENTER -> {
+                    onSubmit(digits.joinToString("")); digits.indices.forEach { digits[it] = 0 }; pos = 0; true
+                }
+                kc in android.view.KeyEvent.KEYCODE_0..android.view.KeyEvent.KEYCODE_9 || kc in android.view.KeyEvent.KEYCODE_NUMPAD_0..android.view.KeyEvent.KEYCODE_NUMPAD_9 -> {
+                    val d = if (kc <= android.view.KeyEvent.KEYCODE_9) kc - android.view.KeyEvent.KEYCODE_0 else kc - android.view.KeyEvent.KEYCODE_NUMPAD_0
+                    digits[pos] = d
+                    if (pos == 3) { onSubmit(digits.joinToString("")); digits.indices.forEach { digits[it] = 0 }; pos = 0 } else pos++
+                    true
+                }
+                else -> false
+            }
+        }.clip(RoundedCornerShape(DS.RadiusL)).background(Surf).padding(horizontal = 40.dp, vertical = 28.dp),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Text(title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        if (hint != null) Hint(hint)
+        Row(horizontalArrangement = Arrangement.spacedBy(26.dp), verticalAlignment = Alignment.CenterVertically) {
+            digits.forEachIndexed { i, d ->
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(raw = true, text = if (i == pos) ((d + 1) % 10).toString() else " ", color = Muted, fontSize = 20.sp)
+                    Text(raw = true, text = d.toString(), color = if (i == pos) Color.White else Muted, fontSize = 40.sp,
+                        fontWeight = if (i == pos) FontWeight.Bold else FontWeight.Normal)
+                    Text(raw = true, text = if (i == pos) ((d + 9) % 10).toString() else " ", color = Muted, fontSize = 20.sp)
+                }
+            }
+        }
+        if (error != null) Text(error, color = DS.Danger, fontSize = 15.sp)
+    }
 }

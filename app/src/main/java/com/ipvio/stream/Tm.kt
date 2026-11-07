@@ -97,6 +97,7 @@ object Tm {
     const val PL_SORT = "pl_sort"                 // Playlist Sortierung: 0 Manuell, 1 Name
     const val PC_SETTINGS = "pc_settings"         // PIN für Einstellungen erforderlich
     const val PC_UNLOCK = "pc_unlock"             // Entsperrt bleibt: 0 App-Start, 1 10 min, 2 30 min, 3 1 h, 4 2 h, 5 bis Wechsel
+    const val PC_INPUT = "pc_input"               // PIN-Eingabe: 0 Ziffernfeld, 1 Zahlenschloss (TiviMate)
 
     // ---------------------------------------------------------------- Fernbedienung > Spuloptionen
     const val SP_RWFF = "sp_rwff"                  // RW/FF/Pause zum Suchen/Pausieren während des Anschauens

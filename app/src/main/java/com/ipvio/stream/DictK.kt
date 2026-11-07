@@ -398,6 +398,12 @@ Daten wiederherstellen¦Restore data¦Verileri geri yükle¦Vrati podatke¦Vrati
 Auf diesem Gerät gibt es keine Dateiauswahl.¦There is no file picker on this device.¦Bu cihazda dosya seçici yok.¦Na ovom uređaju nema birača datoteka.¦Na ovom uređaju nema birača datoteka.¦Na ovom uređaju nema birača datoteka.¦No hay selector de archivos en este dispositivo.¦Aucun sélecteur de fichiers sur cet appareil.¦Nessun selettore di file su questo dispositivo.
 Datei¦File¦Dosya¦Datoteka¦Datoteka¦Datoteka¦Archivo¦Fichier¦File
 Datei wird gelesen …¦Reading file …¦Dosya okunuyor …¦Čita se datoteka …¦Čita se datoteka …¦Čita se datoteka …¦Leyendo archivo …¦Lecture du fichier …¦Lettura del file …
+System-Dateiauswahl öffnen …¦Open system file picker …¦Sistem dosya seçicisini aç …¦Otvori sistemski birač datoteka …¦Otvori sustavni birač datoteka …¦Otvori sistemski birač datoteka …¦Abrir selector del sistema …¦Ouvrir le sélecteur du système …¦Apri selettore di sistema …
+Keine M3U-Datei gefunden. Kopiere sie in:¦No M3U file found. Copy it to:¦M3U dosyası bulunamadı. Şuraya kopyalayın:¦Nije pronađena M3U datoteka. Kopiraj je u:¦Nije pronađena M3U datoteka. Kopiraj je u:¦Nije pronađena M3U datoteka. Kopiraj je u:¦No se encontró ningún archivo M3U. Cópialo en:¦Aucun fichier M3U trouvé. Copiez-le dans :¦Nessun file M3U trovato. Copialo in:
+M3U-Datei wählen¦Choose M3U file¦M3U dosyası seç¦Odaberi M3U datoteku¦Odaberi M3U datoteku¦Izaberi M3U datoteku¦Elegir archivo M3U¦Choisir un fichier M3U¦Scegli file M3U
+PIN-Eingabe¦PIN entry¦PIN girişi¦Unos PIN-a¦Unos PIN-a¦Unos PIN-a¦Introducir PIN¦Saisie du code PIN¦Inserimento PIN
+Ziffernfeld¦Number pad¦Sayı tuş takımı¦Numerička tipkovnica¦Numerička tipkovnica¦Numerička tastatura¦Teclado numérico¦Pavé numérique¦Tastierino numerico
+Zahlenschloss¦Combination lock¦Şifreli kilit¦Brava s brojevima¦Brava s brojevima¦Brava sa brojevima¦Candado de combinación¦Cadenas à chiffres¦Lucchetto a combinazione
 Info¦Info¦Bilgi¦Info¦Info¦Info¦Info¦Info¦Info
 Guide¦Guide¦Rehber¦Vodič¦Vodič¦Vodič¦Guía¦Guide¦Guida
 """
