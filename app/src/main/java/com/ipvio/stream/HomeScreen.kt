@@ -413,7 +413,9 @@ fun HomeScreen(
         if (bbTab && bbA > 0.01f) bbItem?.let { bi ->
             BillboardInfo(bi, Modifier.padding(start = DS.SidebarW + dpx(56), top = dpx(64)).graphicsLayer { alpha = bbA; translationY = (1f - bbA) * 20.dp.toPx() })
         }
-        BoxWithConstraints(Modifier.fillMaxSize().padding(start = DS.SidebarW)) {
+        // TiviMate: TV-Guide ohne Symbolleiste (volle Breite); sie kommt mit den Gruppen oder wenn das Menü den Fokus hat
+        val railHidden = tab == 3 && !inSidebar && !LiveUi.groupsOpen
+        BoxWithConstraints(Modifier.fillMaxSize().padding(start = if (railHidden) 0.dp else DS.SidebarW)) {
             // Kartenbreiten und Höhe des großen Bildes aus dem verfügbaren Platz (wie im Entwurf: alles auf einen Blick)
             val grid = remember(maxWidth, Design.k, General.cardSize) { cardGrid(maxWidth - RowPadX * 2) }
             // Entwurf: großes Bild 420 px hoch (Start), 345 px (Filme/Serien)
@@ -602,7 +604,7 @@ fun HomeScreen(
             tab,
             // Runde 20: „Einstellungen“ öffnet die Leiste rechts über dem aktuellen Bildschirm (statt eines eigenen Bereichs)
             { id -> if (id == MenuLogic.SETTINGS) SettingsOpen.value = true else { scope.launch { states.getOrNull(id)?.scrollToItem(0) }; onTab(id) } },
-            Modifier.align(Alignment.CenterStart), sideFocus
+            Modifier.align(Alignment.CenterStart).graphicsLayer { alpha = if (tab == 3 && !inSidebar && !LiveUi.groupsOpen) 0f else 1f }, sideFocus
         ) { inSidebar = it }
         if (SettingsOpen.value) {
             Box(Modifier.fillMaxSize().background(Color(0x99000000)))

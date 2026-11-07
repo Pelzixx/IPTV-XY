@@ -2,6 +2,7 @@ package com.ipvio.stream
 
 import android.content.Context
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -123,34 +124,36 @@ fun LivePreview(p: LivePreviewPlayer, ch: Item?, modifier: Modifier = Modifier, 
 /** Oben links in Live TV: Sender, laufende Sendung mit Zeit und Fortschritt, Beschreibung und was danach kommt. */
 @Composable
 fun LiveInfo(ch: Item?, modifier: Modifier = Modifier) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    // TiviMate: Titel (mit Stern bei Favoriten), darunter Zeit · Balken · Restminuten und rechts „Wiedergabeliste • Gruppe“,
+    // dann die Beschreibung über mehrere Zeilen
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (ch == null) return@Column
         @Suppress("UNUSED_VARIABLE") val editVersion = ChannelEdit.version
         val epg by produceState(emptyList<EpgEntry>(), ch.id) { value = Epg.now(ch) }
         val nowE = Epg.current(epg)
-        val next = if (nowE != null) epg.firstOrNull { it.start >= nowE.end } else epg.firstOrNull()
-        Text(raw = true, text = nowE?.title ?: ChannelEdit.title(ch), color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.SemiBold,
-            maxLines = 1, overflow = TextOverflow.Ellipsis)
-        if (nowE != null) {
-            val nowS = System.currentTimeMillis() / 1000
-            val frac = ((nowS - nowE.start).toFloat() / (nowE.end - nowE.start).coerceAtLeast(1)).coerceIn(0f, 1f)
-            val leftMin = ((nowE.end - nowS) / 60).coerceAtLeast(0)
-            // Zeit, Fortschritt und Restzeit in einer Zeile: „21:45 — 22:20  ▬▬──  27 Min“
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        val plName = PlaylistStore.lists.getOrNull(PlaylistStore.active)?.name
+        val where = listOfNotNull(plName, ch.group.takeIf { it.isNotBlank() }).joinToString("  •  ")
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(raw = true, text = nowE?.title ?: ChannelEdit.title(ch), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold,
+                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            AppIcon(if (Library.isFav(ch.id)) AIcon.Star else AIcon.StarOutline, if (Library.isFav(ch.id)) DS.Gold else Tok.TextMid, size = 22.dp)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            if (nowE != null) {
+                val nowS = System.currentTimeMillis() / 1000
+                val frac = ((nowS - nowE.start).toFloat() / (nowE.end - nowE.start).coerceAtLeast(1)).coerceIn(0f, 1f)
+                val leftMin = ((nowE.end - nowS) / 60).coerceAtLeast(0)
                 Text(raw = true, text = hhmm(nowE.start) + " — " + hhmm(nowE.end), color = Tok.TextMid, fontSize = 17.sp)
-                Box(Modifier.size(width = 64.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(DS.Overlay3)) {
+                Box(Modifier.size(width = 48.dp, height = 3.dp).clip(RoundedCornerShape(2.dp)).background(DS.Overlay3)) {
                     Box(Modifier.fillMaxWidth(frac).fillMaxHeight().background(Color.White))
                 }
                 Text(raw = true, text = "$leftMin Min", color = Tok.TextMid, fontSize = 17.sp)
-            }
-            nowE.desc.takeIf { it.isNotBlank() }?.let {
-                Text(raw = true, text = it, color = Tok.TextLow, fontSize = 16.sp, lineHeight = 21.sp, maxLines = 4, overflow = TextOverflow.Ellipsis)
-            }
-        } else if (epg.isEmpty()) Text("Für diesen Sender gibt es kein Programm.", color = Muted, fontSize = 14.sp)
-        Text(raw = true, text = ChannelEdit.title(ch), color = Muted, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        if (next != null) Row(Modifier.fillMaxWidth().height(22.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Danach", color = Accent2, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-            Text(raw = true, text = hhmm(next.start) + "  " + next.title, color = Tok.TextMid, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            } else Text(raw = true, text = ChannelEdit.title(ch), color = Tok.TextMid, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.weight(1f))
+            Text(raw = true, text = where, color = Color.White, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
+        val desc = nowE?.desc?.takeIf { it.isNotBlank() }
+        if (desc != null) Text(raw = true, text = desc, color = Tok.TextMid, fontSize = 17.sp, lineHeight = 20.sp, maxLines = 6, overflow = TextOverflow.Ellipsis)
+        else if (epg.isEmpty()) Text("Für diesen Sender gibt es kein Programm.", color = Muted, fontSize = 17.sp)
     }
 }

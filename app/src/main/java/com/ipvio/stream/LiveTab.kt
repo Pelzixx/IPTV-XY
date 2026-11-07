@@ -111,12 +111,17 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     )
     LaunchedEffect(catFocusReq) {
         if (catFocusReq == 0) return@LaunchedEffect
+        // Gewählte Gruppe erst in den sichtbaren Bereich holen, sonst gibt es sie in der Liste noch nicht (kein Fokus möglich)
+        val si = names.indexOf(sel)
+        if (si >= 0) runCatching { catState.scrollToItem(maxOf(si - 3, 0)) }
         repeat(10) {
             kotlinx.coroutines.delay(40)
             if (runCatching { catSelReq.requestFocus() }.isSuccess) return@LaunchedEffect
         }
     }
     SideEffect { ContentFocus.tab = 3 }
+    SideEffect { LiveUi.groupsOpen = catOpen }
+    DisposableEffect(Unit) { onDispose { LiveUi.groupsOpen = false } }
     // Auswahl zeigt auf eine gelöschte Liste: zurück zu „Alle Sender“
     LaunchedEffect(sel, myLists.size) { if (ChannelListLogic.idOfKey(sel) != null && curList == null) sel = "ALL" }
 
@@ -153,7 +158,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
         Row(Modifier.fillMaxWidth().weight(1f)) {
             // Links: Kategorien und Listen
             LazyColumn(
-                Modifier.width(catW).fillMaxHeight().padding(end = if (catW > 0.dp) 16.dp else 0.dp)
+                Modifier.width(catW).fillMaxHeight().padding(end = if (catW > 0.dp) 16.dp else 0.dp).background(Color(0xFF1E2125))
                     .onFocusChanged { if (it.hasFocus) catOpen = true },
                 state = catState, verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
@@ -373,8 +378,6 @@ private fun ChannelLine(
     // TV-Stil: markierte Zeile mit hellem Rahmen um Sender und Programm, Sendername in der Hervorhebungsfarbe
     Row(
         modifier.fillMaxWidth().height(46.dp)
-            .border(2.dp, if (f) TvFocusFill else Color.Transparent, RoundedCornerShape(DS.RadiusXs))
-            .padding(2.dp)
             .onFocusChanged { f = it.isFocused; if (it.isFocused) onFocus() }
             .onPreviewKeyEvent { e ->
                 // Links: Gruppenliste aufklappen
@@ -403,9 +406,9 @@ private fun ChannelLine(
             val shownE = epg.filter { it.end > ws && it.start < ws + SPAN }
             if (shownE.isEmpty()) {
                 // Kein Programm: eine Fläche mit dem Sendernamen über die ganze Breite
-                Box(Modifier.fillMaxSize().padding(start = 3.dp).clip(cell).background(TvCell).padding(horizontal = 14.dp),
+                Box(Modifier.fillMaxSize().padding(start = 3.dp).clip(cell).background(if (f) TvFocusFill else TvCell).padding(horizontal = 14.dp),
                     contentAlignment = Alignment.CenterStart) {
-                    Text(raw = true, text = ChannelEdit.title(item), color = Muted, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(raw = true, text = ChannelEdit.title(item), color = if (f) DS.FocusInk else Tok.TextMid, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             } else shownE.forEach { e ->
                 val a = ((maxOf(e.start, ws) - ws).toFloat() / SPAN).coerceIn(0f, 1f)
@@ -419,7 +422,7 @@ private fun ChannelLine(
                         .padding(horizontal = 14.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
-                    Text(raw = true, text = e.title, color = if (lit) DS.FocusInk else if (running) Color.White else Tok.TextMid, fontSize = 16.sp,
+                    Text(raw = true, text = e.title, color = if (lit) DS.FocusInk else Color(0xFFD0D3D8), fontSize = 17.sp,
                         maxLines = 1, overflow = TextOverflow.Clip)
                 }
             }
@@ -516,4 +519,9 @@ fun ReminderCard(r: Reminder, modifier: Modifier, onClose: () -> Unit, onSwitch:
         PillButton("Umschalten", Modifier.focusRequester(fr), light = true) { onSwitch() }
         PillButton("Schließen") { onClose() }
     }
+}
+
+/** TiviMate: Im TV-Guide ist die Symbolleiste links ausgeblendet; sie erscheint erst zusammen mit den Gruppen („Links“). */
+object LiveUi {
+    var groupsOpen by mutableStateOf(false)
 }
