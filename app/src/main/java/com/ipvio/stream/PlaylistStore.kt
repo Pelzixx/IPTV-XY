@@ -852,6 +852,13 @@ object PlaylistStore {
     private val bgScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.Main)
     fun loadExtrasInBackground(c: Context) { bgScope.launch { runCatching { loadExtras(c) } } }
 
+    /** Stand je weiterer Wiedergabeliste für die Einstellungen: „Kanäle: N“ oder der Grund, warum sie nicht geladen ist. */
+    var extraStatus by mutableStateOf<Map<String, String>>(emptyMap())
+        private set
+    @Volatile private var lastBgError: String? = null
+    /** Anzahl TV-Sender der aktiven (ersten) Wiedergabeliste. */
+    val primaryLiveCount: Int get() = rawChannels.count { it.kind == Kind.LIVE }
+
     suspend fun loadExtras(c: Context) {
         ensure(c)
         val others = lists.filterIndexed { i, l -> i != active && l.on }
@@ -863,14 +870,22 @@ object PlaylistStore {
             val items = ArrayList<Item>()
             val epg = ArrayList<String>()
             val per = ArrayList<Pair<String, List<Item>>>()
+            val st = HashMap<String, String>()
             for (l in others) {
                 val u = PlaylistLogic.normalizeUrl(l.url) ?: continue
+                lastBgError = null
                 var cached = runCatching { readCache(c, u, LangFilter.hidden) }.getOrNull()
                 if (cached == null || cached.counts.isEmpty()) {
-                    refreshCacheOnly(c, u)
+                    st[l.name] = "Wird geladen …"; extraStatus = st.toMap()
+                    val ok = refreshCacheOnly(c, u)
                     cached = runCatching { readCache(c, u, LangFilter.hidden) }.getOrNull()
+                    if (cached == null) lastBgError = lastBgError ?: if (ok) "Zwischenspeicher nicht lesbar" else "Laden fehlgeschlagen"
                 }
-                if (cached != null) { items.addAll(cached.items); epg.addAll(cached.epg); per.add(l.name to cached.items) }
+                if (cached != null) {
+                    items.addAll(cached.items); epg.addAll(cached.epg); per.add(l.name to cached.items)
+                    st[l.name] = "Kanäle: " + cached.items.count { it.kind == Kind.LIVE } + if (cached.items.isEmpty()) " (" + cached.counts.values.sum() + " ausgeblendet)" else ""
+                } else st[l.name] = "Nicht geladen: " + (lastBgError ?: "unbekannt")
+                extraStatus = st.toMap()
             }
             Triple(items, epg, per)
         }
@@ -951,6 +966,7 @@ object PlaylistStore {
     suspend fun refreshCacheOnly(c: Context, url: String): Boolean {
         ensure(c)
         val u = PlaylistLogic.normalizeUrl(url) ?: return false
+        if (!loadLock.isLocked) Unit else lastBgError = "Gerade beschäftigt, bitte später erneut"
         if (!loadLock.tryLock()) return false
         try {
             job = currentCoroutineContext()[Job]
@@ -967,6 +983,7 @@ object PlaylistStore {
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
+                    lastBgError = e.message ?: e.javaClass.simpleName
                     dropRaw(c, u)
                     false
                 } catch (e: OutOfMemoryError) {

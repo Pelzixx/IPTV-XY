@@ -1274,7 +1274,10 @@ private fun PlaylistPage(ctx: Context, onAdd: () -> Unit, reload: () -> Unit, on
     // Übersicht wie in TV-Playern: Haken = aktive Liste, darunter Kanäle bzw. Art; OK öffnet ihre Seite
     PlaylistStore.lists.forEachIndexed { i, pl ->
         val active = i == PlaylistStore.active
-        val info = if (active && PlaylistStore.channels.isNotEmpty()) Lang.tr("Kanäle") + ": " + PlaylistStore.channels.count { it.kind == Kind.LIVE }
+        // TiviMate: bei jeder Liste ihre eigene Senderzahl (bzw. warum eine zugeschaltete Liste nicht geladen ist)
+        val info = if (active && PlaylistStore.primaryLiveCount > 0) Lang.tr("Kanäle") + ": " + PlaylistStore.primaryLiveCount
+            else if (!active && pl.on) PlaylistStore.extraStatus[pl.name]?.let { s -> if (s.startsWith("Kanäle: ")) Lang.tr("Kanäle") + ": " + s.removePrefix("Kanäle: ") else s }
+                ?: Lang.tr("Wird geladen …")
             else if (LoadLogic.xtreamParts(pl.url) != null) "Xtream Codes" else "M3U"
         // Haken links wie in TV-Playern (aktive Liste); sonst gleicher Einzug
         SettingRow(pl.name, info, rawTitle = true, rawValue = true, onClick = { onOpen(i) }, leading = { f ->
