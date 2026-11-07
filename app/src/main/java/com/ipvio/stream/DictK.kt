@@ -34,4 +34,24 @@ Wird immer zuletzt gelesen und füllt Lücken¦Always read last and fills gaps¦
 Wiedergabeliste hinzufügen¦Add playlist¦Çalma listesi ekle¦Dodaj plejlistu¦Dodaj popis¦Dodaj plejlistu¦Añadir lista¦Ajouter une playlist¦Aggiungi playlist
 Xtream Codes, M3U-Link oder vom Handy¦Xtream Codes, M3U link or from phone¦Xtream Codes, M3U bağlantısı veya telefondan¦Xtream Codes, M3U link ili s telefona¦Xtream Codes, M3U poveznica ili s mobitela¦Xtream Codes, M3U link ili sa telefona¦Xtream Codes, enlace M3U o desde el móvil¦Xtream Codes, lien M3U ou depuis le téléphone¦Xtream Codes, link M3U o dal telefono
 Name der Wiedergabeliste¦Playlist name¦Çalma listesi adı¦Naziv plejliste¦Naziv popisa¦Naziv plejliste¦Nombre de la lista¦Nom de la playlist¦Nome della playlist
+Diese Wiedergabeliste wird angezeigt¦This playlist is shown¦Bu çalma listesi gösteriliyor¦Ova plejlista se prikazuje¦Ovaj popis se prikazuje¦Ova plejlista se prikazuje¦Esta lista se muestra¦Cette playlist est affichée¦Questa playlist è mostrata
+Playlist Name¦Playlist name¦Çalma listesi adı¦Naziv plejliste¦Naziv popisa¦Naziv plejliste¦Nombre de la lista¦Nom de la playlist¦Nome playlist
+Xtream Codes Parameter¦Xtream Codes parameters¦Xtream Codes parametreleri¦Xtream Codes parametri¦Xtream Codes parametri¦Xtream Codes parametri¦Parámetros de Xtream Codes¦Paramètres Xtream Codes¦Parametri Xtream Codes
+Playlist URL¦Playlist URL¦Çalma listesi URL’si¦URL plejliste¦URL popisa¦URL plejliste¦URL de la lista¦URL de la playlist¦URL playlist
+EPG Quellen¦EPG sources¦EPG kaynakları¦EPG izvori¦EPG izvori¦EPG izvori¦Fuentes EPG¦Sources EPG¦Fonti EPG
+Quellen¦sources¦kaynak¦izvora¦izvora¦izvora¦fuentes¦sources¦fonti
+Update-Optionen¦Update options¦Güncelleme seçenekleri¦Opcije ažuriranja¦Opcije ažuriranja¦Opcije ažuriranja¦Opciones de actualización¦Options de mise à jour¦Opzioni di aggiornamento
+Aktualisieren¦Update¦Güncelle¦Ažuriraj¦Ažuriraj¦Ažuriraj¦Actualizar¦Mettre à jour¦Aggiorna
+Server Adresse¦Server address¦Sunucu adresi¦Adresa servera¦Adresa poslužitelja¦Adresa servera¦Dirección del servidor¦Adresse du serveur¦Indirizzo server
+Ablaufdatum¦Expiry date¦Bitiş tarihi¦Datum isteka¦Datum isteka¦Datum isteka¦Fecha de caducidad¦Date d’expiration¦Data di scadenza
+Quelle hinzufügen¦Add source¦Kaynak ekle¦Dodaj izvor¦Dodaj izvor¦Dodaj izvor¦Añadir fuente¦Ajouter une source¦Aggiungi fonte
+Zugewiesene Quellen¦Assigned sources¦Atanmış kaynaklar¦Dodijeljeni izvori¦Dodijeljeni izvori¦Dodeljeni izvori¦Fuentes asignadas¦Sources attribuées¦Fonti assegnate
+Priorität erhöhen¦Raise priority¦Önceliği artır¦Povećaj prioritet¦Povećaj prioritet¦Povećaj prioritet¦Subir prioridad¦Augmenter la priorité¦Aumenta priorità
+Priorität senken¦Lower priority¦Önceliği düşür¦Smanji prioritet¦Smanji prioritet¦Smanji prioritet¦Bajar prioridad¦Baisser la priorité¦Riduci priorità
+Aktualisiere alle Wiedergabelisten¦Update all playlists¦Tüm çalma listelerini güncelle¦Ažuriraj sve plejliste¦Ažuriraj sve popise¦Ažuriraj sve plejliste¦Actualizar todas las listas¦Mettre à jour toutes les playlists¦Aggiorna tutte le playlist
+Kanäle¦Channels¦Kanallar¦Kanali¦Kanali¦Kanali¦Canales¦Chaînes¦Canali
+Optik¦Appearance¦Görünüm¦Izgled¦Izgled¦Izgled¦Apariencia¦Apparence¦Aspetto
+Sonstiges¦Other¦Diğer¦Ostalo¦Ostalo¦Ostalo¦Otros¦Autres¦Altro
+Über¦About¦Hakkında¦O aplikaciji¦O aplikaciji¦O aplikaciji¦Acerca de¦À propos¦Informazioni
+Ausgeblendete Sprachen werden gar nicht erst geladen¦Hidden languages are not loaded at all¦Gizlenen diller hiç yüklenmez¦Skriveni jezici se uopće ne učitavaju¦Skriveni jezici se uopće ne učitavaju¦Skriveni jezici se uopšte ne učitavaju¦Los idiomas ocultos no se cargan¦Les langues masquées ne sont pas chargées¦Le lingue nascoste non vengono caricate
 """

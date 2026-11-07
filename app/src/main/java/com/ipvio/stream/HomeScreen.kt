@@ -250,7 +250,7 @@ fun HomeScreen(
             onReminder = { r -> byId[r.chId]?.let(onOpen) },
             onNewEpisode = { id -> byId[id]?.let(onOpen) },
             // Nur ein Profil: direkt zur Profil-Seite der Einstellungen (vorher: Einstellungen allgemein)
-            onProfile = { if (Profiles.list.size > 1) picker = true else { SettingsNav.openPage = SettingsNav.PROFILES; onTab(MenuLogic.SETTINGS) } },
+            onProfile = { if (Profiles.list.size > 1) picker = true else SettingsOpen.value = true },
             tabs = navTabs,
             showView = tab in 0..2 || tab == MenuLogic.FAVS || tab == MenuLogic.MYLIST || tab == MenuLogic.VERLAUF,
             // Ohne großes Bild (noch keine Titelbilder): der erste Reiter ist das Ziel aus der Seitenleiste
@@ -600,9 +600,14 @@ fun HomeScreen(
         }
         Sidebar(
             tab,
-            { id -> scope.launch { states.getOrNull(id)?.scrollToItem(0) }; onTab(id) },
+            // Runde 20: „Einstellungen“ öffnet die Leiste rechts über dem aktuellen Bildschirm (statt eines eigenen Bereichs)
+            { id -> if (id == MenuLogic.SETTINGS) SettingsOpen.value = true else { scope.launch { states.getOrNull(id)?.scrollToItem(0) }; onTab(id) } },
             Modifier.align(Alignment.CenterStart), sideFocus
         ) { inSidebar = it }
+        if (SettingsOpen.value) {
+            Box(Modifier.fillMaxSize().background(Color(0x99000000)))
+            SettingsPanel(onAdd, reload) { SettingsOpen.value = false; runCatching { sideFocus.requestFocus() } }
+        }
     }
 }
 

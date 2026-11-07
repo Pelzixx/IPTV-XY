@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -208,12 +209,13 @@ private fun SettingsBack(modifier: Modifier, onClick: () -> Unit) {
 
 @Composable
 internal fun Hint(text: String) {
-    Text(text, color = Muted, fontSize = DS.TextSmall, lineHeight = 20.sp, modifier = Modifier.widthIn(max = 680.dp))
+    Text(text, color = Muted, fontSize = 11.sp, lineHeight = 15.sp, modifier = Modifier.widthIn(max = 680.dp).padding(horizontal = 20.dp))
 }
 
 @Composable
 internal fun SectionTitle(text: String) {
-    Text(text, color = Color.White, fontSize = spx(22), fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+    // Runde 20: Abschnittsüberschrift wie in TV-Playern – klein und blau
+    Text(text, color = Accent2, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 2.dp))
 }
 
 /** Auswahl-Chip mit optionalen Farbpunkten. Der gewählte Eintrag trägt einen Haken und einen hellen Rand. */
@@ -277,21 +279,22 @@ internal fun ToggleRow(title: String, desc: String?, checked: Boolean, onChange:
 @Composable
 internal fun SettingRow(
     title: String, value: String? = null, modifier: Modifier = Modifier, rawValue: Boolean = false, rawTitle: Boolean = false,
-    onClick: () -> Unit, trailing: (@Composable (Boolean) -> Unit)? = null
+    onClick: () -> Unit, leading: (@Composable (Boolean) -> Unit)? = null, trailing: (@Composable (Boolean) -> Unit)? = null
 ) {
     var f by remember { mutableStateOf(false) }
     Row(
-        modifier.fillMaxWidth().widthIn(max = 900.dp).heightIn(min = 64.dp).clip(RoundedCornerShape(DS.RadiusS))
+        modifier.fillMaxWidth().widthIn(max = 900.dp).heightIn(min = 46.dp).clip(RoundedCornerShape(DS.RadiusS))
             .background(if (f) TvFocusFill else Color.Transparent)
             .onFocusChanged { f = it.isFocused }
             .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 10.dp),
+            .padding(horizontal = 20.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        leading?.invoke(f)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, color = if (f) DS.FocusInk else Color.White, fontSize = 19.sp, raw = rawTitle, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            if (!value.isNullOrEmpty()) Text(value, color = if (f) DS.FocusInk.copy(alpha = .65f) else Tok.TextLow, fontSize = 15.sp,
-                lineHeight = 19.sp, raw = rawValue, maxLines = 3, overflow = TextOverflow.Ellipsis)
+            Text(title, color = if (f) DS.FocusInk else Color.White, fontSize = 15.sp, raw = rawTitle, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (!value.isNullOrEmpty()) Text(value, color = if (f) DS.FocusInk.copy(alpha = .65f) else Tok.TextLow, fontSize = 11.sp,
+                lineHeight = 14.sp, raw = rawValue, maxLines = 3, overflow = TextOverflow.Ellipsis)
         }
         trailing?.invoke(f)
     }
@@ -819,7 +822,7 @@ private fun DiagPage(ctx: Context, reload: () -> Unit) {
 private fun AudioPage(ctx: Context) {
     TrackSettingsSection(ctx)
     // Runde 14: Untertitel-Stil mit Live-Vorschau. Markieren zeigt die Wirkung sofort im Bild oben, OK übernimmt.
-    Text("Untertitel-Stil", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+    SectionTitle("Untertitel-Stil")
     var pSize by remember { mutableStateOf<Int?>(null) }
     var pColor by remember { mutableStateOf<Int?>(null) }
     var pBg by remember { mutableStateOf<Int?>(null) }
@@ -984,7 +987,7 @@ private fun LivePage(ctx: Context) {
         value = withContext(Dispatchers.Default) { val live = all.filter { it.kind == Kind.LIVE }; live.size to live.count { Epg.supported(it) } }
     }
     val xtream = counts.second
-    Text("TV-Programm (EPG)", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+    SectionTitle("TV-Programm (EPG)")
     Text("Programm bei $xtream von ${counts.first} Sendern möglich", color = Muted, fontSize = 15.sp)
     Text("XMLTV: ${Xmltv.status}", color = Accent2, fontSize = 15.sp)
     ToggleRow("Vorschau in Live TV", "Spielt den markierten Sender oben rechts klein ab (ohne Ton). Ausschalten, wenn dein Anbieter nur eine Verbindung erlaubt oder die Box langsam ist.", AppSettings.livePreview) {
@@ -1048,143 +1051,175 @@ private fun TextAskDialog(title: String, initial: String, hint: String, password
 /** Was gerade abgefragt wird (Texteingabe auf der Seite einer Wiedergabeliste). */
 private class Ask(val title: String, val initial: String, val hint: String, val password: Boolean = false, val onSave: (String) -> Unit)
 
+/** Wiedergabeliste ändern und speichern; neue Adresse lädt die aktive Liste neu, neue EPG-Quellen das TV-Programm. */
+private fun savePlaylist(ctx: Context, scope: kotlinx.coroutines.CoroutineScope, idx: Int, name: String? = null, url: String? = null, epg: String? = null) {
+    val pl = PlaylistStore.lists.getOrNull(idx) ?: return
+    val newEpg = epg ?: pl.epg
+    val urlChanged = PlaylistStore.update(ctx, idx, name ?: pl.name, url ?: pl.url, newEpg)
+    if (urlChanged) scope.launch { PlaylistStore.load(ctx, url ?: pl.url, false) }
+    else if (idx == PlaylistStore.active && newEpg != pl.epg) Xmltv.start(ctx, PlaylistStore.epgUrls, PlaylistStore.channels, force = true)
+}
+
+private fun saveXtream(ctx: Context, scope: kotlinx.coroutines.CoroutineScope, idx: Int, host: String, user: String, pass: String) {
+    val url = PlaylistStore.xtreamUrl(host, user, pass)
+    if (url == null) android.widget.Toast.makeText(ctx, Lang.tr("Angaben unvollständig: Server, Benutzername und Passwort nötig."), android.widget.Toast.LENGTH_SHORT).show()
+    else savePlaylist(ctx, scope, idx, url = url)
+}
+
+/** Blaue Abschnittsüberschrift im Einstellungs-Panel (z. B. „Update-Optionen“). */
+@Composable
+internal fun PanelSection(text: String) {
+    Text(text, color = Accent2, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 2.dp))
+}
+
 /**
- * Seite einer Wiedergabeliste (TV-Aufbau): Name, Zugangsdaten (Xtream: Server, Benutzername, Passwort; M3U: Adresse),
- * EPG-Quellen (beliebig viele, Reihenfolge = Vorrang), als aktiv verwenden, aktualisieren, löschen.
- * Jede Änderung wird sofort gespeichert; neue Zugangsdaten laden die aktive Liste neu.
+ * Seite einer Wiedergabeliste (Aufbau wie in TV-Playern üblich): Aktivieren, Name, Adresse bzw. Xtream Codes Parameter,
+ * EPG Quellen, Update-Optionen (Aktualisieren, Löschen).
  */
 @Composable
-private fun PlaylistDetail(ctx: Context, idx: Int, onClose: () -> Unit, reload: () -> Unit) {
+private fun PlaylistMainPage(ctx: Context, idx: Int, onXtream: () -> Unit, onEpg: () -> Unit, onDeleted: () -> Unit, reload: () -> Unit) {
     val scope = rememberCoroutineScope()
-    val pl = PlaylistStore.lists.getOrNull(idx)
-    if (pl == null) { LaunchedEffect(Unit) { onClose() }; return }
+    val pl = PlaylistStore.lists.getOrNull(idx) ?: return
     val isActive = idx == PlaylistStore.active
-    val parts = remember(pl.url) { LoadLogic.xtreamParts(pl.url) }
+    val xtream = LoadLogic.xtreamParts(pl.url) != null
+    var ask by remember { mutableStateOf<Ask?>(null) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    val epgs = PresetLogic.parseUrls(pl.epg)
+    ToggleRow("Aktivieren", if (isActive) Lang.tr("Diese Wiedergabeliste wird angezeigt") else null, isActive) { on ->
+        if (on && !isActive) { PlaylistStore.activate(ctx, idx); scope.launch { PlaylistStore.load(ctx, pl.url, false) } }
+    }
+    SettingRow("Playlist Name", pl.name, rawValue = true, onClick = { ask = Ask("Playlist Name", pl.name, "Name der Wiedergabeliste") { if (it.isNotEmpty()) savePlaylist(ctx, scope, idx, name = it) } })
+    if (xtream) SettingRow("Xtream Codes Parameter", null, onClick = onXtream)
+    else SettingRow("Playlist URL", pl.url, rawValue = true, onClick = {
+        ask = Ask("Playlist URL", pl.url, "http://…/playlist.m3u") { if (it.startsWith("http", true)) savePlaylist(ctx, scope, idx, url = it) }
+    })
+    SettingRow("EPG Quellen", if (epgs.isEmpty()) Lang.tr("EPG vom Anbieter") else epgs.size.toString() + " " + Lang.tr("Quellen") + " + " + Lang.tr("Anbieter"),
+        rawValue = true, onClick = onEpg)
+    PanelSection(Lang.tr("Update-Optionen"))
+    SettingRow("Aktualisieren", if (isActive) Lang.tr("Sender und TV-Programm neu laden") else null, onClick = {
+        if (isActive) reload() else { PlaylistStore.activate(ctx, idx); scope.launch { PlaylistStore.load(ctx, pl.url, false) } }
+    })
+    SettingRow("Löschen", null, onClick = { confirmDelete = true })
+    if (confirmDelete) SideMenu(
+        listOf(SideSection(pl.name, listOf(
+            SideEntry("Löschen", AIcon.Close) {
+                PlaylistStore.remove(ctx, idx)
+                if (isActive && PlaylistStore.lists.isNotEmpty()) {
+                    val u = PlaylistStore.lists[PlaylistStore.active].url
+                    scope.launch { PlaylistStore.load(ctx, u, false) }
+                }
+                onDeleted()
+            },
+            SideEntry("Abbrechen", AIcon.Left) {}
+        ))),
+        { confirmDelete = false }
+    )
+    ask?.let { a -> TextAskDialog(Lang.tr(a.title), a.initial, a.hint, a.password, onDismiss = { ask = null }) { ask = null; a.onSave(it) } }
+}
+
+/** Xtream Codes Parameter einer Wiedergabeliste: Server Adresse, Benutzername, Passwort, Ablaufdatum. */
+@Composable
+private fun PlaylistXtreamPage(ctx: Context, idx: Int) {
+    val scope = rememberCoroutineScope()
+    val pl = PlaylistStore.lists.getOrNull(idx) ?: return
+    val parts = LoadLogic.xtreamParts(pl.url) ?: return
+    val host = parts.first; val user = parts.second; val pass = parts.third
     val servers = Presets.servers
+    val sel = PresetLogic.indexOf(host, servers)
     var ask by remember { mutableStateOf<Ask?>(null) }
     var serverMenu by remember { mutableStateOf(false) }
-    var epgMenu by remember { mutableIntStateOf(-1) }
-    var confirmDelete by remember { mutableStateOf(false) }
-    var epgMode by remember { mutableStateOf(false) }
+    // Feste XY-Server zeigen ihren Namen statt der Adresse
+    SettingRow("Server Adresse", if (sel >= 0) servers[sel].name else host, rawValue = true, onClick = {
+        if (servers.isNotEmpty()) serverMenu = true
+        else ask = Ask("Server Adresse", host, "http://server.tld:8080") { saveXtream(ctx, scope, idx, it, user, pass) }
+    })
+    SettingRow("Benutzername", user, rawValue = true, onClick = { ask = Ask("Benutzername", user, "Benutzername") { saveXtream(ctx, scope, idx, host, it, pass) } })
+    SettingRow("Passwort", "•".repeat(pass.length.coerceIn(4, 12)), rawValue = true, onClick = {
+        ask = Ask("Passwort", pass, "Passwort", password = true) { saveXtream(ctx, scope, idx, host, user, it) }
+    })
+    // Ablaufdatum vom Server (wie „Mein Zugang“ auf Home)
+    val acc by produceState<AccountInfo?>(null, pl.url) { value = HomeInfo.account(pl.url) }
+    acc?.let { a ->
+        val exp = a.expSec?.let { java.text.SimpleDateFormat("dd.MM.yyyy", java.util.Locale.GERMANY).apply { timeZone = epgZone() }.format(java.util.Date(it * 1000)) }
+        SettingRow("Ablaufdatum", exp ?: Lang.tr("Unbegrenzt"), rawValue = true, onClick = {})
+    }
+    if (serverMenu) SideMenu(
+        listOf(SideSection(Lang.tr("Server Adresse"), servers.mapIndexed { i, s ->
+            SideEntry(s.name, if (i == sel) AIcon.Check else null, raw = true) { saveXtream(ctx, scope, idx, s.url, user, pass) }
+        } + SideEntry("Eigener Server …", if (sel < 0) AIcon.Check else AIcon.Edit) {
+            ask = Ask("Server Adresse", if (sel < 0) host else "", "http://server.tld:8080") { saveXtream(ctx, scope, idx, it, user, pass) }
+        })),
+        { serverMenu = false }
+    )
+    ask?.let { a -> TextAskDialog(Lang.tr(a.title), a.initial, a.hint, a.password, onDismiss = { ask = null }) { ask = null; a.onSave(it) } }
+}
+
+/** EPG Quellen einer Wiedergabeliste: zugewiesene Quellen in Reihenfolge (Vorrang), hinzufügen, verschieben, entfernen. */
+@Composable
+private fun PlaylistEpgPage(ctx: Context, idx: Int) {
+    val scope = rememberCoroutineScope()
+    val pl = PlaylistStore.lists.getOrNull(idx) ?: return
     val epgs = PresetLogic.parseUrls(pl.epg)
-    androidx.activity.compose.BackHandler { if (epgMode) epgMode = false else onClose() }
-
-    fun save(name: String = pl.name, url: String = pl.url, epg: String = pl.epg) {
-        val urlChanged = PlaylistStore.update(ctx, idx, name, url, epg)
-        if (urlChanged) scope.launch { PlaylistStore.load(ctx, url, false) }
-        else if (isActive && epg != pl.epg) Xmltv.start(ctx, PlaylistStore.epgUrls, PlaylistStore.channels, force = true)
-    }
-    fun saveXtream(host: String, user: String, pass: String) {
-        val url = PlaylistStore.xtreamUrl(host, user, pass)
-        if (url == null) android.widget.Toast.makeText(ctx, Lang.tr("Angaben unvollständig: Server, Benutzername und Passwort nötig."), android.widget.Toast.LENGTH_SHORT).show()
-        else save(url = url)
-    }
-
-    Text(raw = true, text = pl.name, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 20.dp))
-    if (!epgMode) {
-        SettingRow("Name", pl.name, rawValue = true, onClick = { ask = Ask("Name", pl.name, "Name der Wiedergabeliste") { if (it.isNotEmpty()) save(name = it) } })
-        if (parts != null) {
-            val host = parts.first; val user = parts.second; val pass = parts.third
-            val sel = PresetLogic.indexOf(host, servers)
-            SettingRow("Server", if (sel >= 0) servers[sel].name else host, rawValue = true, onClick = {
-                if (servers.isNotEmpty()) serverMenu = true
-                else ask = Ask("Server", host, "http://server.tld:8080") { saveXtream(it, user, pass) }
-            })
-            SettingRow("Benutzername", user, rawValue = true, onClick = { ask = Ask("Benutzername", user, "Benutzername") { saveXtream(host, it, pass) } })
-            SettingRow("Passwort", "•".repeat(pass.length.coerceIn(4, 12)), rawValue = true, onClick = {
-                ask = Ask("Passwort", pass, "Passwort", password = true) { saveXtream(host, user, it) }
-            })
-            if (serverMenu) SideMenu(
-                listOf(SideSection(Lang.tr("Server"), servers.mapIndexed { i, s ->
-                    SideEntry(s.name, if (i == sel) AIcon.Check else null, raw = true) { saveXtream(s.url, user, pass) }
-                } + SideEntry("Eigener Server …", if (sel < 0) AIcon.Check else AIcon.Edit) {
-                    ask = Ask("Server", if (sel < 0) host else "", "http://server.tld:8080") { saveXtream(it, user, pass) }
-                })),
-                { serverMenu = false }
-            )
-        } else {
-            SettingRow("Wiedergabelisten-URL", pl.url, rawValue = true, onClick = {
-                ask = Ask("Wiedergabelisten-URL", pl.url, "http://…/playlist.m3u") { if (it.startsWith("http", true)) save(url = it) }
-            })
+    var ask by remember { mutableStateOf<Ask?>(null) }
+    var epgMenu by remember { mutableIntStateOf(-1) }
+    fun saveList(l: List<String>) = savePlaylist(ctx, scope, idx, epg = PresetLogic.joinUrls(l.distinct()))
+    SettingRow("Quelle hinzufügen", null, onClick = {
+        ask = Ask("EPG-Quelle hinzufügen", "", "https://…/epg.xml.gz") { u ->
+            if (u.startsWith("http://", true) || u.startsWith("https://", true)) saveList(epgs + u)
+            else android.widget.Toast.makeText(ctx, Lang.tr("Ungültige Adresse."), android.widget.Toast.LENGTH_SHORT).show()
         }
-        SettingRow("EPG-Quellen",
-            if (epgs.isEmpty()) Lang.tr("EPG vom Anbieter") else epgs.size.toString() + " " + Lang.tr("EPG-Quellen") + " + " + Lang.tr("Anbieter"),
-            rawValue = true, onClick = { epgMode = true })
-        if (!isActive) SettingRow("Als aktive Wiedergabeliste verwenden", null, onClick = {
-            PlaylistStore.activate(ctx, idx)
-            scope.launch { PlaylistStore.load(ctx, pl.url, false) }
-        })
-        SettingRow("Jetzt aktualisieren", if (isActive) Lang.tr("Sender und TV-Programm neu laden") else null, onClick = {
-            if (isActive) reload() else { PlaylistStore.activate(ctx, idx); scope.launch { PlaylistStore.load(ctx, pl.url, false) } }
-        })
-        SettingRow("Wiedergabeliste löschen", null, onClick = { confirmDelete = true })
-        if (confirmDelete) SideMenu(
-            listOf(SideSection(pl.name, listOf(
-                SideEntry("Löschen", AIcon.Close) {
-                    val wasActive = isActive
-                    PlaylistStore.remove(ctx, idx)
-                    onClose()
-                    if (wasActive && PlaylistStore.lists.isNotEmpty()) {
-                        val u = PlaylistStore.lists[PlaylistStore.active].url
-                        scope.launch { PlaylistStore.load(ctx, u, false) }
-                    }
+    })
+    PanelSection(Lang.tr("Zugewiesene Quellen"))
+    epgs.forEachIndexed { i, u ->
+        SettingRow(EpgSources.label(EpgSrc(u, EpgSrc.PL_EPG, null)), u, rawTitle = true, rawValue = true, onClick = { epgMenu = i })
+    }
+    SettingRow("EPG des Anbieters", Lang.tr("Wird immer zuletzt gelesen und füllt Lücken"), onClick = {})
+    epgs.getOrNull(epgMenu)?.let { u ->
+        val i = epgMenu
+        fun move(d: Int) { val m = epgs.toMutableList(); val j = i + d; if (j in m.indices) { m.add(j, m.removeAt(i)); saveList(m) } }
+        SideMenu(
+            listOf(SideSection(u, listOfNotNull(
+                if (i > 0) SideEntry("Priorität erhöhen", AIcon.Up) { move(-1) } else null,
+                if (i < epgs.lastIndex) SideEntry("Priorität senken", AIcon.Down) { move(1) } else null,
+                SideEntry("Bearbeiten", AIcon.Edit) {
+                    ask = Ask("EPG-Quelle", u, "https://…/epg.xml.gz") { n -> if (n.startsWith("http", true)) saveList(epgs.map { if (it == u) n else it }) }
                 },
-                SideEntry("Abbrechen", AIcon.Left) {}
+                SideEntry("Entfernen", AIcon.Close) { saveList(epgs - u) }
             ))),
-            { confirmDelete = false }
+            { epgMenu = -1 }
         )
-    } else {
-        // EPG-Quellen dieser Wiedergabeliste: Reihenfolge = Vorrang; das EPG des Anbieters füllt danach die Lücken
-        Hint("Die Quellen werden in dieser Reihenfolge gelesen: Für jeden Sender zählt die erste Quelle, die ein Programm hat. Das EPG des Anbieters füllt danach die Lücken.")
-        epgs.forEachIndexed { i, u ->
-            SettingRow(EpgSources.label(EpgSrc(u, EpgSrc.PL_EPG, null)), u, rawTitle = true, rawValue = true, onClick = { epgMenu = i })
-        }
-        SettingRow("+ EPG-Quelle hinzufügen", null, onClick = {
-            ask = Ask("EPG-Quelle hinzufügen", "", "https://…/epg.xml.gz") { u ->
-                if (u.startsWith("http://", true) || u.startsWith("https://", true)) save(epg = PresetLogic.joinUrls((epgs + u).distinct()))
-                else android.widget.Toast.makeText(ctx, Lang.tr("Ungültige Adresse."), android.widget.Toast.LENGTH_SHORT).show()
-            }
-        })
-        SettingRow("EPG des Anbieters", Lang.tr("Wird immer zuletzt gelesen und füllt Lücken"), onClick = {})
-        epgs.getOrNull(epgMenu)?.let { u ->
-            val i = epgMenu
-            fun move(d: Int) { val m = epgs.toMutableList(); val j = i + d; if (j in m.indices) { m.add(j, m.removeAt(i)); save(epg = PresetLogic.joinUrls(m)) } }
-            SideMenu(
-                listOf(SideSection(u, listOfNotNull(
-                    if (i > 0) SideEntry("Nach oben", AIcon.Up) { move(-1) } else null,
-                    if (i < epgs.lastIndex) SideEntry("Nach unten", AIcon.Down) { move(1) } else null,
-                    SideEntry("Bearbeiten", AIcon.Edit) {
-                        ask = Ask("EPG-Quelle", u, "https://…/epg.xml.gz") { n ->
-                            if (n.startsWith("http", true)) save(epg = PresetLogic.joinUrls(epgs.map { if (it == u) n else it }.distinct()))
-                        }
-                    },
-                    SideEntry("Entfernen", AIcon.Close) { save(epg = PresetLogic.joinUrls(epgs - u)) }
-                ))),
-                { epgMenu = -1 }
-            )
-        }
     }
     ask?.let { a -> TextAskDialog(Lang.tr(a.title), a.initial, a.hint, a.password, onDismiss = { ask = null }) { ask = null; a.onSave(it) } }
 }
 
 @Composable
-private fun PlaylistPage(ctx: Context, onAdd: () -> Unit, reload: () -> Unit) {
-    var openIdx by remember { mutableIntStateOf(-1) }
+private fun PlaylistPage(ctx: Context, onAdd: () -> Unit, reload: () -> Unit, onOpen: (Int) -> Unit = {}, onLang: () -> Unit = {}, onUpdate: () -> Unit = {}) {
     PlaylistStore.savedUrl(ctx)
-    if (openIdx >= 0) { PlaylistDetail(ctx, openIdx, onClose = { openIdx = -1 }, reload = reload); return }
-    // Übersicht: eine Zeile je Wiedergabeliste (Art, aktiv, EPG-Quellen); OK öffnet ihre Seite
+    // Übersicht wie in TV-Playern: Haken = aktive Liste, darunter Kanäle bzw. Art; OK öffnet ihre Seite
     PlaylistStore.lists.forEachIndexed { i, pl ->
-        val nEpg = PresetLogic.parseUrls(pl.epg).size
-        val info = listOfNotNull(
-            if (LoadLogic.xtreamParts(pl.url) != null) "Xtream Codes" else "M3U",
-            if (i == PlaylistStore.active) Lang.tr("aktiv") else null,
-            if (nEpg == 0) Lang.tr("EPG vom Anbieter") else "$nEpg " + Lang.tr("EPG-Quellen")
-        ).joinToString("  ·  ")
-        SettingRow(pl.name, info, rawTitle = true, rawValue = true, onClick = { openIdx = i })
+        val active = i == PlaylistStore.active
+        val info = if (active && PlaylistStore.channels.isNotEmpty()) Lang.tr("Kanäle") + ": " + PlaylistStore.channels.count { it.kind == Kind.LIVE }
+            else if (LoadLogic.xtreamParts(pl.url) != null) "Xtream Codes" else "M3U"
+        // Haken links wie in TV-Playern (aktive Liste); sonst gleicher Einzug
+        SettingRow(pl.name, info, rawTitle = true, rawValue = true, onClick = { onOpen(i) }, leading = { f ->
+            Box(Modifier.size(26.dp), contentAlignment = Alignment.Center) {
+                if (active) Box(Modifier.size(24.dp).clip(CircleShape).background(if (f) DS.FocusInk else Accent2), contentAlignment = Alignment.Center) {
+                    AppIcon(AIcon.Check, if (f) TvFocusFill else Color.White, size = 16.dp)
+                }
+            }
+        })
     }
-    SettingRow("Wiedergabeliste hinzufügen", Lang.tr("Xtream Codes, M3U-Link oder vom Handy"), onClick = { onAdd() })
-    LanguageFilterSection(ctx)
-    SectionTitle("Automatisch aktualisieren")
+    SettingRow("Hinzufügen", Lang.tr("Xtream Codes, M3U-Link oder vom Handy"), onClick = { onAdd() })
+    SettingRow("Aktualisiere alle Wiedergabelisten", null, onClick = { reload() })
+    // Eigene Funktionen von XY (Sprachfilter, Zeitplan) als eigene Einträge mit Unterseite
+    SettingRow("Sprachen der Inhalte", Lang.tr("Ausgeblendete Sprachen werden gar nicht erst geladen"), onClick = onLang)
+    val modes = listOf("Bei jedem Start", "Alle paar Stunden", "Täglich", "Wöchentlich", "Nur von Hand")
+    SettingRow("Automatisch aktualisieren", Lang.tr(modes[General.refreshMode]), onClick = onUpdate)
+}
+
+/** Zeitplan für das automatische Aktualisieren der Wiedergabelisten. */
+@Composable
+private fun PlaylistUpdatePage(ctx: Context) {
     val modes = listOf("Bei jedem Start", "Alle paar Stunden", "Täglich", "Wöchentlich", "Nur von Hand")
     SelectRow("Playlist aktualisieren", modes[General.refreshMode], modes, General.refreshMode) { General.setPlan(ctx, mode = it) }
     if (General.refreshMode == 1) {
@@ -1210,16 +1245,14 @@ private fun PlaylistPage(ctx: Context, onAdd: () -> Unit, reload: () -> Unit) {
         }
     }
     val nowMs = System.currentTimeMillis()
-    Text(
-        "Zuletzt aktualisiert: " + (if (General.lastRefresh > 0) dayLabel(General.lastRefresh / 1000) + " " + hhmm(General.lastRefresh / 1000) else "noch nie"),
-        color = Muted, fontSize = 14.sp
-    )
+    SettingRow("Zuletzt aktualisiert",
+        if (General.lastRefresh > 0) dayLabel(General.lastRefresh / 1000) + " " + hhmm(General.lastRefresh / 1000) else Lang.tr("noch nie"),
+        rawValue = true, onClick = {})
     SettingsLogic.nextDue(General.plan(), General.lastRefresh, nowMs, General.zone())?.let {
-        Text("Nächste Aktualisierung: " + dayLabel(it / 1000) + " " + hhmm(it / 1000), color = Accent2, fontSize = 14.sp)
+        SettingRow("Nächste Aktualisierung", dayLabel(it / 1000) + " " + hhmm(it / 1000), rawValue = true, onClick = {})
     }
     Hint("„Bei jedem Start“ lädt die Playlist bei jedem Öffnen der App. Die geplanten Varianten laufen auch im Hintergrund, solange das Gerät eingeschaltet und online ist, und holen verpasste Termine beim nächsten Start nach. „Nur von Hand“ nutzt immer den gespeicherten Stand; Neu laden geht jederzeit mit dem Knopf oben. Die Uhrzeit richtet sich nach deiner Zeitzone unter „Sprache & Region“.")
     Hint("Läuft gerade ein Film oder Sender, wartet die Aktualisierung, bis du fertig bist – so ruckelt nichts.")
-    Hint("Zugangsdaten werden nur auf diesem Gerät gespeichert und hier nicht angezeigt. Es ist immer eine Playlist aktiv. Mit „Aktivieren“ wechselst du die Liste.")
 }
 
 @Composable
@@ -1373,3 +1406,133 @@ private fun UpdateSection(ctx: Context) {
     Hint("Sucht nach einer neuen Version von IPTV-XY und installiert sie. Deine Einstellungen und Playlists bleiben erhalten.")
 }
 
+
+// ---------------------------------------------------------------- Einstellungs-Panel (Runde 20)
+
+/** Seiten im Einstellungs-Panel; Zurück nimmt die oberste vom Stapel. */
+private sealed class SP {
+    object Root : SP()
+    class Cat(val i: Int) : SP()
+    class Pl(val idx: Int) : SP()
+    class PlX(val idx: Int) : SP()
+    class PlE(val idx: Int) : SP()
+    object Lang : SP()
+    object Upd : SP()
+}
+
+/** Bereich im Panel mit den Seiten (Index in CATS), die er zeigt. */
+private class PanelCat(val title: String, val pages: List<Int>)
+
+/** Aufbau wie in TV-Playern üblich: Allgemein, Wiedergabelisten, EPG, Optik, Wiedergabe, Kindersicherung, Sonstiges, Über. */
+private val PANEL = listOf(
+    PanelCat("Allgemein", listOf(0, 1)),
+    PanelCat("Wiedergabelisten", listOf(9)),
+    PanelCat("EPG", listOf(8)),
+    PanelCat("Optik", listOf(2, 4)),
+    PanelCat("Wiedergabe", listOf(5, 6)),
+    PanelCat("Kindersicherung", listOf(12)),
+    PanelCat("Sonstiges", listOf(7, 13, 14)),
+    PanelCat("Über", listOf(15))
+)
+
+/** Am rechten Fensterrand, volle Höhe. */
+private val PanelRight = object : androidx.compose.ui.window.PopupPositionProvider {
+    override fun calculatePosition(
+        anchorBounds: androidx.compose.ui.unit.IntRect, windowSize: androidx.compose.ui.unit.IntSize,
+        layoutDirection: androidx.compose.ui.unit.LayoutDirection, popupContentSize: androidx.compose.ui.unit.IntSize
+    ) = androidx.compose.ui.unit.IntOffset(windowSize.width - popupContentSize.width, 0)
+}
+
+/**
+ * Einstellungen als Leiste am rechten Rand über dem aktuellen Bildschirm (wie in TV-Playern üblich): oben ein hellerer Kopf
+ * mit dem Titel, darunter die Einträge; OK öffnet eine Unterseite, Zurück geht eine Ebene hoch bzw. schließt.
+ */
+@Composable
+fun SettingsPanel(onAdd: () -> Unit, reload: () -> Unit, onClose: () -> Unit) {
+    val ctx = LocalContext.current
+    val stack = remember { mutableStateListOf<SP>(SP.Root) }
+    val top = stack.last()
+    fun back() { if (stack.size > 1) stack.removeAt(stack.lastIndex) else onClose() }
+    val title = when (top) {
+        SP.Root -> Lang.tr("Einstellungen")
+        is SP.Cat -> Lang.tr(PANEL[top.i].title)
+        is SP.Pl -> PlaylistStore.lists.getOrNull(top.idx)?.name.orEmpty()
+        is SP.PlX -> Lang.tr("Xtream Codes Parameter")
+        is SP.PlE -> Lang.tr("EPG Quellen") + " (" + PlaylistStore.lists.getOrNull(top.idx)?.name.orEmpty() + ")"
+        SP.Lang -> Lang.tr("Sprachen der Inhalte")
+        SP.Upd -> Lang.tr("Automatisch aktualisieren")
+    }
+    androidx.compose.ui.window.Popup(
+        popupPositionProvider = PanelRight, onDismissRequest = onClose,
+        properties = androidx.compose.ui.window.PopupProperties(focusable = true, dismissOnBackPress = false)
+    ) {
+        val w = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp * 0.375f
+        Column(
+            Modifier.fillMaxHeight().width(w).background(Surf)
+                .onPreviewKeyEvent { e -> if (e.key == Key.Back) { if (e.type == KeyEventType.KeyUp) back(); true } else false }
+        ) {
+            Box(Modifier.fillMaxWidth().height(72.dp).background(androidx.compose.ui.graphics.lerp(Surf, Color.White, 0.06f)).padding(start = 28.dp, end = 20.dp),
+                contentAlignment = Alignment.CenterStart) {
+                Text(raw = true, text = title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            key(stack.size, top) {
+                // Ersten Eintrag markieren (wie ein erster Druck auf „runter“): beim Öffnen und bei jeder Unterseite
+                val pfm = LocalFocusManager.current
+                val rootReq = remember { FocusRequester() }
+                LaunchedEffect(Unit) {
+                    repeat(15) {
+                        kotlinx.coroutines.delay(80)
+                        val ok = if (top == SP.Root) runCatching { rootReq.requestFocus() }.isSuccess else pfm.moveFocus(FocusDirection.Down)
+                        if (ok) return@LaunchedEffect
+                    }
+                }
+                Column(
+                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).focusGroup()
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    when (top) {
+                        SP.Root -> PANEL.forEachIndexed { i, c ->
+                            SettingRow(c.title, null, modifier = if (i == 0) Modifier.focusRequester(rootReq) else Modifier, onClick = { stack.add(SP.Cat(i)) })
+                        }
+                        is SP.Cat -> {
+                            val pages = PANEL[top.i].pages
+                            if (pages == listOf(9)) PlaylistPage(ctx, onAdd = { onClose(); onAdd() }, reload = reload, onOpen = { stack.add(SP.Pl(it)) },
+                                onLang = { stack.add(SP.Lang) }, onUpdate = { stack.add(SP.Upd) })
+                            else pages.forEach { p ->
+                                // Zweite und weitere Seite eines Bereichs mit eigener Überschrift (die erste steht schon im Kopf)
+                                if (p != pages.first()) PanelSection(Lang.tr(CATS[p].title))
+                                when (p) {
+                                    0 -> GeneralPage(ctx)
+                                    1 -> RegionPage(ctx)
+                                    2 -> ViewPage(ctx)
+                                    4 -> MenuPage(ctx)
+                                    5 -> PlayerPage(ctx)
+                                    6 -> AudioPage(ctx)
+                                    7 -> FilterPage(ctx) { stack.add(SP.Cat(1)) }
+                                    8 -> LivePage(ctx)
+                                    12 -> ParentalPage(ctx) { back() }
+                                    13 -> StoragePage(ctx)
+                                    14 -> DiagPage(ctx, reload)
+                                    else -> AboutPage(ctx)
+                                }
+                            }
+                        }
+                        is SP.Pl -> PlaylistMainPage(ctx, top.idx, onXtream = { stack.add(SP.PlX(top.idx)) }, onEpg = { stack.add(SP.PlE(top.idx)) },
+                            onDeleted = { back() }, reload = reload)
+                        is SP.PlX -> PlaylistXtreamPage(ctx, top.idx)
+                        is SP.PlE -> PlaylistEpgPage(ctx, top.idx)
+                        SP.Lang -> LanguageFilterSection(ctx)
+                        SP.Upd -> PlaylistUpdatePage(ctx)
+                    }
+                    Spacer(Modifier.height(40.dp))
+                }
+            }
+        }
+    }
+}
+
+/** Ist das Einstellungs-Panel offen? (Menü „Einstellungen“, Profil-Kreis oben.) */
+object SettingsOpen {
+    var value by androidx.compose.runtime.mutableStateOf(false)
+}
