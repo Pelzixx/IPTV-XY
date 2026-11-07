@@ -141,3 +141,32 @@ object ChLock {
         return now
     }
 }
+
+/** Kanäle neu anordnen (TiviMate): eigene Reihenfolge je Gruppe; Sortierung „Manuell“. */
+object ChOrder {
+    var version by mutableIntStateOf(0)
+        private set
+    private fun k(group: String) = "chorder_" + group.hashCode()
+
+    fun order(group: String): List<String> = Tm.s(k(group)).split('\n').filter { it.isNotEmpty() }
+
+    /** Liste nach der gespeicherten Reihenfolge; neue Sender hinten. */
+    fun apply(group: String, l: List<Item>): List<Item> {
+        val o = order(group)
+        if (o.isEmpty()) return l
+        val pos = o.withIndex().associate { it.value to it.index }
+        return l.sortedBy { pos[it.id] ?: (o.size + l.indexOf(it)) }
+    }
+
+    fun move(c: Context, group: String, current: List<Item>, id: String, to: Int) {
+        val ids = current.map { it.id }.toMutableList()
+        val i = ids.indexOf(id)
+        if (i < 0) return
+        ids.removeAt(i)
+        ids.add(to.coerceIn(0, ids.size), id)
+        Tm.set(c, k(group), ids.joinToString("\n"))
+        version++
+    }
+
+    fun reset(c: Context, group: String) { Tm.set(c, k(group), ""); version++ }
+}

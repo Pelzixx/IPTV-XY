@@ -95,11 +95,12 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     val curList = ChannelLists.byKey(sel)
     // TiviMate: Sichtbarkeit (1), Sperren (2) oder Favoriten (3) verwalten: OK schaltet je Sender um
     var manage by remember { mutableIntStateOf(0) }
+    var moveFor by remember { mutableStateOf<Item?>(null) }
     androidx.activity.compose.BackHandler(enabled = manage != 0) { manage = 0 }
     val showHidden = sel == HIDDEN_CAT
     // Nur neu filtern, wenn sich Auswahl oder Daten ändern – nicht bei jedem Fokuswechsel (tausende Sender)
     val chSort = Tm.i(Tm.EPG_CH_SORT, 0)
-    val list = remember(sel, live, favs, groups, curList, editVersion, showHidden, multi, chSort, manage) { ChannelEditLogic.visible(
+    val list = remember(sel, live, favs, groups, curList, editVersion, showHidden, multi, chSort, manage, ChOrder.version) { ChannelEditLogic.visible(
         when {
             sel == FAV_CAT -> favs
             sel == "ALL" || showHidden -> live
@@ -108,7 +109,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
             else -> groups[sel].orEmpty()
         },
         { it.id }, ChannelEdit::isHidden, showHidden || manage == 1
-    ).let { l -> if (curList != null) l else (if (chSort == 3) l.sortedByDescending { WatchTime.sec(it.id) } else Tm.sorted(l, chSort) { ChannelEdit.title(it) }) } }
+    ).let { l -> if (curList != null) l else (when (chSort) { 3 -> l.sortedByDescending { WatchTime.sec(it.id) }; 4 -> ChOrder.apply(sel, l); else -> Tm.sorted(l, chSort) { ChannelEdit.title(it) } }) } }
     // Optik > EPG: Darstellung der Zeilen, einmal je Liste
     val look = GuideLook(
         Tm.b(Tm.EPG_NUMBERS, false), Tm.b(Tm.EPG_NAMES, true), Tm.b(Tm.EPG_TWO_LINE_NAMES, false), Tm.b(Tm.EPG_CATCHUP_ICON, true),
@@ -344,8 +345,8 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                     Modifier.fillMaxWidth().padding(bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    AppIcon(when (manage) { 1 -> AIcon.EyeOff; 2 -> AIcon.Lock; else -> AIcon.Star }, Accent1, size = 20.dp)
-                    Text(Lang.tr(when (manage) { 1 -> "Sichtbarkeit verwalten: OK blendet einen Sender aus bzw. wieder ein"; 2 -> "Sperren verwalten: OK sperrt einen Sender bzw. entsperrt ihn"; else -> "Favoriten verwalten: OK fügt einen Sender hinzu bzw. entfernt ihn" }),
+                    AppIcon(when (manage) { 1 -> AIcon.EyeOff; 2 -> AIcon.Lock; 4 -> AIcon.Lists; else -> AIcon.Star }, Accent1, size = 20.dp)
+                    Text(Lang.tr(when (manage) { 1 -> "Sichtbarkeit verwalten: OK blendet einen Sender aus bzw. wieder ein"; 2 -> "Sperren verwalten: OK sperrt einen Sender bzw. entsperrt ihn"; 4 -> "Kanäle neu anordnen: OK auf einem Sender verschiebt ihn"; else -> "Favoriten verwalten: OK fügt einen Sender hinzu bzw. entfernt ihn" }),
                         raw = true, color = Color.White, fontSize = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     PillButton("Fertig", light = true) { manage = 0 }
                 }
@@ -384,10 +385,11 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                             onLeft = { catOpen = true; catFocusReq++ },
                             onFocus = { focus.target = ch; catOpen = false },
                             onProg = { focus.prog = it }, onShift = { d -> tOff = (tOff + d).coerceIn(-14 * 48, 96) }, onProgOk = { e -> progOk(ch, e) },
-                            onKeyAct = { a -> guideAct(a) }, onManage = { m -> manage = m }
+                            onKeyAct = { a -> guideAct(a) }, onManage = { m -> if (m == 5) { ChOrder.reset(ctx, sel); Toast.makeText(ctx, Lang.tr("Positionen zurückgesetzt"), Toast.LENGTH_SHORT).show() } else manage = m }
                         ) {
                             if (manage != 0) {
                                 when (manage) {
+                                    4 -> moveFor = ch
                                     1 -> ChannelEdit.toggleHidden(ctx, ch.id)
                                     2 -> if (Parental.pinSet) ChLock.toggle(ctx, ch.id) else Toast.makeText(ctx, Lang.tr("Bitte zuerst unter Einstellungen > Kindersicherung eine PIN festlegen."), Toast.LENGTH_LONG).show()
                                     else -> Library.toggleFav(ctx, ch.id)
@@ -409,6 +411,16 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
         }
         }
     }
+        // Kanäle neu anordnen: Ziel für den gewählten Sender
+        moveFor?.let { mv ->
+            val i = list.indexOfFirst { it.id == mv.id }
+            val last = list.lastIndex
+            fun go(to: Int) { Tm.set(ctx, Tm.EPG_CH_SORT, 4); ChOrder.move(ctx, sel, list, mv.id, to); moveFor = null }
+            val e = ArrayList<SideEntry>()
+            if (i > 0) { e.add(SideEntry("Nach oben", AIcon.Up) { go(i - 1) }); e.add(SideEntry("Ganz nach oben", AIcon.Up) { go(0) }) }
+            if (i in 0 until last) { e.add(SideEntry("Nach unten", AIcon.Down) { go(i + 1) }); e.add(SideEntry("Ganz nach unten", AIcon.Down) { go(last) }) }
+            SideMenu(listOf(SideSection(ChannelEdit.title(mv), e)), { if (moveFor?.id == mv.id) moveFor = null })
+        }
         ask?.let { a -> NameDialog(a.title, a.initial, onDismiss = { ask = null }) { a.onSave(it); ask = null } }
     }
 }
@@ -774,6 +786,10 @@ fun ChannelMenu(
     chan.add(SideEntry("EPG zuweisen") { assign = true })
     if (onManage != null) {
         chan.add(SideEntry("Sichtbarkeit verwalten") { onManage(1) })
+        if (inList == null) {
+            chan.add(SideEntry("Kanäle neu anordnen") { onManage(4) })
+            chan.add(SideEntry("Positionen zurücksetzen") { onManage(5) })
+        }
         chan.add(SideEntry("Sperren verwalten") { onManage(2) })
         chan.add(SideEntry("Favoriten verwalten") { onManage(3) })
     }

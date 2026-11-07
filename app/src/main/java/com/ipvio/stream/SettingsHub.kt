@@ -1983,7 +1983,7 @@ private fun TmLookEpg(ctx: Context) {
     // Aufbau und Reihenfolge wie TiviMate (Optik > EPG)
     var ask by remember { mutableStateOf<Ask?>(null) }
     val sorts = Tm.SORT_NAMES.map { Lang.tr(it) }
-    val chSorts = sorts + Lang.tr("Sehdauer")
+    val chSorts = sorts + Lang.tr("Sehdauer") + Lang.tr("Manuell")
     val cs = Tm.i(Tm.EPG_CH_SORT, 0).coerceIn(0, chSorts.lastIndex)
     SelectRow("Sender Sortierung", chSorts[cs], chSorts, cs) { Tm.set(ctx, Tm.EPG_CH_SORT, it) }
     val prev = listOf(Lang.tr("Einschalten"), Lang.tr("Ausschalten"))
