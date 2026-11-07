@@ -49,7 +49,7 @@ object ChannelEdit {
     }
 
     /** Angezeigter Name: eigener Name, sonst der des Anbieters. */
-    fun title(item: Item): String = names[item.id] ?: item.title
+    fun title(item: Item): String = names[item.id] ?: Tm.cleanName(item.title)
     fun isRenamed(id: String): Boolean = names.containsKey(id)
 
     /** Leerer Name = zurück zum Namen des Anbieters. */

@@ -201,6 +201,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     var lastChId by remember { mutableStateOf<String?>(null) }
     var behindSec by remember { mutableLongStateOf(0L) }
     var sleepIdx by remember { mutableIntStateOf(0) }
+    var frameShown by remember { mutableStateOf(true) }
     var sleepAt by remember { mutableLongStateOf(0L) }
     var aspect by remember { mutableIntStateOf(General.defaultAspect) }
     var interact by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -321,7 +322,10 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
 
     fun switchTo(it: Item, src: List<Item>) {
         if ((cur.live || cur.archive != null) && cur.itemId != it.id) lastChId = cur.itemId
-        History.add(ctx, it.id)
+        // Optik > Player > Letzte Sender: erst nach der eingestellten Verzögerung in „zuletzt gesehen“
+        val rcDelay = Tm.i(Tm.RC_DELAY, 0)
+        if (rcDelay == 0) History.add(ctx, it.id) else { val id = it.id; h.postDelayed({ if (cur.itemId == id) History.add(ctx, id) }, rcDelay * 1000L) }
+        if (Tm.b(Tm.PL_BLACK_SWITCH, false)) frameShown = false
         cur = PlayReq(it.title, it.url, it.id, true, 0L)
         zapSrc = src
         showChannels = false
@@ -710,6 +714,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                 if (vf != null) showInfo(vf.width, vf.height)
             }
             override fun onVideoSizeChanged(videoSize: VideoSize) { showInfo(videoSize.width, videoSize.height) }
+            override fun onRenderedFirstFrame() { frameShown = true }
         }
         player.addListener(l)
         applyTrackPrefs()
@@ -1082,6 +1087,8 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
             },
             modifier = videoMod
         )
+        // Optik > Player: „Zeige schwarzes Bild beim Senderwechsel“ – bis das erste Bild des neuen Senders da ist
+        if (!frameShown) Box(Modifier.fillMaxSize().background(Color.Black))
 
         // ---------------------------------------------------------------- Meldungen
         if (buffering && msg == null && !showGuide) {
@@ -1170,7 +1177,8 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
             LiveTopBar(Modifier.fillMaxWidth().align(Alignment.TopStart).padding(start = PT.MarginX, end = PT.MarginX, top = PT.MarginY))
             LiveInfoBlock(
                 curItem, cur.title, if (curIdx >= 0) curIdx + 1 else 0, epg,
-                Modifier.align(Alignment.BottomStart).padding(start = PT.MarginX, end = PT.MarginX, bottom = PT.MarginY)
+                Modifier.align(Alignment.BottomStart).padding(start = PT.MarginX, end = PT.MarginX, bottom = PT.MarginY),
+                switching = true, media = mediaLabel(player, tracksVer)
             )
         }
 
@@ -1280,7 +1288,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                             collectTracks(player, C.TRACK_TYPE_TEXT).firstOrNull { it.selected }?.label ?: Lang.tr("Aus")
                         }
                         if (!liveMenu) {
-                            LiveInfoBlock(curItem, cur.title, if (curIdx >= 0) curIdx + 1 else 0, epg)
+                            LiveInfoBlock(curItem, cur.title, if (curIdx >= 0) curIdx + 1 else 0, epg, media = mediaLabel(player, tracksVer))
                             Spacer(Modifier.height(14.dp))
                             // TiviMate: Fortschritt der Sendung; OK = Pause/Weiter, Links/Rechts = spulen im Zeitversatz
                             LiveSeekBar(
@@ -1300,7 +1308,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                             Spacer(Modifier.height(14.dp))
                             val recent = remember(History.ids.size, cur.itemId) {
                                 val byId = liveAll.associateBy { it.id }
-                                History.ids.asSequence().filter { it != cur.itemId }.mapNotNull { byId[it] }.take(12).toList()
+                                History.ids.asSequence().filter { it != cur.itemId }.mapNotNull { byId[it] }.take(Tm.i(Tm.RC_COUNT, 10)).toList()
                             }
                             LiveRecentRow(
                                 recentFirst, recent,
@@ -1321,61 +1329,65 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                             }.horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Top
                         ) {
-                            PBarButton(Modifier.focusRequester(liveFirst), label = "Suchen", onLabel = setLabel, onClick = { AppNav.toSearch = true; onBack() }) {
-                                PlayerIcon(PIcon.Search, it)
-                            }
-                            PBarButton(label = "Senderliste", onLabel = setLabel, onClick = { openChannels() }) {
-                                PlayerIcon(PIcon.Channels, it)
-                            }
-                            PBarButton(label = "TV-Guide", onLabel = setLabel, onClick = { AppNav.toGuide = true; onBack() }) {
-                                PlayerIcon(PIcon.Guide, it)
-                            }
-                            if (Catchup.has(curItem)) {
-                                PBarButton(Modifier.focusRequester(btn.getValue(Panel.ARCHIVE)), label = "Archiv", onLabel = setLabel, onClick = { openPanel(Panel.ARCHIVE) }) {
-                                    AppIcon(AIcon.History, it, size = 26.dp)
+                            // TiviMate (Optik > Player > Menü): Knöpfe in der eingestellten Reihenfolge, ausgeblendete fehlen
+                            val shownBtns = PlayerMenu.order().filter { b ->
+                                PlayerMenu.visible(b) && when (b) {
+                                    MBtn.ARCHIVE -> Catchup.has(curItem)
+                                    MBtn.LIVE -> behindSec >= 3
+                                    else -> true
                                 }
                             }
-                            if (behindSec >= 3) PBarButton(label = "Zurück zu Live", onLabel = setLabel, onClick = {
-                                if (player.isCurrentMediaItemSeekable) player.seekToDefaultPosition()
-                                else { player.stop(); player.prepare() }
-                                player.play()
-                                behindSec = 0L
-                                controls = false
-                                flash = Flash(PIcon.Play, "LIVE")
-                            }) {
-                                PlayerIcon(PIcon.Play, it)
-                            }
-                            PBarButton(Modifier.focusRequester(btn.getValue(Panel.QUALITY)), label = "Video", value = vVal, onLabel = setLabel, onClick = { openPanel(Panel.QUALITY) }) {
-                                PlayerIcon(PIcon.Video, it)
-                            }
-                            PBarButton(Modifier.focusRequester(btn.getValue(Panel.TRACKS)), label = "Audio", value = aVal, onLabel = setLabel, onClick = { openPanel(Panel.TRACKS) }) {
-                                PlayerIcon(PIcon.Audio, it)
-                            }
-                            PBarButton(label = "Untertitel", value = sVal, onLabel = setLabel, onClick = {
-                                openPanel(Panel.TRACKS)
-                                h.postDelayed({ runCatching { subsFocus.requestFocus() } }, 150)
-                            }) {
-                                PlayerIcon(PIcon.Subs, it)
-                            }
-                            PBarButton(Modifier.focusRequester(btn.getValue(Panel.ASPECT)), label = "Bildformat", value = ASPECTS.getOrNull(aspect), onLabel = setLabel, onClick = { openPanel(Panel.ASPECT) }) {
-                                PlayerIcon(PIcon.Aspect, it)
-                            }
-                            PBarButton(Modifier.focusRequester(btn.getValue(Panel.SLEEP)), label = "Sleep-Timer",
-                                value = if (sleepIdx == 0) Lang.tr("Aus") else "${SLEEP_MIN[sleepIdx]} min", onLabel = setLabel, onClick = { openPanel(Panel.SLEEP) }) {
-                                PlayerIcon(PIcon.Sleep, it)
-                            }
-                            // Mit eigenen Senderlisten: Auswahl, wohin (Favoriten oder eine eigene Liste); sonst direkt Favorit an/aus
-                            Box {
-                                var favMenu by remember { mutableStateOf(false) }
-                                PBarButton(
-                                    label = if (ChannelLists.lists.isNotEmpty()) "Favoriten & Listen" else if (fav) "Aus Favoriten" else "Zu Favoriten", onLabel = setLabel,
-                                    onClick = { if (ChannelLists.lists.isNotEmpty() && curItem != null) favMenu = true else Library.toggleFav(ctx, cur.itemId) }
-                                ) { c -> PlayerIcon(if (fav) PIcon.StarOn else PIcon.StarOff, if (fav && c == Color.White) PT.Gold else c) }
-                                val ci = curItem
-                                if (favMenu && ci != null) ChannelMenu(ci, null, null) { favMenu = false }
-                            }
-                            PBarButton(label = "Extern öffnen", onLabel = setLabel, onClick = { player.pause(); openExternal(ctx, cur.url, cur.title) }) {
-                                PlayerIcon(PIcon.External, it)
+                            shownBtns.forEachIndexed { bi, b ->
+                                val first = if (bi == 0) Modifier.focusRequester(liveFirst) else Modifier
+                                when (b) {
+                                    MBtn.SEARCH -> PBarButton(first, label = "Suchen", onLabel = setLabel, onClick = { AppNav.toSearch = true; onBack() }) { PlayerIcon(PIcon.Search, it) }
+                                    MBtn.CHANNELS -> PBarButton(first, label = "Senderliste", onLabel = setLabel, onClick = { openChannels() }) { PlayerIcon(PIcon.Channels, it) }
+                                    MBtn.GUIDE -> PBarButton(first, label = "TV-Guide", onLabel = setLabel, onClick = { AppNav.toGuide = true; onBack() }) { PlayerIcon(PIcon.Guide, it) }
+                                    MBtn.ARCHIVE -> PBarButton(first.focusRequester(btn.getValue(Panel.ARCHIVE)), label = "Archiv", onLabel = setLabel, onClick = { openPanel(Panel.ARCHIVE) }) {
+                                        AppIcon(AIcon.History, it, size = 26.dp)
+                                    }
+                                    MBtn.LIVE -> PBarButton(first, label = "Zurück zu Live", onLabel = setLabel, onClick = {
+                                        if (player.isCurrentMediaItemSeekable) player.seekToDefaultPosition()
+                                        else { player.stop(); player.prepare() }
+                                        player.play()
+                                        behindSec = 0L
+                                        controls = false
+                                        flash = Flash(PIcon.Play, "LIVE")
+                                    }) { PlayerIcon(PIcon.Play, it) }
+                                    MBtn.VIDEO -> PBarButton(first.focusRequester(btn.getValue(Panel.QUALITY)), label = "Video", value = vVal, onLabel = setLabel, onClick = { openPanel(Panel.QUALITY) }) { PlayerIcon(PIcon.Video, it) }
+                                    MBtn.AUDIO -> PBarButton(first.focusRequester(btn.getValue(Panel.TRACKS)), label = "Audio", value = aVal, onLabel = setLabel, onClick = { openPanel(Panel.TRACKS) }) { PlayerIcon(PIcon.Audio, it) }
+                                    MBtn.SUBS -> PBarButton(first, label = "Untertitel", value = sVal, onLabel = setLabel, onClick = {
+                                        openPanel(Panel.TRACKS)
+                                        h.postDelayed({ runCatching { subsFocus.requestFocus() } }, 150)
+                                    }) { PlayerIcon(PIcon.Subs, it) }
+                                    MBtn.ASPECT -> PBarButton(first.focusRequester(btn.getValue(Panel.ASPECT)), label = "Bildformat", value = ASPECTS.getOrNull(aspect), onLabel = setLabel, onClick = { openPanel(Panel.ASPECT) }) { PlayerIcon(PIcon.Aspect, it) }
+                                    MBtn.SLEEP -> PBarButton(first.focusRequester(btn.getValue(Panel.SLEEP)), label = "Sleep-Timer",
+                                        value = if (sleepIdx == 0) Lang.tr("Aus") else "${SLEEP_MIN[sleepIdx]} min", onLabel = setLabel, onClick = { openPanel(Panel.SLEEP) }) { PlayerIcon(PIcon.Sleep, it) }
+                                    // Mit eigenen Senderlisten: Auswahl, wohin (Favoriten oder eine eigene Liste); sonst direkt Favorit an/aus
+                                    MBtn.FAV -> Box {
+                                        var favMenu by remember { mutableStateOf(false) }
+                                        PBarButton(first,
+                                            label = if (ChannelLists.lists.isNotEmpty()) "Favoriten & Listen" else if (fav) "Aus Favoriten" else "Zu Favoriten", onLabel = setLabel,
+                                            onClick = { if (ChannelLists.lists.isNotEmpty() && curItem != null) favMenu = true else Library.toggleFav(ctx, cur.itemId) }
+                                        ) { c -> PlayerIcon(if (fav) PIcon.StarOn else PIcon.StarOff, if (fav && c == Color.White) PT.Gold else c) }
+                                        val ci = curItem
+                                        if (favMenu && ci != null) ChannelMenu(ci, null, null) { favMenu = false }
+                                    }
+                                    // TiviMate „Kanaloptionen“: Menü des Senders (Favorit, Listen, Erinnerung, umbenennen …)
+                                    MBtn.CH_OPTS -> Box {
+                                        var optMenu by remember { mutableStateOf(false) }
+                                        PBarButton(first, label = "Kanaloptionen", onLabel = setLabel, onClick = { if (curItem != null) optMenu = true }) { AppIcon(AIcon.Sliders, it, size = 26.dp) }
+                                        val ci = curItem
+                                        if (optMenu && ci != null) ChannelMenu(ci, null, null) { optMenu = false }
+                                    }
+                                    MBtn.SETTINGS -> PBarButton(first, label = "Einstellungen", onLabel = setLabel, onClick = { AppNav.toSettings = true; onBack() }) { AppIcon(AIcon.Gear, it, size = 26.dp) }
+                                    MBtn.EXTERNAL -> PBarButton(first, label = "Extern öffnen", onLabel = setLabel, onClick = { player.pause(); openExternal(ctx, cur.url, cur.title) }) { PlayerIcon(PIcon.External, it) }
+                                    MBtn.HISTORY -> PBarButton(first, label = "Verlauf", onLabel = setLabel, onClick = { openRecent() }) { AppIcon(AIcon.History, it, size = 26.dp) }
+                                    MBtn.MOVIES -> PBarButton(first, label = "Filme", onLabel = setLabel, onClick = { AppNav.toTab = 1; onBack() }) { AppIcon(AIcon.Play, it, size = 26.dp) }
+                                    MBtn.SERIES -> PBarButton(first, label = "Serien", onLabel = setLabel, onClick = { AppNav.toTab = 2; onBack() }) { AppIcon(AIcon.Layers, it, size = 26.dp) }
+                                    MBtn.MYLIST -> PBarButton(first, label = "Meine Liste", onLabel = setLabel, onClick = { AppNav.toTab = MenuLogic.MYLIST; onBack() }) { AppIcon(AIcon.Lists, it, size = 26.dp) }
+                                    MBtn.EXIT -> PBarButton(first, label = "Beenden", onLabel = setLabel, onClick = { onBack() }) { AppIcon(AIcon.Close, it, size = 26.dp) }
+                                }
                             }
                         }
                     } else {
@@ -1487,7 +1499,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                 chanFocus, catsFocus, headerFocus,
                 { showChannels = false },
                 onArchive = { ch, e -> playArchive(ch, e) }
-            ) { item, list -> playCat = chanCat; switchTo(item, list) }
+            ) { item, list -> playCat = chanCat; switchTo(item, list); if (Tm.b(Tm.EPG_STAY_OVERLAY, false)) showChannels = true }
         }
 
         if (showGuide) {
@@ -1746,4 +1758,15 @@ private fun NextPill(remain: () -> Long, auto: Boolean, showOk: Boolean, onClick
     val r = remain()
     val label = if (auto && r in 1..10_000L) Lang.tr("Nächste Folge") + " · " + ((r + 999) / 1000) + " s" else Lang.tr("Nächste Folge")
     PSkipPill(label + (if (showOk) "  (OK)" else ""), onClick = onClick)
+}
+
+/** Medieneigenschaften fürs Infofeld (TiviMate): „FHD“ bzw. – wenn eingestellt – „1920x1080“. */
+@Suppress("UNUSED_PARAMETER")
+private fun mediaLabel(player: androidx.media3.exoplayer.ExoPlayer, ver: Int): String? {
+    val vs = player.videoSize
+    val w = if (vs.width > 0) vs.width else player.videoFormat?.width ?: 0
+    val h = if (vs.height > 0) vs.height else player.videoFormat?.height ?: 0
+    if (w <= 0 || h <= 0) return null
+    if (Tm.b(Tm.IF_RES_NUM, false)) return "${w}x$h"
+    return when { h >= 2000 -> "4K"; h >= 1000 -> "FHD"; h >= 700 -> "HD"; else -> "SD" }
 }

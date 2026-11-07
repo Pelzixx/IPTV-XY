@@ -13,6 +13,15 @@ object PlGroups {
     class Section(val playlist: String, val count: Int, val groups: List<Pair<String, Int>>)
 
     fun keyP(pl: String) = P + pl
+
+    /** TiviMate: Wiedergabeliste in der Gruppenübersicht eingeklappt? */
+    fun collapsed(pl: String): Boolean = pl in Tm.s(Tm.PL_COLLAPSED).split(LS)
+    fun toggle(c: android.content.Context, pl: String) {
+        val s = Tm.s(Tm.PL_COLLAPSED).split(LS).filter { it.isNotEmpty() }.toMutableSet()
+        if (!s.remove(pl)) s.add(pl)
+        Tm.set(c, Tm.PL_COLLAPSED, s.joinToString(LS.toString()))
+    }
+    private const val LS = '\n'
     fun keyG(pl: String, group: String) = G + pl + SEP + group
     fun isPl(key: String) = key.startsWith(P) || key.startsWith(G)
 

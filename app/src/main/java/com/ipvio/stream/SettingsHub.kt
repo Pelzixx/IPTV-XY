@@ -1643,11 +1643,16 @@ fun SettingsPanel(onAdd: () -> Unit, reload: () -> Unit, onClose: () -> Unit) {
                                 else -> AboutPage(ctx, open)
                             }
                         }
-                        is SP.Sub -> when (top.key) {
+                        is SP.Sub -> { val open: (String, String) -> Unit = { k, t -> stack.add(SP.Sub(k, t)) }
+                        when (top.key) {
                             "epg_src" -> TmEpgSources(ctx)
                             "look_epg" -> TmLookEpg(ctx)
-                            "look_player" -> TmLookPlayer(ctx)
-                            "look_groups" -> FilterPage(ctx) { stack.add(SP.Lang) }
+                            "look_player" -> TmLookPlayer(ctx, open)
+                            "lp_list" -> TmLpList(ctx)
+                            "lp_info" -> TmLpInfo(ctx)
+                            "lp_hist" -> TmLpHist(ctx)
+                            "lp_menu" -> TmLpMenu(ctx)
+                            "look_groups" -> TmLookGroups(ctx) { stack.add(SP.Lang) }
                             "look_vod", "misc_vod" -> ViewPage(ctx)
                             "look_menu" -> MenuPage(ctx)
                             "play_audio" -> AudioPage(ctx)
@@ -1657,6 +1662,7 @@ fun SettingsPanel(onAdd: () -> Unit, reload: () -> Unit, onClose: () -> Unit) {
                             "misc_lists" -> TmChannelLists(ctx)
                             "misc_storage" -> StoragePage(ctx)
                             "misc_diag" -> DiagPage(ctx, reload)
+                        }
                         }
                         is SP.Pl -> PlaylistMainPage(ctx, top.idx, onXtream = { stack.add(SP.PlX(top.idx)) }, onEpg = { stack.add(SP.PlE(top.idx)) },
                             onDeleted = { back() }, reload = reload)
@@ -1825,20 +1831,132 @@ private fun TmLook(ctx: Context, open: (String, String) -> Unit) {
 /** Optik > EPG: Darstellung des TV-Guides. */
 @Composable
 private fun TmLookEpg(ctx: Context) {
-    ToggleRow("Vorschau im TV-Guide", Lang.tr("Spielt den markierten Sender oben klein ab (ohne Ton)"), AppSettings.livePreview) { AppSettings.setLivePreview(ctx, it) }
+    // Aufbau und Reihenfolge wie TiviMate (Optik > EPG)
+    var ask by remember { mutableStateOf<Ask?>(null) }
+    val sorts = Tm.SORT_NAMES.map { Lang.tr(it) }
+    SelectRow("Sender Sortierung", sorts[Tm.i(Tm.EPG_CH_SORT, 0)], sorts, Tm.i(Tm.EPG_CH_SORT, 0)) { Tm.set(ctx, Tm.EPG_CH_SORT, it) }
+    val prev = listOf(Lang.tr("Einschalten"), Lang.tr("Ausschalten"))
+    SelectRow("Vorschau", prev[if (AppSettings.livePreview) 0 else 1], prev, if (AppSettings.livePreview) 0 else 1) { AppSettings.setLivePreview(ctx, it == 0) }
+    val ed = Tm.s(Tm.EPG_NAME_EDIT)
+    SettingRow("Sendernamen-Editor", ed.ifBlank { Lang.tr("Aus") }, rawValue = true, onClick = {
+        ask = Ask("Sendernamen-Editor", ed, "DE| , HD , FHD") { Tm.set(ctx, Tm.EPG_NAME_EDIT, it) }
+    })
+    ToggleRow("Zeige Kanalnummern", null, Tm.b(Tm.EPG_NUMBERS, false)) { Tm.set(ctx, Tm.EPG_NUMBERS, it) }
+    ToggleRow("Zeige Sendernamen", null, Tm.b(Tm.EPG_NAMES, true)) { Tm.set(ctx, Tm.EPG_NAMES, it) }
+    ToggleRow("Zweizeilige Kanalnamen", null, Tm.b(Tm.EPG_TWO_LINE_NAMES, false)) { Tm.set(ctx, Tm.EPG_TWO_LINE_NAMES, it) }
+    ToggleRow("Catchup Symbol in Kanalliste anzeigen", null, Tm.b(Tm.EPG_CATCHUP_ICON, true)) { Tm.set(ctx, Tm.EPG_CATCHUP_ICON, it) }
+    ToggleRow("Aktuellen Sender farbig hervorheben", null, Tm.b(Tm.EPG_HL_CURRENT, true)) { Tm.set(ctx, Tm.EPG_HL_CURRENT, it) }
+    ToggleRow("Zweizeilige Programmtitel", null, Tm.b(Tm.EPG_TWO_LINE_TITLES, false)) { Tm.set(ctx, Tm.EPG_TWO_LINE_TITLES, it) }
+    ToggleRow("Markiere laufendes Programm", null, Tm.b(Tm.EPG_MARK_RUNNING, true)) { Tm.set(ctx, Tm.EPG_MARK_RUNNING, it) }
+    ToggleRow("Markiere nur den aktuellen Fortschritt", null, Tm.b(Tm.EPG_MARK_PROGRESS, true)) { Tm.set(ctx, Tm.EPG_MARK_PROGRESS, it) }
+    ToggleRow("Aktuelle Zeitanzeige in voller Höhe anzeigen", null, Tm.b(Tm.EPG_NOW_FULL, true)) { Tm.set(ctx, Tm.EPG_NOW_FULL, it) }
+    ToggleRow("Kanäle scrollen animieren", null, Tm.b(Tm.EPG_SCROLL_ANIM, false)) { Tm.set(ctx, Tm.EPG_SCROLL_ANIM, it) }
+    ToggleRow("Bleib im EPG, wenn du im Overlay-Modus die Sender wechselst", null, Tm.b(Tm.EPG_STAY_OVERLAY, false)) { Tm.set(ctx, Tm.EPG_STAY_OVERLAY, it) }
+    ToggleRow("Verwende Zurück, um zu den aktuellen Programmen zurückzukehren", null, Tm.b(Tm.EPG_BACK_NOW, true)) { Tm.set(ctx, Tm.EPG_BACK_NOW, it) }
     CatchupSection()
+    ask?.let { a -> TextAskDialog(Lang.tr(a.title), a.initial, a.hint, a.password, onDismiss = { ask = null }) { ask = null; a.onSave(it) } }
+}
+
+/** Optik > Gruppen (TiviMate): Sortierung und welche Kategorien oben stehen; darunter die XY-Gruppenfilter. */
+@Composable
+private fun TmLookGroups(ctx: Context, onLang: () -> Unit) {
+    val sorts = Tm.SORT_NAMES.map { Lang.tr(it) }
+    SelectRow("Gruppen Sortierung", sorts[Tm.i(Tm.GRP_SORT, 0)], sorts, Tm.i(Tm.GRP_SORT, 0)) { Tm.set(ctx, Tm.GRP_SORT, it) }
+    ToggleRow("Zeige \"alle Playlists\" Kategorie", null, Tm.b(Tm.GRP_ALL_PLAYLISTS, true)) { Tm.set(ctx, Tm.GRP_ALL_PLAYLISTS, it) }
+    ToggleRow("Zeige \"Favoriten\" Kategorie", null, Tm.b(Tm.GRP_FAVS, true)) { Tm.set(ctx, Tm.GRP_FAVS, it) }
+    ToggleRow("Zeige \"alle Kanäle\" Kategorie", null, Tm.b(Tm.GRP_ALL, true)) { Tm.set(ctx, Tm.GRP_ALL, it) }
+    FilterPage(ctx) { onLang() }
 }
 
 /** Optik > Player: Infos und Uhrzeit im Bild. */
 @Composable
-private fun TmLookPlayer(ctx: Context) {
-    ToggleRow("Stream-Info am Start", null, AppSettings.showInfo) { AppSettings.setPlayer(ctx, AppSettings.skipIntro, it, AppSettings.seekStep) }
-    ToggleRow("Endzeit anzeigen", null, AppSettings.showEndTime) { AppSettings.setPlayerExtra(ctx, AppSettings.autoNext, AppSettings.hideSec, it, AppSettings.autoSkipIntro) }
+private fun TmLookPlayer(ctx: Context, open: (String, String) -> Unit) {
+    // Aufbau wie TiviMate (Optik > Player)
+    SettingRow("Senderliste", null, onClick = { open("lp_list", "Senderliste") })
+    SettingRow("Infofeld", null, onClick = { open("lp_info", "Infofeld") })
+    SettingRow("Historie / Letzte Sender", null, onClick = { open("lp_hist", "Historie / Letzte Sender") })
+    SettingRow("Menü", null, onClick = { open("lp_menu", "Menü") })
+    val clocks = listOf("Aus", "Oben links", "Oben rechts", "Unten links", "Unten rechts").map { Lang.tr(it) }
+    val ci = if (AppSettings.clockOn) AppSettings.clockPos + 1 else 0
+    SelectRow("Uhr", clocks[ci.coerceIn(0, 4)], clocks, ci.coerceIn(0, 4)) {
+        AppSettings.setClock(ctx, it > 0, if (it > 0) it - 1 else AppSettings.clockPos, AppSettings.clockOpacity, AppSettings.clockSize)
+    }
     val hides = listOf(3, 4, 5, 6, 8, 10, 15)
-    SelectRow("Steuerleiste ausblenden nach", "${AppSettings.hideSec} s", hides.map { "$it s" }, hides.indexOf(AppSettings.hideSec).coerceAtLeast(0)) {
+    SelectRow("Feld Zeitüberschreitung (Sekunden)", "${AppSettings.hideSec}", hides.map { "$it" }, hides.indexOf(AppSettings.hideSec).coerceAtLeast(0)) {
         AppSettings.setPlayerExtra(ctx, AppSettings.autoNext, hides[it], AppSettings.showEndTime, AppSettings.autoSkipIntro)
     }
-    ToggleRow("Uhrzeit im Bild", null, AppSettings.clockOn) { AppSettings.setClock(ctx, it, AppSettings.clockPos, AppSettings.clockOpacity, AppSettings.clockSize) }
+    ToggleRow("Zeige schwarzes Bild beim Senderwechsel", null, Tm.b(Tm.PL_BLACK_SWITCH, false)) { Tm.set(ctx, Tm.PL_BLACK_SWITCH, it) }
+    PanelSection(Lang.tr("Filme & Serien"))
+    ToggleRow("Stream-Info am Start", null, AppSettings.showInfo) { AppSettings.setPlayer(ctx, AppSettings.skipIntro, it, AppSettings.seekStep) }
+    ToggleRow("Endzeit anzeigen", null, AppSettings.showEndTime) { AppSettings.setPlayerExtra(ctx, AppSettings.autoNext, AppSettings.hideSec, it, AppSettings.autoSkipIntro) }
+}
+
+/** Optik > Player > Senderliste (TiviMate). */
+@Composable
+private fun TmLpList(ctx: Context) {
+    ToggleRow("Aktuelles Programm farbig hervorheben", null, Tm.b(Tm.CL_HL_NOW, true)) { Tm.set(ctx, Tm.CL_HL_NOW, it) }
+    ToggleRow("Vergangenes Programm ausblenden", null, Tm.b(Tm.CL_HIDE_PAST, false)) { Tm.set(ctx, Tm.CL_HIDE_PAST, it) }
+    PanelSection(Lang.tr("Überlagerungsmodus"))
+    ToggleRow("Zeige Programme", null, Tm.b(Tm.CL_OV_PROGS, true)) { Tm.set(ctx, Tm.CL_OV_PROGS, it) }
+    ToggleRow("Zeige Programmbeschreibung", null, Tm.b(Tm.CL_OV_DESC, true)) { Tm.set(ctx, Tm.CL_OV_DESC, it) }
+    ToggleRow("Kanäle automatisch abspielen", null, Tm.b(Tm.CL_OV_AUTOPLAY, false)) { Tm.set(ctx, Tm.CL_OV_AUTOPLAY, it) }
+    ToggleRow("Bleib in der Liste beim Sender wechseln", null, Tm.b(Tm.CL_OV_STAY, false)) { Tm.set(ctx, Tm.CL_OV_STAY, it) }
+}
+
+/** Optik > Player > Infofeld (TiviMate). */
+@Composable
+private fun TmLpInfo(ctx: Context) {
+    ToggleRow("Kartenstil", null, Tm.b(Tm.IF_CARD, false)) { Tm.set(ctx, Tm.IF_CARD, it) }
+    ToggleRow("Zeige die Uhr", null, Tm.b(Tm.IF_CLOCK, true)) { Tm.set(ctx, Tm.IF_CLOCK, it) }
+    ToggleRow("Datum neben der Uhr anzeigen", null, Tm.b(Tm.IF_DATE, true)) { Tm.set(ctx, Tm.IF_DATE, it) }
+    ToggleRow("Zeige Wiedergabeliste und Gruppenname", null, Tm.b(Tm.IF_PLGROUP, true)) { Tm.set(ctx, Tm.IF_PLGROUP, it) }
+    ToggleRow("Zeige Programmbeschreibung", null, Tm.b(Tm.IF_DESC, true)) { Tm.set(ctx, Tm.IF_DESC, it) }
+    ToggleRow("Beschreibung nur beim Senderwechsel anzeigen", null, Tm.b(Tm.IF_DESC_SWITCH, true)) { Tm.set(ctx, Tm.IF_DESC_SWITCH, it) }
+    ToggleRow("Medieneigenschaften anzeigen", null, Tm.b(Tm.IF_MEDIA, true)) { Tm.set(ctx, Tm.IF_MEDIA, it) }
+    ToggleRow("Videoauflösung anstelle von Bezeichnung anzeigen", Lang.tr("Zum Beispiel \"1920x1080\" statt \"FHD\""), Tm.b(Tm.IF_RES_NUM, false)) { Tm.set(ctx, Tm.IF_RES_NUM, it) }
+}
+
+/** Optik > Player > Historie / Letzte Sender (TiviMate). */
+@Composable
+private fun TmLpHist(ctx: Context) {
+    ToggleRow("Schaltfläche \"EPG\" zeigen", null, Tm.b(Tm.HI_EPG_BTN, true)) { Tm.set(ctx, Tm.HI_EPG_BTN, it) }
+    ToggleRow("Zeige \"Verlauf\" Button", null, Tm.b(Tm.HI_HIST_BTN, true)) { Tm.set(ctx, Tm.HI_HIST_BTN, it) }
+    PanelSection(Lang.tr("Verlauf"))
+    val days = listOf(1, 2, 3, 5, 7, 14, 30)
+    SelectRow("Verlauf Tageszähler", Tm.i(Tm.HI_DAYS, 7).toString(), days.map { "$it" }, days.indexOf(Tm.i(Tm.HI_DAYS, 7)).coerceAtLeast(0)) { Tm.set(ctx, Tm.HI_DAYS, days[it]) }
+    val delays = listOf(0, 5, 10, 15, 30, 60)
+    SelectRow("Verzögerung vor dem Hinzufügen zum Verlauf, Sekunden", Tm.i(Tm.HI_DELAY, 10).toString(), delays.map { "$it" }, delays.indexOf(Tm.i(Tm.HI_DELAY, 10)).coerceAtLeast(0)) { Tm.set(ctx, Tm.HI_DELAY, delays[it]) }
+    ToggleRow("Aktuelles Programm anzeigen", null, Tm.b(Tm.HI_NOW, true)) { Tm.set(ctx, Tm.HI_NOW, it) }
+    ToggleRow("Vergangene Sendungen anzeigen", null, Tm.b(Tm.HI_PAST, false)) { Tm.set(ctx, Tm.HI_PAST, it) }
+    PanelSection(Lang.tr("Zuletzt angesehene Sender"))
+    val counts = listOf(5, 10, 15, 20, 30)
+    SelectRow("Anzahl der letzten Sender", Tm.i(Tm.RC_COUNT, 10).toString(), counts.map { "$it" }, counts.indexOf(Tm.i(Tm.RC_COUNT, 10)).coerceAtLeast(0)) { Tm.set(ctx, Tm.RC_COUNT, counts[it]) }
+    SelectRow("Verzögerung vor dem Hinzufügen zu den letzten Sendern, Sekunden", Tm.i(Tm.RC_DELAY, 0).toString(), delays.map { "$it" }, delays.indexOf(Tm.i(Tm.RC_DELAY, 0)).coerceAtLeast(0)) { Tm.set(ctx, Tm.RC_DELAY, delays[it]) }
+    ToggleRow("Zeige Sendernamen", null, Tm.b(Tm.RC_NAMES, false)) { Tm.set(ctx, Tm.RC_NAMES, it) }
+}
+
+/** Optik > Player > Menü (TiviMate): Knöpfe ein-/ausblenden und neu anordnen. */
+@Composable
+private fun TmLpMenu(ctx: Context) {
+    var reorder by remember { mutableStateOf(false) }
+    var moving by remember { mutableStateOf<MBtn?>(null) }
+    SettingRow(if (reorder) "Fertig" else "Buttons neu anordnen", if (reorder) Lang.tr("OK auf einem Button: verschieben") else null, onClick = { reorder = !reorder })
+    val order = PlayerMenu.order()
+    if (reorder) {
+        order.filter { PlayerMenu.visible(it) }.forEach { b -> SettingRow(b.label, null, onClick = { moving = b }) }
+    } else {
+        PanelSection(Lang.tr("Sichtbare Buttons"))
+        order.filter { PlayerMenu.visible(it) }.forEach { b -> ToggleRow(b.label, null, true) { PlayerMenu.setVisible(ctx, b, it) } }
+        PanelSection(Lang.tr("Versteckte Buttons"))
+        order.filter { !PlayerMenu.visible(it) }.forEach { b -> ToggleRow(b.label, null, false) { PlayerMenu.setVisible(ctx, b, it) } }
+        SettingRow("Auf Standard zurücksetzen", null, onClick = { PlayerMenu.reset(ctx) })
+    }
+    moving?.let { b ->
+        SideMenu(listOf(SideSection(Lang.tr(b.label), listOf(
+            SideEntry("Nach vorne", AIcon.Up) { PlayerMenu.move(ctx, b, -1) },
+            SideEntry("Nach hinten", AIcon.Down) { PlayerMenu.move(ctx, b, 1) }
+        ))), { moving = null })
+    }
 }
 
 /** Wiedergabe: Puffergröße, AFR, Schritte überspringen, Bildformat; dazu Intro/Abspann, Ton & Untertitel. */

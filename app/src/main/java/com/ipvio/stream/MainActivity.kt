@@ -51,6 +51,7 @@ class MainActivity : ComponentActivity() {
         PlaylistStore.savedUrl(this)
         // EPG-Einstellungen; „Aktualisieren beim Start“: einmal frisch laden statt den gespeicherten Stand zu nehmen
         EpgPrefs.init(this)
+        Tm.init(this)
         if (EpgPrefs.onStart && savedInstanceState == null) EpgPrefs.forceNext = true
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch { Presets.refresh(applicationContext) }
         // Frischer Start (nicht nur gedrehter/neu erstellter Bildschirm): "Zuletzt Geschautes beim Start fortsetzen" darf wieder greifen.
@@ -369,6 +370,8 @@ private fun AppContent() {
                         if (p.live || p.archive != null) LastFocus.pending = History.ids.firstOrNull { id -> liveAll.any { it.id == id } }
                         if (AppNav.toGuide) { AppNav.toGuide = false; if (tab != 3) { tab = 3; AppNav.focusTab = 3 } }
                         if (AppNav.toSearch) { AppNav.toSearch = false; tab = MenuLogic.SEARCH; AppNav.focusTab = MenuLogic.SEARCH }
+                        if (AppNav.toTab >= 0) { val t = AppNav.toTab; AppNav.toTab = -1; tab = t; AppNav.focusTab = t }
+                        if (AppNav.toSettings) { AppNav.toSettings = false; SettingsOpen.value = true }
                         playing = null
                     }
                 }

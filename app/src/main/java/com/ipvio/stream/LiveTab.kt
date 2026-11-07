@@ -77,9 +77,16 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     val plCounts = remember(sections) {
         HashMap<String, Int>().also { m -> sections.forEach { s -> m[PlGroups.keyP(s.playlist)] = s.count; s.groups.forEach { (g, c) -> m[PlGroups.keyG(s.playlist, g)] = c } } }
     }
-    val names = listOf("GUIDE", FAV_CAT) + myLists.map { ChannelListLogic.key(it) } + listOf("ALL") + hiddenCat +
-        if (multi) sections.flatMap { s -> listOf(PlGroups.keyP(s.playlist)) + s.groups.map { PlGroups.keyG(s.playlist, it.first) } }
-        else favCats + groups.keys.filter { it !in favCats }
+    // Optik > Gruppen (TiviMate): Sortierung und welche Kategorien oben stehen
+    val grpSort = Tm.i(Tm.GRP_SORT, 0)
+    val showFavCat = Tm.b(Tm.GRP_FAVS, true)
+    val showAllCat = Tm.b(if (multi) Tm.GRP_ALL_PLAYLISTS else Tm.GRP_ALL, true)
+    val names = listOf("GUIDE") + (if (showFavCat) listOf(FAV_CAT) else emptyList()) + myLists.map { ChannelListLogic.key(it) } +
+        (if (showAllCat) listOf("ALL") else emptyList()) + hiddenCat +
+        // TiviMate: Wiedergabelisten als Kopfzeile, auf- und zuklappbar (eingeklappt = Ordner ausgeblendet)
+        if (multi) sections.flatMap { s -> listOf(PlGroups.keyP(s.playlist)) +
+            if (PlGroups.collapsed(s.playlist)) emptyList() else Tm.sorted(s.groups, grpSort) { it.first }.map { PlGroups.keyG(s.playlist, it.first) } }
+        else favCats + Tm.sorted(groups.keys.filter { it !in favCats }, grpSort) { it }
     // Gespeicherte Gruppe aus der Zeit ohne Abschnitte („Music“) auf die Gruppe der Wiedergabeliste umstellen
     LaunchedEffect(multi, sections) {
         if (multi && sel !in names && sel in groups) sel = names.firstOrNull { it.startsWith(PlGroups.G) && PlGroups.label(it) == sel } ?: "ALL"
@@ -87,7 +94,8 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     val curList = ChannelLists.byKey(sel)
     val showHidden = sel == HIDDEN_CAT
     // Nur neu filtern, wenn sich Auswahl oder Daten ändern – nicht bei jedem Fokuswechsel (tausende Sender)
-    val list = remember(sel, live, favs, groups, curList, editVersion, showHidden, multi) { ChannelEditLogic.visible(
+    val chSort = Tm.i(Tm.EPG_CH_SORT, 0)
+    val list = remember(sel, live, favs, groups, curList, editVersion, showHidden, multi, chSort) { ChannelEditLogic.visible(
         when {
             sel == FAV_CAT -> favs
             sel == "ALL" || showHidden -> live
@@ -96,7 +104,14 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
             else -> groups[sel].orEmpty()
         },
         { it.id }, ChannelEdit::isHidden, showHidden
-    ) }
+    ).let { l -> if (curList != null) l else Tm.sorted(l, chSort) { ChannelEdit.title(it) } } }
+    // Optik > EPG: Darstellung der Zeilen, einmal je Liste
+    val look = GuideLook(
+        Tm.b(Tm.EPG_NUMBERS, false), Tm.b(Tm.EPG_NAMES, true), Tm.b(Tm.EPG_TWO_LINE_NAMES, false), Tm.b(Tm.EPG_CATCHUP_ICON, true),
+        if (Tm.b(Tm.EPG_HL_CURRENT, true)) History.ids.firstOrNull() else null, Tm.b(Tm.EPG_TWO_LINE_TITLES, false),
+        Tm.b(Tm.EPG_MARK_RUNNING, true), Tm.b(Tm.EPG_MARK_PROGRESS, true), Tm.b(Tm.EPG_NOW_FULL, true)
+    )
+    val bivSpec = if (Tm.b(Tm.EPG_SCROLL_ANIM, false)) androidx.compose.foundation.gestures.LocalBringIntoViewSpec.current else InstantSpec
     // Letzter ausgeblendeter Sender wieder eingeblendet: Kategorie gibt es nicht mehr
     LaunchedEffect(showHidden, hiddenCat.isEmpty()) { if (showHidden && hiddenCat.isEmpty()) sel = "ALL" }
     val firstChan = remember { FocusRequester() }
@@ -195,7 +210,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     val ws = nowSec / 1800 * 1800
     Column(Modifier.fillMaxSize().background(Bg).padding(start = 16.dp, end = 16.dp, top = 12.dp)) {
         // Ohne Scroll-Animation (Gruppen und Sender): beim schnellen Blättern staut sich nichts
-        CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides InstantSpec) {
+        CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides bivSpec) {
         Row(Modifier.fillMaxWidth().weight(1f)) {
             // Links: Kategorien und Listen
             LazyColumn(
@@ -216,7 +231,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                     }
                     val label = when {
                         n == FAV_CAT -> "Favoriten"
-                        n == "ALL" -> "Alle Sender"
+                        n == "ALL" -> if (multi) "Alle Playlists" else "Alle Sender"
                         n == HIDDEN_CAT -> "Ausgeblendete Sender"
                         ml != null -> ml.name
                         else -> PlGroups.label(n) ?: n
@@ -244,9 +259,10 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                             if (n == sel) Modifier.focusRequester(catSelReq).then(if (list.isEmpty()) Modifier.focusRequester(ContentFocus.req) else Modifier) else Modifier,
                             onFocus = { hoverCat(n) }, onRight = { toChannels() },
                             onFav = { if (ml != null) listMenu = true else if (n != FAV_CAT && n != "ALL" && n != HIDDEN_CAT && !PlGroups.isPl(n)) CatFavs.toggle(ctx, n) },
-                            icon = icon, raw = ml != null || PlGroups.isPl(n), header = n.startsWith(PlGroups.P),
-                            indent = n.startsWith(PlGroups.G)
-                        ) { toChannels() }
+                            icon = if (n.startsWith(PlGroups.P)) null else icon, raw = ml != null || PlGroups.isPl(n), header = n.startsWith(PlGroups.P),
+                            indent = n.startsWith(PlGroups.G),
+                            expanded = if (n.startsWith(PlGroups.P)) !PlGroups.collapsed(PlGroups.label(n) ?: "") else null
+                        ) { if (n.startsWith(PlGroups.P)) PlGroups.toggle(ctx, PlGroups.label(n) ?: "") else toChannels() }
                         // Menü einer eigenen Liste (OK gedrückt halten): Sender hinzufügen, umbenennen, löschen
                         if (listMenu && ml != null) OptionPopup(
                             listOf("Sender hinzufügen", "Umbenennen", "Liste löschen"), -1, { listMenu = false },
@@ -296,12 +312,12 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                 ) else BoxWithConstraints(Modifier.fillMaxSize()) {
                     val tlW = maxWidth - CH_W
                     // Ohne Scroll-Animation: beim Halten der Taste staut sich nichts (wie in TV-Playern)
-                    CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides InstantSpec) {
+                    CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides bivSpec) {
                     LazyColumn(state = chanState, verticalArrangement = Arrangement.spacedBy(2.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
                     // In eigenen Listen wandert der Fokus beim Verschieben mit dem Sender mit (Schlüssel = Sender)
                     itemsIndexed(list, key = if (curList != null) { _, ch -> ch.id } else null) { i, ch ->
                         ChannelLine(
-                            ch, ws, nowSec, tlW, (if (i == 0) Modifier.focusRequester(firstChan).focusRequester(ContentFocus.req) else Modifier)
+                            ch, i + 1, look, ws, nowSec, tlW, (if (i == 0) Modifier.focusRequester(firstChan).focusRequester(ContentFocus.req) else Modifier)
                                 .then(if (ch.id == restoreId) Modifier.focusRequester(restoreReq) else Modifier), curList,
                             onNewList = { newList(ch.id) },
                             onRename = { ask = NameAsk("Sender umbenennen", ChannelEdit.title(ch)) { ChannelEdit.rename(ctx, ch.id, it) } },
@@ -353,7 +369,7 @@ private fun NameDialog(title: String, initial: String, onDismiss: () -> Unit, on
 private fun CatRow(
     label: String, count: Int, selected: Boolean, modifier: Modifier,
     onFocus: () -> Unit, onRight: () -> Unit, onFav: () -> Unit, icon: AIcon? = null, raw: Boolean = false,
-    header: Boolean = false, indent: Boolean = false, onClick: () -> Unit
+    header: Boolean = false, indent: Boolean = false, expanded: Boolean? = null, onClick: () -> Unit
 ) {
     var f by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(DS.RadiusS)
@@ -373,11 +389,12 @@ private fun CatRow(
     ) {
         Row(Modifier.weight(1f, fill = false), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             if (icon != null) AppIcon(icon, if (icon == AIcon.Star) DS.Gold else if (header && !f) Accent2 else ink, size = 18.dp)
-            Text(label, color = if (header && !f) Accent2 else ink, fontSize = 18.sp, fontWeight = if (header) FontWeight.SemiBold else FontWeight.Normal,
+            Text(label, color = ink, fontSize = if (header) 19.sp else 18.sp, fontWeight = if (header) FontWeight.SemiBold else FontWeight.Normal,
                 maxLines = 1, overflow = TextOverflow.Ellipsis, raw = raw)
         }
         // Anzahl nur beim markierten Eintrag (die Liste bleibt ruhig)
-        if (count >= 0 && f) Text("$count", color = DS.FocusInk.copy(alpha = 0.6f), fontSize = 14.sp)
+        if (expanded != null) AppIcon(if (expanded) AIcon.Up else AIcon.Down, if (f) DS.FocusInk else Tok.TextMid, size = 18.dp)
+        else if (count >= 0 && f) Text("$count", color = DS.FocusInk.copy(alpha = 0.6f), fontSize = 14.sp)
     }
 }
 
@@ -411,9 +428,19 @@ private fun TimelineHeader(ws: Long, nowSec: Long) {
     }
 }
 
+/** Darstellung der Guide-Zeilen nach Optik > EPG (TiviMate). Einmal je Liste gelesen, nicht je Zeile. */
+@Immutable
+data class GuideLook(
+    val numbers: Boolean, val names: Boolean, val twoLineNames: Boolean, val catchupIcon: Boolean, val currentId: String?,
+    val twoLineTitles: Boolean, val markRunning: Boolean, val progressOnly: Boolean, val nowFull: Boolean
+) {
+    val rowH get() = if (twoLineTitles || twoLineNames) 64.dp else 46.dp
+}
+
 @Composable
 private fun ChannelLine(
-    item: Item, ws: Long, nowSec: Long, tlW: androidx.compose.ui.unit.Dp, modifier: Modifier, inList: ChList?, onNewList: () -> Unit, onRename: () -> Unit, onLeft: () -> Unit,
+    item: Item, num: Int, look: GuideLook, ws: Long, nowSec: Long, tlW: androidx.compose.ui.unit.Dp, modifier: Modifier, inList: ChList?,
+    onNewList: () -> Unit, onRename: () -> Unit, onLeft: () -> Unit,
     onFocus: () -> Unit = {}, onClick: () -> Unit
 ) {
     var f by remember { mutableStateOf(false) }
@@ -422,14 +449,13 @@ private fun ChannelLine(
     @Suppress("UNUSED_VARIABLE") val editVersion = ChannelEdit.version
     // Ohne Netz (gespeichertes EPG): beim schnellen Scrollen startet je Zeile kein Abruf mehr. Neu, wenn das EPG geladen ist.
     val epg = remember(item.id, Xmltv.channelCount, nowSec / 300) { Epg.nowLocal(item) }
+    val isCurrent = look.currentId == item.id
     Box {
     if (menu) ChannelMenu(item, inList, onNewList, onRename, next = epg.firstOrNull { it.start > nowSec }) { menu = false }
     val cell = RoundedCornerShape(4.dp)
-    // Schlicht wie eine Programmzeitschrift: links Sender, rechts die Sendungen auf der Zeitleiste.
-    // Markiert = hellere Fläche (kein Vergrößern, kein Schatten).
-    // TV-Stil: markierte Zeile mit hellem Rahmen um Sender und Programm, Sendername in der Hervorhebungsfarbe
+    val titleLines = if (look.twoLineTitles) 2 else 1
     Row(
-        modifier.fillMaxWidth().height(46.dp)
+        modifier.fillMaxWidth().height(look.rowH)
             .onFocusChanged { f = it.isFocused; if (it.isFocused) onFocus() }
             .onPreviewKeyEvent { e ->
                 // Links: Gruppenliste aufklappen
@@ -441,16 +467,20 @@ private fun ChannelLine(
     ) {
         Row(
             Modifier.width(CH_W).fillMaxHeight().padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            if (look.numbers) Text(raw = true, text = num.toString(), color = Tok.TextMid, fontSize = 15.sp, style = TNUM,
+                textAlign = androidx.compose.ui.text.style.TextAlign.End, modifier = Modifier.width(34.dp))
             Box(Modifier.size(width = 54.dp, height = 32.dp), contentAlignment = Alignment.Center) {
                 if (item.logo != null) AsyncImage(item.logo, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                 else Text(raw = true, text = item.title.take(2).uppercase(), color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
-            Text(raw = true, text = ChannelEdit.title(item), color = if (f) Accent2 else Color.White, fontSize = 17.sp, fontWeight = FontWeight.Normal,
-                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            if (look.names) Text(raw = true, text = ChannelEdit.title(item),
+                color = if (f || (isCurrent)) Accent2 else Color.White, fontSize = 17.sp, fontWeight = FontWeight.Normal,
+                maxLines = if (look.twoLineNames) 2 else 1, lineHeight = 20.sp, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            else Spacer(Modifier.weight(1f))
             if (Library.isFav(item.id)) AppIcon(AIcon.Star, DS.Gold, size = 14.dp)
-            if (Catchup.version >= 0 && Catchup.has(item)) AppIcon(AIcon.Catchup, Accent2, size = 14.dp)
+            if (look.catchupIcon && Catchup.version >= 0 && Catchup.has(item)) AppIcon(AIcon.Catchup, Accent2, size = 14.dp)
             if (DeadLinks.isDead(item.url)) AppIcon(AIcon.Warning, DS.Gold, size = 14.dp)
         }
         // Breite der Zeitleiste wird einmal für die ganze Liste gemessen (nicht je Zeile)
@@ -469,18 +499,23 @@ private fun ChannelLine(
                 val running = nowSec in e.start until e.end
                 // Laufende Sendung der markierten Zeile: hell mit dunkler Schrift (wie die Markierung im Menü)
                 val lit = running && f
+                // TiviMate „Markiere laufendes Programm“: ganze Fläche heller, oder („nur Fortschritt“) nur der abgelaufene Teil
+                val runFill = running && !f && look.markRunning && !look.progressOnly
                 Box(
                     Modifier.offset(x = w * a).width(w * (b - a)).fillMaxHeight().padding(start = 3.dp).clip(cell)
-                        .background(if (lit) TvFocusFill else if (f) Color(0xFF3A3E44) else TvCell)
-                        .padding(horizontal = 14.dp),
+                        .background(if (lit) TvFocusFill else if (f) Color(0xFF3A3E44) else if (runFill) TvCellNow else TvCell),
                     contentAlignment = Alignment.CenterStart
                 ) {
+                    if (running && !f && look.markRunning && look.progressOnly) {
+                        val frac = ((nowSec - e.start).toFloat() / (e.end - e.start).coerceAtLeast(1)).coerceIn(0f, 1f)
+                        Box(Modifier.fillMaxHeight().fillMaxWidth(frac).background(TvCellNow))
+                    }
                     Text(raw = true, text = e.title, color = if (lit) DS.FocusInk else if (f) Color.White else Color(0xFFC9CCD1), fontSize = 17.sp,
-                        maxLines = 1, overflow = TextOverflow.Clip)
+                        maxLines = titleLines, lineHeight = 20.sp, overflow = TextOverflow.Clip, modifier = Modifier.padding(horizontal = 14.dp))
                 }
             }
-            // Linie für „jetzt“
-            Box(Modifier.offset(x = w * ((nowSec - ws).toFloat() / SPAN)).width(1.dp).fillMaxHeight().background(Accent2.copy(alpha = 0.7f)))
+            // Linie für „jetzt“ (TiviMate: wahlweise über die volle Höhe)
+            if (look.nowFull) Box(Modifier.offset(x = w * ((nowSec - ws).toFloat() / SPAN)).width(1.dp).fillMaxHeight().background(Accent2.copy(alpha = 0.7f)))
         }
     }
     }
@@ -591,6 +626,7 @@ class GuideFocusState {
 private fun RowScope.GuideTop(focus: GuideFocusState, first: Item?, preview: LivePreviewPlayer) {
     LaunchedEffect(focus.target) { if (focus.shown != null) kotlinx.coroutines.delay(300); focus.shown = focus.target }
     val shown = focus.shown ?: first
-    LivePreview(preview, focus.shown, Modifier.fillMaxHeight().aspectRatio(16f / 9f), fallback = shown)
+    // Optik > EPG > Vorschau: aus = kein Vorschaubild, die Sendung nutzt die ganze Breite
+    if (AppSettings.livePreview) LivePreview(preview, focus.shown, Modifier.fillMaxHeight().aspectRatio(16f / 9f), fallback = shown)
     LiveInfo(shown, Modifier.weight(1f).fillMaxHeight())
 }

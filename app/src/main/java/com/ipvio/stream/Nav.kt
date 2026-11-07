@@ -69,6 +69,9 @@ object AppNav {
     /** Aus dem Live-Player mit „links“: danach den TV-Guide (Bereich TV) zeigen. */
     @Volatile var toGuide = false
     @Volatile var toSearch = false
+    /** Aus dem Player: Einstellungen öffnen bzw. zu einem Bereich (Filme, Serien, Meine Liste) springen; -1 = keiner. */
+    @Volatile var toSettings = false
+    @Volatile var toTab = -1
     /** Player offen? Dann verschiebt die Hintergrund-Aktualisierung das Neuladen der Playlist (kein Ruckeln mitten im Film). */
     @Volatile var playing = false
     /** Sender, der geöffnet werden soll (Tippen auf eine Erinnerungs-Benachrichtigung). */

@@ -59,14 +59,20 @@ import coil.compose.AsyncImage
 
 /** Sender-Infoblock: Logo, Nummer, Name, laufende Sendung mit Fortschritt und "Danach". */
 @Composable
-fun LiveInfoBlock(item: Item?, title: String, number: Int, epg: List<EpgEntry>, modifier: Modifier = Modifier) {
+fun LiveInfoBlock(item: Item?, title: String, number: Int, epg: List<EpgEntry>, modifier: Modifier = Modifier, switching: Boolean = false, media: String? = null) {
     // Runde 20 (TV-Stil): Logo frei links, daneben Sendungstitel groß; darunter Zeit, Fortschritt, Restminuten und Sendername,
     // dann Beschreibung und die nächste Sendung
     val nowE = Epg.current(epg)
     val nextE = if (nowE != null) epg.firstOrNull { it.start >= nowE.end } else null
     val logo = item?.logo
     val chName = item?.let { ChannelEdit.title(it) } ?: title
-    Row(modifier, verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+    // Optik > Player > Infofeld (TiviMate): Kartenstil, Beschreibung (immer oder nur beim Senderwechsel), Medieneigenschaften
+    val card = Tm.b(Tm.IF_CARD, false)
+    val showDesc = Tm.b(Tm.IF_DESC, true) && (switching || !Tm.b(Tm.IF_DESC_SWITCH, true))
+    Row(
+        modifier.then(if (card) Modifier.clip(RoundedCornerShape(12.dp)).background(Color(0xE6202328)).padding(20.dp) else Modifier),
+        verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(28.dp)
+    ) {
         Box(Modifier.width(140.dp).height(90.dp), contentAlignment = Alignment.Center) {
             if (logo != null) AsyncImage(logo, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
             else Text(raw = true, text = chName.take(3).uppercase(), color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
@@ -86,9 +92,10 @@ fun LiveInfoBlock(item: Item?, title: String, number: Int, epg: List<EpgEntry>, 
                 }
                 if (number > 0) Text("$number", color = Accent2, fontSize = 18.sp, fontWeight = FontWeight.Medium, style = TNUM)
                 Text(raw = true, text = chName, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (media != null && Tm.b(Tm.IF_MEDIA, true)) PChip(media, raw = true)
             }
             if (nowE != null) {
-                if (nowE.desc.isNotBlank()) Text(raw = true, text = nowE.desc, color = PT.T2, fontSize = 17.sp, lineHeight = 22.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                if (showDesc && nowE.desc.isNotBlank()) Text(raw = true, text = nowE.desc, color = PT.T2, fontSize = 17.sp, lineHeight = 22.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
                 if (nextE != null) Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text(raw = true, text = hhmm(nextE.start) + " — " + hhmm(nextE.end), color = PT.T2, fontSize = 18.sp, style = TNUM, maxLines = 1)
                     Text(raw = true, text = nextE.title, color = PT.T2, fontSize = 20.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -181,8 +188,9 @@ fun ChannelOverlay(
                             // TiviMate: je Wiedergabeliste ein Abschnitt mit ihren Ordnern
                             PlGroups.sections(liveAll).forEach { s ->
                                 val pk = PlGroups.keyP(s.playlist)
-                                item(key = pk) { PCatRow(s.playlist, s.count, chanCat == pk, false, if (chanCat == pk) Modifier.focusRequester(catsFocus) else Modifier, null, { onChanCat(pk) }, icon = AIcon.Layers, raw = true) { onShowCats(false) } }
-                                items(s.groups, key = { pk + "0001" + it.first }) { (g, c) ->
+                                item(key = pk) { PCatRow(s.playlist, s.count, chanCat == pk, false, if (chanCat == pk) Modifier.focusRequester(catsFocus) else Modifier, null, { onChanCat(pk) }, raw = true,
+                                    expanded = !PlGroups.collapsed(s.playlist)) { PlGroups.toggle(ctx, s.playlist) } }
+                                if (!PlGroups.collapsed(s.playlist)) items(Tm.sorted(s.groups, Tm.i(Tm.GRP_SORT, 0)) { it.first }, key = { pk + "0001" + it.first }) { (g, c) ->
                                     val gk = PlGroups.keyG(s.playlist, g)
                                     PCatRow("   " + g, c, chanCat == gk, false, if (chanCat == gk) Modifier.focusRequester(catsFocus) else Modifier, null, { onChanCat(gk) }, raw = true) { onShowCats(false) }
                                 }
@@ -217,7 +225,7 @@ fun ChannelOverlay(
                 }
             }
             // ---- Programm des markierten Senders (in der Programmansicht wählbar, mit Tagesleiste)
-            if (fc != null && !showCats) {
+            if (fc != null && !showCats && (progMode || Tm.b(Tm.CL_OV_PROGS, true))) {
                 Column(Modifier.fillMaxHeight().width(if (progMode) 470.dp else 320.dp).background(if (progMode) panelBg else Color.Transparent)) {
                     Row(Modifier.fillMaxWidth().height(46.dp).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Box(Modifier.size(width = 52.dp, height = 32.dp), contentAlignment = Alignment.Center) {
@@ -229,7 +237,7 @@ fun ChannelOverlay(
                         }
                     }
                     ProgPane(
-                        fe, nowSec, progMode, progFocus, Modifier.weight(1f),
+                        (if (Tm.b(Tm.CL_HIDE_PAST, false)) fe.filter { it.end > nowSec } else fe), nowSec, progMode, progFocus, Modifier.weight(1f),
                         canArchive = Catchup.version >= 0 && Catchup.has(fc),
                         onSel = { selE = it },
                         onLeft = { progMode = false; selE = null },
@@ -244,7 +252,7 @@ fun ChannelOverlay(
                 }
             }
             // ---- Details der markierten bzw. laufenden Sendung
-            if (fc != null && !showCats) Box(Modifier.weight(1f).fillMaxHeight().padding(top = 26.dp, start = 16.dp, end = 26.dp), contentAlignment = Alignment.TopStart) {
+            if (fc != null && !showCats && Tm.b(Tm.CL_OV_DESC, true)) Box(Modifier.weight(1f).fillMaxHeight().padding(top = 26.dp, start = 16.dp, end = 26.dp), contentAlignment = Alignment.TopStart) {
                 val e = detailE
                 if (e != null) {
                     Column(
@@ -395,7 +403,7 @@ private fun ProgrammeList(epg: List<EpgEntry>, nowSec: Long) {
 @Composable
 private fun PCatRow(
     label: String, count: Int, selected: Boolean, fav: Boolean, modifier: Modifier,
-    onFav: (() -> Unit)?, onFocus: () -> Unit, icon: AIcon? = null, raw: Boolean = false, onClick: () -> Unit
+    onFav: (() -> Unit)?, onFocus: () -> Unit, icon: AIcon? = null, raw: Boolean = false, expanded: Boolean? = null, onClick: () -> Unit
 ) {
     var f by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(DS.RadiusS)
@@ -417,7 +425,8 @@ private fun PCatRow(
                 maxLines = 1, overflow = TextOverflow.Ellipsis, raw = raw
             )
         }
-        Text("$count", color = if (f) PT.InkSoft else Muted, fontSize = 13.sp, style = TNUM)
+        if (expanded != null) AppIcon(if (expanded) AIcon.Up else AIcon.Down, if (f) PT.InkSoft else Muted, size = 17.dp)
+        else Text("$count", color = if (f) PT.InkSoft else Muted, fontSize = 13.sp, style = TNUM)
     }
 }
 
@@ -457,7 +466,7 @@ private fun ChannelRow(item: Item, current: Boolean, num: Int, modifier: Modifie
             )
             if (nowE != null) {
                 val frac = ((System.currentTimeMillis() / 1000 - nowE.start).toFloat() / (nowE.end - nowE.start).coerceAtLeast(1)).coerceIn(0f, 1f)
-                Text(raw = true, text = nowE.title, color = if (f) PT.InkSoft else Accent2, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(raw = true, text = nowE.title, color = if (f) PT.InkSoft else if (Tm.b(Tm.CL_HL_NOW, true)) Accent2 else Tok.TextMid, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Box(Modifier.padding(top = 3.dp).fillMaxWidth().height(2.dp).background(if (f) Color(0x26000000) else DS.Overlay3)) {
                     Box(Modifier.fillMaxWidth(frac).fillMaxHeight().background(if (f) PT.Ink else Color.White))
                 }
@@ -487,9 +496,10 @@ fun LiveTopBar(modifier: Modifier = Modifier, trailing: @Composable () -> Unit =
         while (true) { kotlinx.coroutines.delay(15_000); value = System.currentTimeMillis() / 1000 }
     }
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(raw = true, text = listOfNotNull(plName, group).joinToString("  •  "), color = Color.White, fontSize = 20.sp,
+        // Infofeld: Wiedergabeliste/Gruppe, Uhr und Datum je nach Einstellung
+        Text(raw = true, text = if (Tm.b(Tm.IF_PLGROUP, true)) listOfNotNull(plName, group).joinToString("  •  ") else "", color = Color.White, fontSize = 20.sp,
             maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-        Text(raw = true, text = longDay(nowS) + ", " + hhmm(nowS), color = Color.White, fontSize = 20.sp, maxLines = 1)
+        if (Tm.b(Tm.IF_CLOCK, true)) Text(raw = true, text = (if (Tm.b(Tm.IF_DATE, true)) longDay(nowS) + ", " else "") + hhmm(nowS), color = Color.White, fontSize = 20.sp, maxLines = 1)
         trailing()
     }
 }
@@ -506,13 +516,13 @@ fun LiveRecentRow(
     val st = rememberLazyListState()
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         LazyRow(state = st, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            item(key = "epg") {
+            if (Tm.b(Tm.HI_EPG_BTN, true)) item(key = "epg") {
                 RecentTile(Modifier.focusRequester(firstReq), onEpg) { f ->
                     PlayerIcon(PIcon.Guide, Color.White, size = 40.dp)
                     Text("EPG", color = Color.White, fontSize = 20.sp, modifier = Modifier.padding(top = 8.dp))
                 }
             }
-            item(key = "hist") {
+            if (Tm.b(Tm.HI_HIST_BTN, true)) item(key = "hist") {
                 RecentTile(Modifier, onHistory) { f ->
                     AppIcon(AIcon.History, Color.White, size = 40.dp)
                     Text("Verlauf", color = Color.White, fontSize = 20.sp, modifier = Modifier.padding(top = 8.dp))
@@ -526,7 +536,7 @@ fun LiveRecentRow(
                         if (ch.logo != null) AsyncImage(ch.logo, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                         else Text(raw = true, text = ch.title, color = Color.White, fontSize = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
-                    Text(raw = true, text = nowE?.title ?: ch.title, color = Accent2, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    Text(raw = true, text = if (Tm.b(Tm.RC_NAMES, false)) ChannelEdit.title(ch) else nowE?.title ?: ch.title, color = Accent2, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp))
                     val frac = if (nowE != null) ((System.currentTimeMillis() / 1000 - nowE.start).toFloat() / (nowE.end - nowE.start).coerceAtLeast(1)).coerceIn(0f, 1f) else 0f
                     Box(Modifier.padding(top = 6.dp).fillMaxWidth().height(3.dp).background(DS.Overlay3)) {
