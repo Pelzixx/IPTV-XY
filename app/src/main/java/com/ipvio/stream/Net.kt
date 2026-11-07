@@ -8,7 +8,12 @@ import java.util.concurrent.TimeUnit
  * Verbindungs-Pool und Threads, statt dass jeder Bereich eigene anlegt – spart Speicher auf schwachen Geräten.
  */
 object Net {
+    // Allgemein > User-Agent (TiviMate): eigener User-Agent für alle Abrufe, sonst der bisherige
     val base: OkHttpClient = OkHttpClient.Builder()
+        .addInterceptor { ch ->
+            val custom = Tm.s(Tm.GEN_UA).trim()
+            ch.proceed(if (custom.isEmpty()) ch.request() else ch.request().newBuilder().header("User-Agent", custom).build())
+        }
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
         .build()

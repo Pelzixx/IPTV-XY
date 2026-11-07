@@ -114,7 +114,7 @@ fun LivePreview(p: LivePreviewPlayer, ch: Item?, modifier: Modifier = Modifier, 
         val logoCh = ch ?: fallback
         if (!showVideo && logoCh != null) {
             Box(Modifier.fillMaxSize().background(Surf), contentAlignment = Alignment.Center) {
-                if (logoCh.logo != null) AsyncImage(logoCh.logo, null, Modifier.fillMaxSize().padding(28.dp), contentScale = ContentScale.Fit)
+                if (Logos.of(logoCh) != null) AsyncImage(Logos.of(logoCh), null, Modifier.fillMaxSize().padding(28.dp), contentScale = ContentScale.Fit)
                 else Text(raw = true, text = logoCh.title, color = Muted, fontSize = 18.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }

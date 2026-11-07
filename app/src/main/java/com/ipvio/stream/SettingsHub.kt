@@ -1655,6 +1655,7 @@ fun SettingsPanel(onAdd: () -> Unit, reload: () -> Unit, onClose: () -> Unit) {
                             "lp_hist" -> TmLpHist(ctx)
                             "lp_menu" -> TmLpMenu(ctx)
                             "play_steps" -> TmSteps(ctx)
+                            "look_logos" -> TmLogos(ctx)
                             "rc_player" -> TmRemotePlayer(ctx)
                             "look_groups" -> TmLookGroups(ctx) { stack.add(SP.Lang) }
                             "look_vod", "misc_vod" -> ViewPage(ctx)
@@ -1707,8 +1708,19 @@ private fun TmGeneral(ctx: Context) {
     val granted = remember(tick, General.autoStart) { canStartFromBoot(ctx) }
     if (General.autoStart && !granted) SettingRow("Berechtigung fehlt", Lang.tr("„Über anderen Apps einblenden“ erlauben – hier öffnen"),
         onClick = { openOverlaySettings(ctx); tick++ })
+    ToggleRow("Automatisch aus dem Sleep Mode starten", Lang.tr("Funktioniert nicht auf allen Geräten"), Tm.b(Tm.GEN_SLEEP_START, false)) { Tm.set(ctx, Tm.GEN_SLEEP_START, it) }
     ToggleRow("Zuletzt angesehenen Sender beim Start anzeigen", null, General.resumeLive) { General.setResumeLive(ctx, it) }
     ToggleRow("Doppelt bestätigen, zum Verlassen mit der Zurück-Taste", null, General.confirmExit) { General.setConfirmExit(ctx, it) }
+    var ask by remember { mutableStateOf<Ask?>(null) }
+    val ua = Tm.s(Tm.GEN_UA)
+    SettingRow("User-Agent", ua.ifBlank { Lang.tr("Nicht festgelegt") }, rawValue = true, onClick = {
+        ask = Ask("User-Agent", ua, "Mozilla/5.0 …") { Tm.set(ctx, Tm.GEN_UA, it.trim()) }
+    })
+    val udp = Tm.s(Tm.GEN_UDP)
+    SettingRow("UDP Proxy (Adresse:Port)", udp.ifBlank { Lang.tr("Nicht festgelegt") }, rawValue = true, onClick = {
+        ask = Ask("UDP Proxy (Adresse:Port)", udp, "192.168.1.1:4022") { Tm.set(ctx, Tm.GEN_UDP, it.trim()) }
+    })
+    ask?.let { a -> TextAskDialog(Lang.tr(a.title), a.initial, a.hint, a.password, onDismiss = { ask = null }) { ask = null; a.onSave(it) } }
     SettingRow("Daten sichern", msg, rawValue = true, onClick = {
         scope.launch {
             val f = withContext(Dispatchers.IO) { Backup.export(ctx) }
@@ -1819,8 +1831,7 @@ private fun TmLook(ctx: Context, open: (String, String) -> Unit) {
     SettingRow("EPG", null, onClick = { open("look_epg", "EPG") })
     SettingRow("Player", null, onClick = { open("look_player", "Player") })
     SettingRow("Gruppen", null, onClick = { open("look_groups", "Gruppen") })
-    SettingRow("Filme & Serien", null, onClick = { open("look_vod", "Filme & Serien") })
-    SettingRow("Menü", null, onClick = { open("look_menu", "Menü") })
+    SettingRow("Logos", null, onClick = { open("look_logos", "Logos") })
     val langs = listOf("System") + I18nCore.NATIVE
     val li = if (General.lang.isEmpty()) 0 else (I18nCore.CODES.indexOf(General.lang) + 1).coerceAtLeast(0)
     SelectRow("Sprache", langs.getOrElse(li) { "System" }, langs, li) { General.setLang(ctx, if (it == 0) "" else I18nCore.CODES[it - 1]) }
@@ -1830,6 +1841,31 @@ private fun TmLook(ctx: Context, open: (String, String) -> Unit) {
     SelectRow("Farbthema", Lang.tr("Dunkel") + "  •  " + themes[ti], themes, ti) {
         AppSettings.setLook(ctx, it, Look.custom, Look.bgIdx, Look.motion, Look.uiScale)
     }
+    val alphas = listOf(0, 10, 20, 30, 40, 50, 60, 70)
+    SelectRow("Transparenz der Benutzeroberfläche (%)", Tm.i(Tm.UI_ALPHA, 20).toString(), alphas.map { "$it" }, alphas.indexOf(Tm.i(Tm.UI_ALPHA, 20)).coerceAtLeast(0)) { Tm.set(ctx, Tm.UI_ALPHA, alphas[it]) }
+    // XY-eigene Bereiche
+    PanelSection("IPTV-XY")
+    SettingRow("Filme & Serien", null, onClick = { open("look_vod", "Filme & Serien") })
+    SettingRow("Menü", null, onClick = { open("look_menu", "Menü") })
+}
+
+/** Optik > Logos (TiviMate). */
+@Composable
+private fun TmLogos(ctx: Context) {
+    var ask by remember { mutableStateOf<Ask?>(null) }
+    var msg by remember { mutableStateOf<String?>(null) }
+    val pr = Logos.PRIO_NAMES.map { Lang.tr(it) }
+    SelectRow("Logo Priorität", pr[Tm.i(Tm.LOGO_PRIO, 0)], pr, Tm.i(Tm.LOGO_PRIO, 0)) { Tm.set(ctx, Tm.LOGO_PRIO, it) }
+    val dir = Tm.s(Tm.LOGO_DIR)
+    SettingRow("Ordner für Logos", dir.ifBlank { "–" }, rawValue = true, onClick = {
+        ask = Ask("Ordner für Logos", dir, "/storage/emulated/0/Logos  oder  https://…/logos") { Tm.set(ctx, Tm.LOGO_DIR, it.trim()) }
+    })
+    ToggleRow("Übereinstimmung bei ungenauer Bezeichnung für Logodateien", null, Tm.b(Tm.LOGO_FUZZY, false)) { Tm.set(ctx, Tm.LOGO_FUZZY, it) }
+    SettingRow("Logo Cache löschen", msg, rawValue = true, onClick = {
+        runCatching { coil.Coil.imageLoader(ctx).memoryCache?.clear(); @OptIn(coil.annotation.ExperimentalCoilApi::class) coil.Coil.imageLoader(ctx).diskCache?.clear() }
+        msg = Lang.tr("Gelöscht")
+    })
+    ask?.let { a -> TextAskDialog(Lang.tr(a.title), a.initial, a.hint, a.password, onDismiss = { ask = null }) { ask = null; a.onSave(it) } }
 }
 
 /** Optik > EPG: Darstellung des TV-Guides. */

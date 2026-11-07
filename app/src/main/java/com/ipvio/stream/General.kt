@@ -235,3 +235,27 @@ class BootReceiver : BroadcastReceiver() {
         }
     }
 }
+
+/**
+ * Allgemein > „Automatisch aus dem Sleep Mode starten“ (TiviMate): nach dem Einschalten aus dem Standby die App öffnen.
+ * Android meldet das Aufwachen nur an laufende Apps (kein Eintrag im Manifest möglich) – daher wird der Empfänger beim
+ * App-Start angemeldet und bleibt aktiv, solange der App-Prozess läuft. Funktioniert nicht auf allen Geräten.
+ */
+object SleepStart {
+    private var done = false
+    fun register(c: Context) {
+        if (done) return
+        done = true
+        val app = c.applicationContext
+        val r = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context, i: Intent) {
+                if (!Tm.b(Tm.GEN_SLEEP_START, false)) return
+                runCatching { ctx.startActivity(Intent(ctx, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)) }
+            }
+        }
+        val f = android.content.IntentFilter().apply { addAction(Intent.ACTION_SCREEN_ON); addAction(Intent.ACTION_DREAMING_STOPPED) }
+        runCatching {
+            if (android.os.Build.VERSION.SDK_INT >= 33) app.registerReceiver(r, f, Context.RECEIVER_NOT_EXPORTED) else app.registerReceiver(r, f)
+        }
+    }
+}

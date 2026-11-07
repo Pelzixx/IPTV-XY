@@ -103,6 +103,10 @@ object Xmltv {
     fun has(id: String?): Boolean = id != null && progs.containsKey(id.lowercase())
 
     /** Programm eines Senders: über die EPG-Kennung (tvg-id), sonst über den Sendernamen (wie TiviMate). */
+    /** Senderlogos aus dem EPG (Schlüssel wie beim Programm). */
+    val icons = java.util.concurrent.ConcurrentHashMap<String, String>()
+    fun iconFor(item: Item): String? = EpgNames.keys(item).firstNotNullOfOrNull { icons[it] }
+
     fun forItem(item: Item): List<EpgEntry> = EpgNames.keys(item).firstNotNullOfOrNull { progs[it] } ?: emptyList()
     fun hasItem(item: Item): Boolean = EpgNames.keys(item).any { progs.containsKey(it) }
     fun forChannel(id: String?): List<EpgEntry> = if (id == null) emptyList() else progs[id.lowercase()] ?: emptyList()
@@ -137,6 +141,9 @@ object Xmltv {
             val now = System.currentTimeMillis() / 1000
             var age = Long.MAX_VALUE
             sources = tagged.map { EpgSourceStat(EpgSources.label(it), it.kind, it.forName, EpgSourceStat.WAITING) }
+            if (icons.isEmpty()) runCatching {
+                java.io.File(c.cacheDir, "xmltv_icons.txt").readLines().forEach { l -> val i = l.indexOf(ICON_TAB); if (i > 0) icons[l.substring(0, i)] = l.substring(i + 1) }
+            }
             if (!force) runCatching { XmltvCache.read(file, key, now) }.getOrNull()?.let { (savedAt, saved) ->
                 loadStats(c, key)?.let { sources = it }
                 progs.clear()
@@ -191,6 +198,7 @@ object Xmltv {
                 progs.keys.retainAll(map.keys)
                 channelCount = progs.size
                 runCatching { XmltvCache.write(file, key, now, progs) }
+                runCatching { java.io.File(c.cacheDir, "xmltv_icons.txt").writeText(icons.entries.joinToString(ICON_NL) { it.key + ICON_TAB + it.value }) }
                 saveStats(c, key, sources)
             }
             status = when {
@@ -259,21 +267,26 @@ object Xmltv {
             var seen = 0
             var ev = p.eventType
             while (ev != XmlPullParser.END_DOCUMENT) {
-                if (ev == XmlPullParser.START_TAG && p.name == "channel" && names.isNotEmpty()) {
+                if (ev == XmlPullParser.START_TAG && p.name == "channel") {
                     val cid = p.getAttributeValue(null, "id")?.lowercase()
+                    var icon: String? = null
                     var inner = p.next()
                     while (!(inner == XmlPullParser.END_TAG && p.name == "channel") && inner != XmlPullParser.END_DOCUMENT) {
-                        if (inner == XmlPullParser.START_TAG && p.name == "display-name" && cid != null && cid !in wanted && cid !in alias) {
+                        if (inner == XmlPullParser.START_TAG && p.name == "icon") icon = p.getAttributeValue(null, "src")?.takeIf { it.startsWith("http") }
+                        else if (inner == XmlPullParser.START_TAG && p.name == "display-name" && names.isNotEmpty() && cid != null && cid !in wanted && cid !in alias) {
                             val n = EpgNames.norm(p.nextText())
                             if (n in names) alias[cid] = EpgNames.PFX + n
                         }
                         inner = p.next()
                     }
                     // Auch die Kennung selbst (z. B. „DasErste.de“) als Name versuchen
-                    if (cid != null && cid !in wanted && cid !in alias) {
+                    if (names.isNotEmpty() && cid != null && cid !in wanted && cid !in alias) {
                         val n = EpgNames.norm(cid.substringBeforeLast('.'))
                         if (n in names) alias[cid] = EpgNames.PFX + n
                     }
+                    // Optik > Logos (TiviMate): Senderlogo aus dem EPG merken
+                    val key = if (cid == null) null else if (cid in wanted) cid else alias[cid]
+                    if (key != null && icon != null && !icons.containsKey(key)) icons[key] = icon
                 } else if (ev == XmlPullParser.START_TAG && p.name == "programme") {
                     val raw = p.getAttributeValue(null, "channel")?.lowercase()
                     val ch = if (raw == null) null else if (raw in wanted) raw else alias[raw]
@@ -468,3 +481,7 @@ object EpgPrefs {
             .putBoolean("on_start", start).putBoolean("on_pl_change", plChange).apply()
     }
 }
+
+/** Trennzeichen der gespeicherten EPG-Logos (eine Zeile je Sender: Schlüssel, Tab, Adresse). */
+private const val ICON_NL = "\n"
+private const val ICON_TAB = "\t"

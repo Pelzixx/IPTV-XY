@@ -472,7 +472,7 @@ private fun ChannelLine(
             if (look.numbers) Text(raw = true, text = num.toString(), color = Tok.TextMid, fontSize = 15.sp, style = TNUM,
                 textAlign = androidx.compose.ui.text.style.TextAlign.End, modifier = Modifier.width(34.dp))
             Box(Modifier.size(width = 54.dp, height = 32.dp), contentAlignment = Alignment.Center) {
-                if (item.logo != null) AsyncImage(item.logo, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                if (Logos.of(item) != null) AsyncImage(Logos.of(item), null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                 else Text(raw = true, text = item.title.take(2).uppercase(), color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
             if (look.names) Text(raw = true, text = ChannelEdit.title(item),

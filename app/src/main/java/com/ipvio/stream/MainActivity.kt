@@ -52,6 +52,7 @@ class MainActivity : ComponentActivity() {
         // EPG-Einstellungen; „Aktualisieren beim Start“: einmal frisch laden statt den gespeicherten Stand zu nehmen
         EpgPrefs.init(this)
         Tm.init(this)
+        SleepStart.register(this)
         if (EpgPrefs.onStart && savedInstanceState == null) EpgPrefs.forceNext = true
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch { Presets.refresh(applicationContext) }
         // Frischer Start (nicht nur gedrehter/neu erstellter Bildschirm): "Zuletzt Geschautes beim Start fortsetzen" darf wieder greifen.

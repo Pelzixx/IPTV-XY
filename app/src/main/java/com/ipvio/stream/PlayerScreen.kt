@@ -148,6 +148,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     // und gibt nach 10 s Verbindungsaufbau bzw. 15 s Lesezeit auf, statt endlos zu warten.
     val player = remember {
         val http = DefaultHttpDataSource.Factory()
+            .setUserAgent(TmNet.userAgent())
             .setAllowCrossProtocolRedirects(true)
             .setConnectTimeoutMs(10_000)
             .setReadTimeoutMs(15_000)
@@ -574,7 +575,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
         History.add(ctx, si.id)
         scrubTarget = -1L
         cur = PlayReq(si.title + " S" + ep.season + "E" + ep.num, v.url, si.id, false, 0L, cur.tmdbId, ep.season, ep.num)
-        player.setMediaItem(MediaItem.fromUri(v.url), 0L)
+        player.setMediaItem(MediaItem.fromUri(TmNet.playUrl(v.url)), 0L)
         player.prepare()
         player.playWhenReady = true
         ping()
@@ -832,7 +833,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
         scrubTarget = -1L
         val loaded = player.currentMediaItem?.localConfiguration?.uri?.toString()
         if (loaded != cur.url) {
-            player.setMediaItem(MediaItem.fromUri(cur.url), if (cur.startMs > 0) cur.startMs else 0L)
+            player.setMediaItem(MediaItem.fromUri(TmNet.playUrl(cur.url)), if (cur.startMs > 0) cur.startMs else 0L)
             player.prepare(); player.playWhenReady = true
         }
     }

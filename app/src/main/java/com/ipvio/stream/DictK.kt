@@ -210,4 +210,19 @@ Zurückspulen (RW)¦Rewind (RW)¦Geri sar (RW)¦Premotaj nazad (RW)¦Premotaj na
 Vorspulen (FF)¦Fast forward (FF)¦İleri sar (FF)¦Premotaj naprijed (FF)¦Premotaj naprijed (FF)¦Premotaj napred (FF)¦Avanzar (FF)¦Avance rapide (FF)¦Avanti (FF)
 Pg+ (Ch+)¦Pg+ (Ch+)¦Pg+ (Ch+)¦Pg+ (Ch+)¦Pg+ (Ch+)¦Pg+ (Ch+)¦Pg+ (Ch+)¦Pg+ (Ch+)¦Pg+ (Ch+)
 Pg- (Ch-)¦Pg- (Ch-)¦Pg- (Ch-)¦Pg- (Ch-)¦Pg- (Ch-)¦Pg- (Ch-)¦Pg- (Ch-)¦Pg- (Ch-)¦Pg- (Ch-)
+Automatisch aus dem Sleep Mode starten¦Start automatically after sleep mode¦Uyku modundan sonra otomatik başlat¦Automatski pokreni nakon stanja mirovanja¦Automatski pokreni nakon stanja mirovanja¦Automatski pokreni posle stanja mirovanja¦Iniciar automáticamente tras el modo reposo¦Démarrer automatiquement après la veille¦Avvia automaticamente dopo lo standby
+Funktioniert nicht auf allen Geräten¦Does not work on all devices¦Her cihazda çalışmaz¦Ne radi na svim uređajima¦Ne radi na svim uređajima¦Ne radi na svim uređajima¦No funciona en todos los dispositivos¦Ne fonctionne pas sur tous les appareils¦Non funziona su tutti i dispositivi
+User-Agent¦User agent¦User-Agent¦User-Agent¦User-Agent¦User-Agent¦User-Agent¦User-Agent¦User-Agent
+Nicht festgelegt¦Not set¦Ayarlanmadı¦Nije postavljeno¦Nije postavljeno¦Nije podešeno¦No establecido¦Non défini¦Non impostato
+UDP Proxy (Adresse:Port)¦UDP proxy (address:port)¦UDP proxy (adres:port)¦UDP proxy (adresa:port)¦UDP proxy (adresa:port)¦UDP proxy (adresa:port)¦Proxy UDP (dirección:puerto)¦Proxy UDP (adresse:port)¦Proxy UDP (indirizzo:porta)
+Logos¦Logos¦Logolar¦Logotipi¦Logotipi¦Logotipi¦Logotipos¦Logos¦Loghi
+Logo Priorität¦Logo priority¦Logo önceliği¦Prioritet logotipa¦Prioritet logotipa¦Prioritet logotipa¦Prioridad de logotipos¦Priorité des logos¦Priorità loghi
+Logos aus der Playlist bevorzugen¦Prefer logos from the playlist¦Listedeki logoları tercih et¦Preferiraj logotipe iz playliste¦Preferiraj logotipe iz playliste¦Preferiraj logotipe iz plejliste¦Preferir logotipos de la lista¦Préférer les logos de la playlist¦Preferisci i loghi della playlist
+Logos aus dem EPG bevorzugen¦Prefer logos from the EPG¦EPG logolarını tercih et¦Preferiraj logotipe iz EPG-a¦Preferiraj logotipe iz EPG-a¦Preferiraj logotipe iz EPG-a¦Preferir logotipos de la EPG¦Préférer les logos de l’EPG¦Preferisci i loghi dell’EPG
+Logos aus dem Ordner bevorzugen¦Prefer logos from the folder¦Klasördeki logoları tercih et¦Preferiraj logotipe iz mape¦Preferiraj logotipe iz mape¦Preferiraj logotipe iz fascikle¦Preferir logotipos de la carpeta¦Préférer les logos du dossier¦Preferisci i loghi della cartella
+Ordner für Logos¦Logo folder¦Logo klasörü¦Mapa za logotipe¦Mapa za logotipe¦Fascikla za logotipe¦Carpeta de logotipos¦Dossier des logos¦Cartella loghi
+Übereinstimmung bei ungenauer Bezeichnung für Logodateien¦Fuzzy matching for logo file names¦Logo dosya adlarında yaklaşık eşleşme¦Približno podudaranje naziva logotipa¦Približno podudaranje naziva logotipa¦Približno podudaranje naziva logotipa¦Coincidencia aproximada de nombres de logotipo¦Correspondance approximative des noms de logo¦Corrispondenza approssimativa dei nomi dei loghi
+Logo Cache löschen¦Clear logo cache¦Logo önbelleğini temizle¦Obriši keš logotipa¦Obriši predmemoriju logotipa¦Obriši keš logotipa¦Borrar caché de logotipos¦Vider le cache des logos¦Svuota cache loghi
+Gelöscht¦Cleared¦Temizlendi¦Obrisano¦Obrisano¦Obrisano¦Borrado¦Vidé¦Svuotata
+Transparenz der Benutzeroberfläche (%)¦Interface transparency (%)¦Arayüz şeffaflığı (%)¦Prozirnost sučelja (%)¦Prozirnost sučelja (%)¦Providnost interfejsa (%)¦Transparencia de la interfaz (%)¦Transparence de l’interface (%)¦Trasparenza interfaccia (%)
 """

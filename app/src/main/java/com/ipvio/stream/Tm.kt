@@ -97,6 +97,17 @@ object Tm {
     const val SP_UD_CATCHUP = "sp_ud_catchup"      // Hoch/Runter spulen im Catchup
 
     // ---------------------------------------------------------------- Wiedergabe
+    // ---------------------------------------------------------------- Allgemein
+    const val GEN_UA = "gen_ua"                   // eigener User-Agent (leer = Standard)
+    const val GEN_UDP = "gen_udp"                 // UDP-Proxy „Adresse:Port“ (udpxy)
+    const val GEN_SLEEP_START = "gen_sleep_start" // nach dem Aufwachen aus dem Standby starten
+
+    // ---------------------------------------------------------------- Optik > Logos
+    const val LOGO_PRIO = "logo_prio"
+    const val LOGO_DIR = "logo_dir"
+    const val LOGO_FUZZY = "logo_fuzzy"
+    const val UI_ALPHA = "ui_alpha"               // Transparenz der Benutzeroberfläche in %
+
     const val PB_AUDIO_DEC = "pb_audio_dec"          // 0 Hardware, 1 Software
     const val PB_VIDEO_DEC = "pb_video_dec"          // 0 Hardware, 1 Software
     const val PB_SURROUND = "pb_surround"
@@ -125,3 +136,20 @@ object Tm {
         return n.trim().ifEmpty { name }
     }
 }
+
+/** Hilfen für Allgemein-Einstellungen (TiviMate): User-Agent und UDP-Proxy. */
+object TmNet {
+    const val DEFAULT_UA = "IPTV-XY/1.0"
+    fun userAgent(): String = Tm.s(Tm.GEN_UA).trim().ifEmpty { DEFAULT_UA }
+
+    /** udp://@239.0.0.1:1234 bzw. rtp://… über den eingestellten udpxy-Proxy: http://proxy/udp/239.0.0.1:1234 */
+    fun playUrl(url: String): String {
+        val proxy = Tm.s(Tm.GEN_UDP).trim().removePrefix("http://").trimEnd('/')
+        if (proxy.isEmpty()) return url
+        val m = Regex("""^(udp|rtp)://@?(.+)$""", RegexOption.IGNORE_CASE).find(url.trim()) ?: return url
+        return "http://$proxy/${m.groupValues[1].lowercase()}/${m.groupValues[2]}"
+    }
+}
+
+/** Optik > Transparenz der Benutzeroberfläche (TiviMate): Deckkraft der Overlays im Player (0 % = wie gestaltet). */
+fun uiAlpha(base: Float): Float = (base * (1f - Tm.i(Tm.UI_ALPHA, 20) / 100f * 0.8f)).coerceIn(0.25f, 1f)

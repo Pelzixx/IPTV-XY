@@ -64,13 +64,13 @@ fun LiveInfoBlock(item: Item?, title: String, number: Int, epg: List<EpgEntry>, 
     // dann Beschreibung und die nächste Sendung
     val nowE = Epg.current(epg)
     val nextE = if (nowE != null) epg.firstOrNull { it.start >= nowE.end } else null
-    val logo = item?.logo
+    val logo = Logos.of(item)
     val chName = item?.let { ChannelEdit.title(it) } ?: title
     // Optik > Player > Infofeld (TiviMate): Kartenstil, Beschreibung (immer oder nur beim Senderwechsel), Medieneigenschaften
     val card = Tm.b(Tm.IF_CARD, false)
     val showDesc = Tm.b(Tm.IF_DESC, true) && (switching || !Tm.b(Tm.IF_DESC_SWITCH, true))
     Row(
-        modifier.then(if (card) Modifier.clip(RoundedCornerShape(12.dp)).background(Color(0xE6202328)).padding(20.dp) else Modifier),
+        modifier.then(if (card) Modifier.clip(RoundedCornerShape(12.dp)).background(Color(0xFF202328).copy(alpha = uiAlpha(0.95f))).padding(20.dp) else Modifier),
         verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(28.dp)
     ) {
         Box(Modifier.width(140.dp).height(90.dp), contentAlignment = Alignment.Center) {
@@ -161,7 +161,7 @@ fun ChannelOverlay(
         val target = if (progMode) progFocus else chanFocus
         repeat(12) { kotlinx.coroutines.delay(40); if (runCatching { target.requestFocus() }.isSuccess) return@LaunchedEffect }
     }
-    val panelBg = Color(0xEB1B1E22)
+    val panelBg = Color(0xFF1B1E22).copy(alpha = uiAlpha(0.95f))
     val detailE = selE ?: Epg.current(fe)
 
     Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to Color(0xCC000000), 0.6f to Color(0x99000000), 1f to Color(0x33000000)))) {
@@ -229,7 +229,7 @@ fun ChannelOverlay(
                 Column(Modifier.fillMaxHeight().width(if (progMode) 470.dp else 320.dp).background(if (progMode) panelBg else Color.Transparent)) {
                     Row(Modifier.fillMaxWidth().height(46.dp).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Box(Modifier.size(width = 52.dp, height = 32.dp), contentAlignment = Alignment.Center) {
-                            if (fc.logo != null) AsyncImage(fc.logo, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                            if (Logos.of(fc) != null) AsyncImage(Logos.of(fc), null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                         }
                         Column {
                             Text(raw = true, text = ChannelEdit.title(fc), color = Color.White, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -457,7 +457,7 @@ private fun ChannelRow(item: Item, current: Boolean, num: Int, modifier: Modifie
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Box(Modifier.size(width = 64.dp, height = 44.dp), contentAlignment = Alignment.Center) {
-            if (item.logo != null) AsyncImage(item.logo, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+            if (Logos.of(item) != null) AsyncImage(Logos.of(item), null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
@@ -533,7 +533,7 @@ fun LiveRecentRow(
                     val epg by produceState(emptyList<EpgEntry>(), ch.id) { value = Epg.now(ch) }
                     val nowE = Epg.current(epg)
                     Box(Modifier.fillMaxWidth().weight(1f).padding(horizontal = 14.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
-                        if (ch.logo != null) AsyncImage(ch.logo, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                        if (Logos.of(ch) != null) AsyncImage(Logos.of(ch), null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                         else Text(raw = true, text = ch.title, color = Color.White, fontSize = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
                     Text(raw = true, text = if (Tm.b(Tm.RC_NAMES, false)) ChannelEdit.title(ch) else nowE?.title ?: ch.title, color = Accent2, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -555,7 +555,7 @@ private fun RecentTile(modifier: Modifier, onClick: () -> Unit, pad: Boolean = t
     val shape = RoundedCornerShape(8.dp)
     Column(
         modifier.size(width = 140.dp, height = 106.dp).clip(shape)
-            .background(if (f) Color(0xFF2C3036) else Color(0xE61C1F23))
+            .background(if (f) Color(0xFF2C3036) else Color(0xFF1C1F23).copy(alpha = uiAlpha(0.95f)))
             .border(2.dp, if (f) Color.White else Color.Transparent, shape)
             .onFocusChanged { f = it.isFocused }
             .clickable(onClick = onClick)
