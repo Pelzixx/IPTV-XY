@@ -987,7 +987,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                     controls || panel != Panel.NONE || showChannels || showGuide -> false
                     else -> when (k) {
                         // TV-Stil: Links führt in den TV-Guide (der Sender läuft dort im Vorschaufenster weiter)
-                        Key.DirectionLeft -> { if (cur.live) { AppNav.toGuide = true; onBack() } else stepSeek(-1); true }
+                        Key.DirectionLeft -> { if (cur.live) openChannels() else stepSeek(-1); true }
                         Key.DirectionRight -> { if (cur.live) { controls = false; showGuide = true } else stepSeek(1); true }
                         Key.DirectionCenter, Key.Enter -> {
                             val seg = activeSeg
@@ -1467,7 +1467,8 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                 focusedCh, { focusedCh = it },
                 inHeader, { inHeader = it },
                 chanFocus, catsFocus, headerFocus,
-                { showChannels = false }
+                { showChannels = false },
+                onArchive = { ch, e -> playArchive(ch, e) }
             ) { item, list -> playCat = chanCat; switchTo(item, list) }
         }
 

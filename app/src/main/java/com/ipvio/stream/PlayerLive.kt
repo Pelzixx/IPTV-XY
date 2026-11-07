@@ -1,5 +1,10 @@
 package com.ipvio.stream
 
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -109,15 +114,16 @@ fun ChannelOverlay(
     focusedCh: Item?, onFocusedCh: (Item) -> Unit,
     inHeader: Boolean, onInHeader: (Boolean) -> Unit,
     chanFocus: FocusRequester, catsFocus: FocusRequester, headerFocus: FocusRequester,
-    onClose: () -> Unit, onPick: (Item, List<Item>) -> Unit
+    onClose: () -> Unit, onArchive: (Item, EpgEntry) -> Unit, onPick: (Item, List<Item>) -> Unit
 ) {
+    // TiviMate: Links im Player = Senderliste über dem Bild. Nochmal Links = Gruppen.
+    // Rechts = Programm des markierten Senders (Sendungen wählbar, laufende mit „LIVE“), daneben die Tage, ganz rechts Details.
     val ctx = LocalContext.current
     val byId = remember(liveAll) { liveAll.associateBy { it.id } }
     val groups = remember(liveAll) { liveAll.groupBy { it.group } }
     val favItems = Library.favs.mapNotNull { byId[it] }
     val favCats = CatFavs.list.filter { it in groups }
     val catNames = favCats + groups.keys.filter { it !in favCats }
-    // Eigene Senderlisten (angelegt im Live-TV-Bereich mit der Menü-Taste)
     val myLists = ChannelLists.lists.toList()
     val curList = ChannelLists.byKey(chanCat)
     val chanList = when {
@@ -133,100 +139,207 @@ fun ChannelOverlay(
     val fc = focusedCh ?: curItem
     val fe by produceState(emptyList<EpgEntry>(), fc?.id) { value = if (fc != null) EpgFull.get(fc) else emptyList() }
     val nowSec = System.currentTimeMillis() / 1000
-    val catLabel = when { chanCat == FAV_CAT -> "Favoriten"; chanCat == "ALL" -> "Alle Sender"; chanCat == "RECENT" -> "Verlauf"; curList != null -> curList.name; else -> chanCat }
+    val catLabel = when {
+        chanCat == FAV_CAT -> Lang.tr("Favoriten"); chanCat == "ALL" -> Lang.tr("Alle Sender"); chanCat == "RECENT" -> Lang.tr("Verlauf")
+        curList != null -> curList.name; else -> chanCat
+    }
+    val plName = PlaylistStore.lists.getOrNull(PlaylistStore.active)?.name
+    val header = listOfNotNull(plName, catLabel).joinToString("  •  ")
+    // Programmansicht (nach Rechts): markierte Sendung bestimmt die Detailkarte
+    var progMode by remember { mutableStateOf(false) }
+    var selE by remember(fc?.id) { mutableStateOf<EpgEntry?>(null) }
+    val progFocus = remember { FocusRequester() }
+    LaunchedEffect(progMode) {
+        val target = if (progMode) progFocus else chanFocus
+        repeat(12) { kotlinx.coroutines.delay(40); if (runCatching { target.requestFocus() }.isSuccess) return@LaunchedEffect }
+    }
+    val panelBg = Color(0xEB1B1E22)
+    val detailE = selE ?: Epg.current(fe)
 
-    // Dunkler Verlauf von links, rechts bleibt das Bild sichtbar
-    Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to Color(0xF2050608), 0.55f to Color(0xD9050608), 0.8f to Color(0x66050608), 1f to Color.Transparent))) {
-    Row(Modifier.fillMaxSize()) {
-        if (showCats) {
-            Column(
-                Modifier.fillMaxHeight().width(300.dp).background(Color(0xF50C0D16)).padding(16.dp)
+    Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to Color(0xCC000000), 0.6f to Color(0x99000000), 1f to Color(0x33000000)))) {
+        Row(Modifier.fillMaxSize()) {
+            // ---- Gruppen (zweites Links)
+            if (showCats) {
+                Column(
+                    Modifier.fillMaxHeight().width(280.dp).background(Color(0xF0181A1E)).padding(horizontal = 16.dp, vertical = 12.dp)
+                        .onPreviewKeyEvent { e ->
+                            if (e.type != KeyEventType.KeyDown) false
+                            else if (e.key == Key.DirectionRight) { onShowCats(false); true }
+                            else e.key == Key.DirectionLeft
+                        }
+                ) {
+                    LazyColumn {
+                        item { PCatRow("Favoriten", favItems.size, chanCat == FAV_CAT, true, if (chanCat == FAV_CAT) Modifier.focusRequester(catsFocus) else Modifier, null, { onChanCat(FAV_CAT) }) { onShowCats(false) } }
+                        item { PCatRow("Verlauf", History.ids.count { it in byId }, chanCat == "RECENT", false, if (chanCat == "RECENT") Modifier.focusRequester(catsFocus) else Modifier, null, { onChanCat("RECENT") }, icon = AIcon.History) { onShowCats(false) } }
+                        items(myLists) { l ->
+                            val k = ChannelListLogic.key(l)
+                            PCatRow(l.name, ChannelListLogic.resolve(l, byId).size, chanCat == k, false, if (chanCat == k) Modifier.focusRequester(catsFocus) else Modifier, null, { onChanCat(k) }, icon = AIcon.Lists, raw = true) { onShowCats(false) }
+                        }
+                        item { PCatRow("Alle Sender", liveAll.size, chanCat == "ALL", false, if (chanCat == "ALL") Modifier.focusRequester(catsFocus) else Modifier, null, { onChanCat("ALL") }) { onShowCats(false) } }
+                        items(catNames) { g ->
+                            PCatRow(g, groups[g]?.size ?: 0, chanCat == g, g in CatFavs.list, if (chanCat == g) Modifier.focusRequester(catsFocus) else Modifier, { CatFavs.toggle(ctx, g) }, { onChanCat(g) }, raw = true) { onShowCats(false) }
+                        }
+                    }
+                }
+            }
+            // ---- Sender (in der Programmansicht ausgeblendet)
+            if (!progMode) Column(
+                Modifier.fillMaxHeight().width(360.dp).background(panelBg)
                     .onPreviewKeyEvent { e ->
                         if (e.type != KeyEventType.KeyDown) false
-                        else if (e.key == Key.DirectionRight) { onShowCats(false); true }
-                        else if (e.key == Key.DirectionLeft) true
+                        else if (e.key == Key.DirectionRight && !showCats) { progMode = true; true }
+                        else if (e.key == Key.DirectionLeft && !showCats) { onShowCats(true); true }
                         else false
-                    },
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    }
             ) {
-                Text("Kategorien", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                LazyColumn {
-                    item {
-                        PCatRow("Favoriten", favItems.size, chanCat == FAV_CAT, true, if (chanCat == FAV_CAT) Modifier.focusRequester(catsFocus) else Modifier, null, { onChanCat(FAV_CAT) }) { onShowCats(false) }
-                    }
-                    items(myLists) { l ->
-                        val k = ChannelListLogic.key(l)
-                        PCatRow(l.name, ChannelListLogic.resolve(l, byId).size, chanCat == k, false, if (chanCat == k) Modifier.focusRequester(catsFocus) else Modifier, null, { onChanCat(k) }, icon = AIcon.Lists, raw = true) { onShowCats(false) }
-                    }
-                    item {
-                        PCatRow("Alle Sender", liveAll.size, chanCat == "ALL", false, if (chanCat == "ALL") Modifier.focusRequester(catsFocus) else Modifier, null, { onChanCat("ALL") }) { onShowCats(false) }
-                    }
-                    items(catNames) { g ->
-                        PCatRow(g, groups[g]?.size ?: 0, chanCat == g, g in CatFavs.list, if (chanCat == g) Modifier.focusRequester(catsFocus) else Modifier, { CatFavs.toggle(ctx, g) }, { onChanCat(g) }) { onShowCats(false) }
+                Box(Modifier.fillMaxWidth().height(46.dp).background(Color(0x33000000)).padding(horizontal = 18.dp), contentAlignment = Alignment.CenterStart) {
+                    Text(raw = true, text = header, color = Color.White, fontSize = 18.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                LazyColumn(state = ls, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)) {
+                    itemsIndexed(chanList) { i, it ->
+                        ChannelRow(
+                            it, it.id == curId, i + 1,
+                            if (i == startIdx || (startIdx < 0 && i == 0)) Modifier.focusRequester(chanFocus) else Modifier,
+                            onFocus = { onFocusedCh(it) }
+                        ) { onPick(it, chanList) }
                     }
                 }
             }
-        }
-        // Links: Sender
-        Column(
-            Modifier.fillMaxHeight().width(420.dp).padding(start = 16.dp, top = 20.dp, end = 8.dp)
-                .onPreviewKeyEvent { e ->
-                    if (e.type != KeyEventType.KeyDown) false
-                    else if (e.key == Key.DirectionRight && !showCats) { onClose(); true }
-                    else if (e.key == Key.DirectionLeft && !showCats) { onShowCats(true); true }
-                    else false
-                },
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Text(catLabel, color = Tok.TextMid, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                raw = curList != null || (chanCat != FAV_CAT && chanCat != "ALL" && chanCat != "RECENT"), modifier = Modifier.padding(start = 6.dp))
-            LazyColumn(state = ls) {
-                itemsIndexed(chanList) { i, it ->
-                    ChannelRow(
-                        it, it.id == curId, i + 1,
-                        if (i == startIdx || (startIdx < 0 && i == 0)) Modifier.focusRequester(chanFocus) else Modifier,
-                        onFocus = { onFocusedCh(it) }
-                    ) { onPick(it, chanList) }
-                }
-            }
-        }
-        // Mitte: Programm des markierten Senders
-        if (fc != null) Column(Modifier.fillMaxHeight().width(380.dp).padding(start = 12.dp, top = 20.dp, end = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Box(Modifier.size(width = 64.dp, height = 44.dp), contentAlignment = Alignment.Center) {
-                    if (fc.logo != null) AsyncImage(fc.logo, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
-                }
-                Column {
-                    Text(raw = true, text = fc.title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(raw = true, text = fc.group, color = Muted, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-            }
-            ProgrammeList(fe, nowSec)
-        }
-        // Rechts oben: laufende Sendung
-        Box(Modifier.weight(1f).fillMaxHeight().padding(top = 20.dp, end = 24.dp), contentAlignment = Alignment.TopEnd) {
-            val nowE = Epg.current(fe)
-            if (fc != null && nowE != null) {
-                val shape = RoundedCornerShape(DS.RadiusM)
-                Column(
-                    Modifier.widthIn(max = 520.dp).clip(shape).background(Color(0xE6202228)).padding(horizontal = 20.dp, vertical = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(raw = true, text = nowE.title, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    val frac = ((nowSec - nowE.start).toFloat() / (nowE.end - nowE.start).coerceAtLeast(1)).coerceIn(0f, 1f)
-                    val left = ((nowE.end - nowSec) / 60).coerceAtLeast(0)
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("${hhmm(nowE.start)} – ${hhmm(nowE.end)}", color = Tok.TextMid, fontSize = 16.sp, style = TNUM)
-                        Box(Modifier.width(90.dp).height(3.dp).background(DS.Overlay3)) {
-                            Box(Modifier.fillMaxWidth(frac).fillMaxHeight().background(Color.White))
+            // ---- Programm des markierten Senders (in der Programmansicht wählbar, mit Tagesleiste)
+            if (fc != null && !showCats) {
+                Column(Modifier.fillMaxHeight().width(if (progMode) 470.dp else 320.dp).background(if (progMode) panelBg else Color.Transparent)) {
+                    Row(Modifier.fillMaxWidth().height(46.dp).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Box(Modifier.size(width = 52.dp, height = 32.dp), contentAlignment = Alignment.Center) {
+                            if (fc.logo != null) AsyncImage(fc.logo, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                         }
-                        Text("$left Min", color = Tok.TextMid, fontSize = 16.sp, style = TNUM)
+                        Column {
+                            Text(raw = true, text = ChannelEdit.title(fc), color = Color.White, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(raw = true, text = listOfNotNull(plName, fc.group.takeIf { it.isNotBlank() }).joinToString("  •  "), color = Tok.TextMid, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
                     }
-                    if (nowE.desc.isNotBlank()) Text(raw = true, text = nowE.desc, color = Tok.TextMid, fontSize = 15.sp, lineHeight = 20.sp, maxLines = 6, overflow = TextOverflow.Ellipsis)
+                    ProgPane(
+                        fe, nowSec, progMode, progFocus, Modifier.weight(1f),
+                        canArchive = Catchup.version >= 0 && Catchup.has(fc),
+                        onSel = { selE = it },
+                        onLeft = { progMode = false; selE = null },
+                        onPick = { e ->
+                            when {
+                                nowSec in e.start until e.end -> onPick(fc, chanList)
+                                e.end <= nowSec && Catchup.has(fc) -> onArchive(fc, e)
+                                else -> {}
+                            }
+                        }
+                    )
+                }
+            }
+            // ---- Details der markierten bzw. laufenden Sendung
+            if (fc != null && !showCats) Box(Modifier.weight(1f).fillMaxHeight().padding(top = 26.dp, start = 16.dp, end = 26.dp), contentAlignment = Alignment.TopStart) {
+                val e = detailE
+                if (e != null) {
+                    Column(
+                        Modifier.widthIn(max = 460.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xE62A2D33)).padding(horizontal = 20.dp, vertical = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(raw = true, text = e.title, color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(raw = true, text = hhmm(e.start) + " — " + hhmm(e.end), color = Tok.TextMid, fontSize = 16.sp, style = TNUM)
+                            if (nowSec in e.start until e.end) {
+                                val frac = ((nowSec - e.start).toFloat() / (e.end - e.start).coerceAtLeast(1)).coerceIn(0f, 1f)
+                                Box(Modifier.width(48.dp).height(3.dp).background(DS.Overlay3)) { Box(Modifier.fillMaxWidth(frac).fillMaxHeight().background(Color.White)) }
+                                Text(raw = true, text = ((e.end - nowSec) / 60).coerceAtLeast(0).toString() + " Min", color = Tok.TextMid, fontSize = 16.sp, style = TNUM)
+                            } else Text(raw = true, text = dayLabel(e.start), color = Tok.TextMid, fontSize = 16.sp)
+                        }
+                        if (e.desc.isNotBlank()) Text(raw = true, text = e.desc, color = Tok.TextMid, fontSize = 15.sp, lineHeight = 20.sp, maxLines = 9, overflow = TextOverflow.Ellipsis)
+                    }
                 }
             }
         }
     }
+}
+
+/**
+ * Programmliste im Overlay. Normal nur zum Lesen (laufende Sendung blau); in der Programmansicht wählbar:
+ * markierte Sendung hell, laufende mit „LIVE“, rechts eine Tagesleiste. Links = zurück zu den Sendern.
+ */
+@Composable
+private fun ProgPane(
+    epg: List<EpgEntry>, nowSec: Long, active: Boolean, firstReq: FocusRequester, modifier: Modifier,
+    canArchive: Boolean, onSel: (EpgEntry) -> Unit, onLeft: () -> Unit, onPick: (EpgEntry) -> Unit
+) {
+    val leftKey = Modifier.onPreviewKeyEvent { e -> if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionLeft) { onLeft(); true } else false }
+    if (epg.isEmpty()) {
+        Box(modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Text("Kein Programm für diesen Sender", color = Muted, fontSize = 15.sp,
+                modifier = if (active) Modifier.focusRequester(firstReq).then(leftKey).focusable() else Modifier)
+        }
+        return
+    }
+    val zone = epgZone()
+    fun dayOf(sec: Long): Int = java.util.Calendar.getInstance(zone).run { timeInMillis = sec * 1000; get(java.util.Calendar.YEAR) * 1000 + get(java.util.Calendar.DAY_OF_YEAR) }
+    val curIdx = epg.indexOfFirst { nowSec in it.start until it.end }.let { if (it < 0) epg.indexOfFirst { e -> e.start > nowSec }.coerceAtLeast(0) else it }
+    val st = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(epg) { st.scrollToItem(maxOf(curIdx - 5, 0)) }
+    var selIdx by remember(epg) { mutableIntStateOf(curIdx) }
+    val days = remember(epg) { epg.map { dayOf(it.start) to it.start }.distinctBy { it.first } }
+    val selDay = dayOf(epg.getOrNull(selIdx)?.start ?: nowSec)
+    val dayFmt = remember { java.text.SimpleDateFormat("EE,", java.util.Locale.getDefault()).apply { timeZone = zone } }
+    val dateFmt = remember { java.text.SimpleDateFormat("d. MMM", java.util.Locale.getDefault()).apply { timeZone = zone } }
+    Row(modifier.fillMaxWidth()) {
+        LazyColumn(
+            state = st, modifier = Modifier.weight(1f).fillMaxHeight().then(leftKey),
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+        ) {
+            itemsIndexed(epg) { i, e ->
+                var f by remember { mutableStateOf(false) }
+                val running = nowSec in e.start until e.end
+                val past = e.end <= nowSec
+                Row(
+                    Modifier.fillMaxWidth().height(42.dp).clip(RoundedCornerShape(6.dp))
+                        .background(if (f) TvFocusFill else Color.Transparent)
+                        .then(if (active && i == curIdx) Modifier.focusRequester(firstReq) else Modifier)
+                        .onFocusChanged { f = it.isFocused; if (it.isFocused) { selIdx = i; onSel(e) } }
+                        .then(if (active) Modifier.clickable { onPick(e) } else Modifier)
+                        .padding(horizontal = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    val c = when { f -> DS.FocusInk; running -> Accent2; past && !canArchive -> Tok.TextMid; else -> Color.White }
+                    Text(raw = true, text = hhmm(e.start), color = c, fontSize = 17.sp, style = TNUM)
+                    Text(raw = true, text = e.title, color = c, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    if (running) {
+                        PlayerIcon(PIcon.Play, if (f) DS.FocusInk else Accent2, size = 16.dp)
+                        Box(Modifier.border(1.dp, if (f) DS.FocusInk else Tok.TextMid, RoundedCornerShape(3.dp)).padding(horizontal = 4.dp)) {
+                            Text("LIVE", color = if (f) DS.FocusInk else Tok.TextMid, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    } else if (past && canArchive) AppIcon(AIcon.Catchup, if (f) DS.FocusInk else Accent2, size = 15.dp)
+                }
+            }
+        }
+        // Tagesleiste (nur in der Programmansicht): springt zum ersten Eintrag des Tages
+        if (active) LazyColumn(
+            Modifier.width(84.dp).fillMaxHeight().padding(vertical = 4.dp)
+                .onPreviewKeyEvent { e -> if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionLeft) { runCatching { firstReq.requestFocus() }; true } else false }
+        ) {
+            items(days) { (d, startSec) ->
+                var f by remember { mutableStateOf(false) }
+                val sel = d == selDay
+                Column(
+                    Modifier.fillMaxWidth().padding(vertical = 3.dp).clip(RoundedCornerShape(6.dp))
+                        .background(if (f) TvFocusFill else if (sel) Color(0x26FFFFFF) else Color.Transparent)
+                        .onFocusChanged { f = it.isFocused }
+                        .clickable {
+                            val i = epg.indexOfFirst { dayOf(it.start) == d }
+                            if (i >= 0) { selIdx = i; scope.launch { st.scrollToItem(i) } }
+                        }
+                        .padding(vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    val c = if (f) DS.FocusInk else if (sel) Color.White else Tok.TextMid
+                    Text(raw = true, text = dayFmt.format(java.util.Date(startSec * 1000)), color = c, fontSize = 14.sp)
+                    Text(raw = true, text = dateFmt.format(java.util.Date(startSec * 1000)), color = c, fontSize = 14.sp)
+                }
+            }
+        }
     }
 }
 
@@ -323,8 +436,6 @@ private fun ChannelRow(item: Item, current: Boolean, num: Int, modifier: Modifie
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(raw = true, text = num.toString(), color = if (f) PT.InkSoft else Tok.TextMid, fontSize = 16.sp, style = TNUM,
-            textAlign = androidx.compose.ui.text.style.TextAlign.End, modifier = Modifier.width(34.dp))
         Box(Modifier.size(width = 64.dp, height = 44.dp), contentAlignment = Alignment.Center) {
             if (item.logo != null) AsyncImage(item.logo, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
         }

@@ -1,5 +1,6 @@
 package com.ipvio.stream
 
+import kotlinx.coroutines.launch
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -119,6 +120,19 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
             if (runCatching { catSelReq.requestFocus() }.isSuccess) return@LaunchedEffect
         }
     }
+    // Rechts aus den Gruppen: Senderliste nach oben holen (sonst gibt es den ersten Sender noch nicht) und so lange
+    // fokussieren, bis ein Sender den Fokus hat (dann klappen die Gruppen zu)
+    val chanScope = rememberCoroutineScope()
+    fun toChannels() {
+        chanScope.launch {
+            runCatching { chanState.scrollToItem(0) }
+            repeat(15) {
+                runCatching { firstChan.requestFocus() }
+                kotlinx.coroutines.delay(50)
+                if (!catOpen) return@launch
+            }
+        }
+    }
     SideEffect { ContentFocus.tab = 3 }
     SideEffect { LiveUi.groupsOpen = catOpen }
     DisposableEffect(Unit) { onDispose { LiveUi.groupsOpen = false } }
@@ -166,7 +180,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                     val ml = ChannelLists.byKey(n)
                     if (n == "GUIDE") {
                         // TV-Guide: startet den zuletzt gesehenen (sonst ersten) Sender der Auswahl und öffnet den Guide
-                        CatRow("TV-Guide", -1, false, Modifier, onFocus = {}, onRight = { runCatching { firstChan.requestFocus() } }, onFav = {}, icon = AIcon.Grid) {
+                        CatRow("TV-Guide", -1, false, Modifier, onFocus = {}, onRight = { toChannels() }, onFav = {}, icon = AIcon.Grid) {
                             val src = list.ifEmpty { live }
                             val ch = History.ids.firstNotNullOfOrNull { id -> src.firstOrNull { it.id == id } } ?: src.firstOrNull()
                             if (ch != null) { preview.stop(); ZapContext.list = src; ZapContext.key = sel; AppNav.openGuide = true; onOpen(ch) }
@@ -199,10 +213,10 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                         CatRow(
                             label, count, n == sel,
                             if (n == sel) Modifier.focusRequester(catSelReq).then(if (list.isEmpty()) Modifier.focusRequester(ContentFocus.req) else Modifier) else Modifier,
-                            onFocus = { sel = n }, onRight = { runCatching { firstChan.requestFocus() } },
+                            onFocus = { sel = n }, onRight = { toChannels() },
                             onFav = { if (ml != null) listMenu = true else if (n != FAV_CAT && n != "ALL" && n != HIDDEN_CAT) CatFavs.toggle(ctx, n) },
                             icon = icon, raw = ml != null
-                        ) { runCatching { firstChan.requestFocus() } }
+                        ) { toChannels() }
                         // Menü einer eigenen Liste (OK gedrückt halten): Sender hinzufügen, umbenennen, löschen
                         if (listMenu && ml != null) OptionPopup(
                             listOf("Sender hinzufügen", "Umbenennen", "Liste löschen"), -1, { listMenu = false },
