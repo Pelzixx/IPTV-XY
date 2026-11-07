@@ -72,6 +72,8 @@ object AppNav {
     /** Aus dem Player: Einstellungen öffnen bzw. zu einem Bereich (Filme, Serien, Meine Liste) springen; -1 = keiner. */
     @Volatile var toSettings = false
     @Volatile var toTab = -1
+    /** Aus dem TV-Guide: vergangene Sendung im Archiv starten (Sender-ID und Sendung). */
+    @Volatile var archiveStart: Pair<String, EpgEntry>? = null
     /** Player offen? Dann verschiebt die Hintergrund-Aktualisierung das Neuladen der Playlist (kein Ruckeln mitten im Film). */
     @Volatile var playing = false
     /** Sender, der geöffnet werden soll (Tippen auf eine Erinnerungs-Benachrichtigung). */

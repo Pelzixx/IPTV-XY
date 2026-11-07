@@ -225,4 +225,7 @@ Ordner für Logos¦Logo folder¦Logo klasörü¦Mapa za logotipe¦Mapa za logoti
 Logo Cache löschen¦Clear logo cache¦Logo önbelleğini temizle¦Obriši keš logotipa¦Obriši predmemoriju logotipa¦Obriši keš logotipa¦Borrar caché de logotipos¦Vider le cache des logos¦Svuota cache loghi
 Gelöscht¦Cleared¦Temizlendi¦Obrisano¦Obrisano¦Obrisano¦Borrado¦Vidé¦Svuotata
 Transparenz der Benutzeroberfläche (%)¦Interface transparency (%)¦Arayüz şeffaflığı (%)¦Prozirnost sučelja (%)¦Prozirnost sučelja (%)¦Providnost interfejsa (%)¦Transparencia de la interfaz (%)¦Transparence de l’interface (%)¦Trasparenza interfaccia (%)
+Für diesen Sender gibt es kein Archiv.¦This channel has no archive.¦Bu kanalın arşivi yok.¦Ovaj kanal nema arhivu.¦Ovaj program nema arhivu.¦Ovaj kanal nema arhivu.¦Este canal no tiene archivo.¦Cette chaîne n’a pas d’archives.¦Questo canale non ha archivio.
+Erinnerung gesetzt¦Reminder set¦Hatırlatıcı ayarlandı¦Podsjetnik postavljen¦Podsjetnik postavljen¦Podsetnik postavljen¦Recordatorio creado¦Rappel défini¦Promemoria impostato
+Erinnerung entfernt¦Reminder removed¦Hatırlatıcı kaldırıldı¦Podsjetnik uklonjen¦Podsjetnik uklonjen¦Podsetnik uklonjen¦Recordatorio eliminado¦Rappel supprimé¦Promemoria rimosso
 """

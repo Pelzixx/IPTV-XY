@@ -123,14 +123,15 @@ fun LivePreview(p: LivePreviewPlayer, ch: Item?, modifier: Modifier = Modifier, 
 
 /** Oben links in Live TV: Sender, laufende Sendung mit Zeit und Fortschritt, Beschreibung und was danach kommt. */
 @Composable
-fun LiveInfo(ch: Item?, modifier: Modifier = Modifier) {
+fun LiveInfo(ch: Item?, modifier: Modifier = Modifier, prog: EpgEntry? = null) {
     // TiviMate: Titel (mit Stern bei Favoriten), darunter Zeit · Balken · Restminuten und rechts „Wiedergabeliste • Gruppe“,
     // dann die Beschreibung über mehrere Zeilen
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (ch == null) return@Column
         @Suppress("UNUSED_VARIABLE") val editVersion = ChannelEdit.version
         val epg by produceState(emptyList<EpgEntry>(), ch.id) { value = Epg.now(ch) }
-        val nowE = Epg.current(epg)
+        // Im Guide gewählte Sendung zeigen, sonst die laufende
+        val nowE = prog ?: Epg.current(epg)
         val plName = PlaylistStore.playlistOf(ch.id) ?: PlaylistStore.lists.getOrNull(PlaylistStore.active)?.name
         val where = listOfNotNull(plName, ch.group.takeIf { it.isNotBlank() }).joinToString("  •  ")
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -142,7 +143,8 @@ fun LiveInfo(ch: Item?, modifier: Modifier = Modifier) {
             if (nowE != null) {
                 val nowS = System.currentTimeMillis() / 1000
                 val frac = ((nowS - nowE.start).toFloat() / (nowE.end - nowE.start).coerceAtLeast(1)).coerceIn(0f, 1f)
-                val leftMin = ((nowE.end - nowS) / 60).coerceAtLeast(0)
+                // Künftige Sendung (im Guide gewählt): Dauer statt Restzeit
+                val leftMin = (if (nowS < nowE.start) (nowE.end - nowE.start) / 60 else (nowE.end - nowS) / 60).coerceAtLeast(0)
                 Text(raw = true, text = hhmm(nowE.start) + " — " + hhmm(nowE.end), color = Tok.TextMid, fontSize = 17.sp)
                 Box(Modifier.size(width = 48.dp, height = 3.dp).clip(RoundedCornerShape(2.dp)).background(DS.Overlay3)) {
                     Box(Modifier.fillMaxWidth(frac).fillMaxHeight().background(Color.White))

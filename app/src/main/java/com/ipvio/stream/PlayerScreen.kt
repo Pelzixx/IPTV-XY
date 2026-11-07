@@ -607,6 +607,14 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
         controls = false
         flash = Flash(null, dayLabel(e.start) + "  " + hhmm(e.start))
     }
+    // Aus dem TV-Guide gewählte vergangene Sendung: gleich im Archiv starten
+    LaunchedEffect(Unit) {
+        val a = AppNav.archiveStart ?: return@LaunchedEffect
+        AppNav.archiveStart = null
+        kotlinx.coroutines.delay(300)
+        val ch = curItem
+        if (ch != null && ch.id == a.first) playArchive(ch, a.second)
+    }
 
     /** Vom Archiv zurück zum Live-Bild desselben Senders. */
     fun backToLive() {

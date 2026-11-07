@@ -198,16 +198,33 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     // Erst nach kurzem Verweilen wechseln (beim schnellen Durchblättern kein Laden von Logo, Programm und Vorschau)
     // Markierter Sender: nur der Kopf (Vorschau, Sendung) liest ihn – die Liste wird beim Blättern nicht neu aufgebaut
     val focus = remember { GuideFocusState() }
+    var tOff by remember { mutableIntStateOf(0) }
+    // Optik > EPG „Verwende Zurück, um zu den aktuellen Programmen zurückzukehren“
+    androidx.activity.compose.BackHandler(enabled = tOff != 0 && Tm.b(Tm.EPG_BACK_NOW, true)) { tOff = 0 }
     // Vorschau nur, solange ein Sender in der Liste markiert ist (nicht beim Wechseln der Kategorie)
     val preview = remember { LivePreviewPlayer(ctx) }
     DisposableEffect(Unit) { onDispose { preview.release() } }
     fun open(ch: Item) { preview.stop(); ZapContext.list = list; ZapContext.key = sel; LiveMemory.setSel(ctx, sel); onOpen(ch) }
+    // OK auf einer gewählten Sendung (TiviMate): vergangen = Archiv, künftig = Erinnerung, laufend = Sender
+    fun progOk(ch: Item, e: EpgEntry) {
+        val now = System.currentTimeMillis() / 1000
+        when {
+            e.end <= now -> if (Catchup.has(ch)) { AppNav.archiveStart = ch.id to e; open(ch) }
+                else Toast.makeText(ctx, Lang.tr("Für diesen Sender gibt es kein Archiv."), Toast.LENGTH_SHORT).show()
+            e.start > now -> {
+                val on = Reminders.toggle(ctx, Reminder(ch.id, ChannelEdit.title(ch), e.title, e.start, e.end))
+                Toast.makeText(ctx, Lang.tr(if (on) "Erinnerung gesetzt" else "Erinnerung entfernt"), Toast.LENGTH_SHORT).show()
+            }
+            else -> open(ch)
+        }
+    }
     Box(Modifier.fillMaxSize()) {
     // Zeitleiste: ab der laufenden halben Stunde, 2 Stunden breit; „jetzt“ wird alle 30 s nachgeführt
     val nowSec by produceState(System.currentTimeMillis() / 1000) {
         while (true) { kotlinx.coroutines.delay(30_000); value = System.currentTimeMillis() / 1000 }
     }
-    val ws = nowSec / 1800 * 1800
+    // Zeitfenster: ab der laufenden halben Stunde, beim Weiterblättern durch die Sendungen nach rechts verschoben
+    val ws = nowSec / 1800 * 1800 + tOff * 1800L
     Column(Modifier.fillMaxSize().background(Bg).padding(start = 16.dp, end = 16.dp, top = 12.dp)) {
         // Ohne Scroll-Animation (Gruppen und Sender): beim schnellen Blättern staut sich nichts
         CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides bivSpec) {
@@ -322,7 +339,8 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                             onNewList = { newList(ch.id) },
                             onRename = { ask = NameAsk("Sender umbenennen", ChannelEdit.title(ch)) { ChannelEdit.rename(ctx, ch.id, it) } },
                             onLeft = { catOpen = true; catFocusReq++ },
-                            onFocus = { focus.target = ch; catOpen = false }
+                            onFocus = { focus.target = ch; catOpen = false },
+                            onProg = { focus.prog = it }, onShift = { d -> tOff = (tOff + d).coerceIn(0, 96) }, onProgOk = { e -> progOk(ch, e) }
                         ) {
                             if (addList != null) {
                                 val has = ch.id in addList.ids
@@ -441,7 +459,7 @@ data class GuideLook(
 private fun ChannelLine(
     item: Item, num: Int, look: GuideLook, ws: Long, nowSec: Long, tlW: androidx.compose.ui.unit.Dp, modifier: Modifier, inList: ChList?,
     onNewList: () -> Unit, onRename: () -> Unit, onLeft: () -> Unit,
-    onFocus: () -> Unit = {}, onClick: () -> Unit
+    onFocus: () -> Unit = {}, onProg: (EpgEntry?) -> Unit = {}, onShift: (Int) -> Unit = {}, onProgOk: (EpgEntry) -> Unit = {}, onClick: () -> Unit
 ) {
     var f by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
@@ -450,19 +468,41 @@ private fun ChannelLine(
     // Ohne Netz (gespeichertes EPG): beim schnellen Scrollen startet je Zeile kein Abruf mehr. Neu, wenn das EPG geladen ist.
     val epg = remember(item.id, Xmltv.channelCount, nowSec / 300) { Epg.nowLocal(item) }
     val isCurrent = look.currentId == item.id
+    // TiviMate: Rechts/Links wählt einzelne Sendungen (auch über das Zeitfenster hinaus, die Zeitleiste läuft mit)
+    val all = remember(item.id, Xmltv.channelCount, nowSec / 300) { Xmltv.forItem(item).filter { it.end > nowSec }.ifEmpty { epg } }
+    var pi by remember { mutableIntStateOf(-1) }
+    val nowIdx = all.indexOfFirst { it.end > nowSec }
+    fun pick(i: Int) {
+        pi = i
+        val e = all.getOrNull(i) ?: run { onProg(null); return }
+        if (e.start >= ws + SPAN - 900) onShift(((e.start - (ws + SPAN - 1800)) / 1800 + 1).toInt())
+        else if (e.end <= ws) onShift(-(((ws - e.start) / 1800) + 1).toInt())
+        onProg(e)
+    }
     Box {
     if (menu) ChannelMenu(item, inList, onNewList, onRename, next = epg.firstOrNull { it.start > nowSec }) { menu = false }
     val cell = RoundedCornerShape(4.dp)
     val titleLines = if (look.twoLineTitles) 2 else 1
     Row(
         modifier.fillMaxWidth().height(look.rowH)
-            .onFocusChanged { f = it.isFocused; if (it.isFocused) onFocus() }
+            .onFocusChanged {
+                f = it.isFocused
+                if (it.isFocused) { onFocus(); pick(all.indexOfFirst { e -> e.end > maxOf(nowSec, ws) }.let { i -> if (i < 0) nowIdx else i }) }
+            }
             .onPreviewKeyEvent { e ->
-                // Links: Gruppenliste aufklappen
-                if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionLeft) { onLeft(); true } else false
+                if (e.type != KeyEventType.KeyDown) false
+                else when (e.key) {
+                    // Links: vorherige Sendung; an der laufenden Sendung Gruppenliste aufklappen
+                    Key.DirectionLeft -> { if (pi <= nowIdx || pi <= 0) onLeft() else pick(pi - 1); true }
+                    Key.DirectionRight -> { if (pi in 0 until all.lastIndex) pick(pi + 1); true }
+                    else -> false
+                }
             }
             .menuKeys(onMenu = { menu = true }, onLong = { menu = true })
-            .clickable(onClick = onClick),
+            .clickable {
+                val sel = all.getOrNull(pi)
+                if (sel != null && !(nowSec in sel.start until sel.end)) onProgOk(sel) else onClick()
+            },
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
@@ -486,7 +526,7 @@ private fun ChannelLine(
         // Breite der Zeitleiste wird einmal für die ganze Liste gemessen (nicht je Zeile)
         Box(Modifier.width(tlW).fillMaxHeight().padding(vertical = 2.dp)) {
             val w = tlW
-            val shownE = epg.filter { it.end > ws && it.start < ws + SPAN }
+            val shownE = all.filter { it.end > ws && it.start < ws + SPAN }
             if (shownE.isEmpty()) {
                 // Kein Programm: eine Fläche mit dem Sendernamen über die ganze Breite
                 Box(Modifier.fillMaxSize().padding(start = 3.dp).clip(cell).background(if (f) TvFocusFill else TvCell).padding(horizontal = 14.dp),
@@ -498,7 +538,7 @@ private fun ChannelLine(
                 val b = ((minOf(e.end, ws + SPAN) - ws).toFloat() / SPAN).coerceIn(0f, 1f)
                 val running = nowSec in e.start until e.end
                 // Laufende Sendung der markierten Zeile: hell mit dunkler Schrift (wie die Markierung im Menü)
-                val lit = running && f
+                val lit = f && (all.getOrNull(pi)?.let { it.start == e.start } ?: running)
                 // TiviMate „Markiere laufendes Programm“: ganze Fläche heller, oder („nur Fortschritt“) nur der abgelaufene Teil
                 val runFill = running && !f && look.markRunning && !look.progressOnly
                 Box(
@@ -619,6 +659,8 @@ object LiveUi {
 class GuideFocusState {
     var target by mutableStateOf<Item?>(null)
     var shown by mutableStateOf<Item?>(null)
+    /** Im Guide gewählte Sendung des markierten Senders (für die Kopfzeile). */
+    var prog by mutableStateOf<EpgEntry?>(null)
 }
 
 /** Kopf des TV-Guides: Vorschau und Sendung des markierten Senders (wechselt erst nach kurzem Verweilen). */
@@ -628,5 +670,5 @@ private fun RowScope.GuideTop(focus: GuideFocusState, first: Item?, preview: Liv
     val shown = focus.shown ?: first
     // Optik > EPG > Vorschau: aus = kein Vorschaubild, die Sendung nutzt die ganze Breite
     if (AppSettings.livePreview) LivePreview(preview, focus.shown, Modifier.fillMaxHeight().aspectRatio(16f / 9f), fallback = shown)
-    LiveInfo(shown, Modifier.weight(1f).fillMaxHeight())
+    LiveInfo(shown, Modifier.weight(1f).fillMaxHeight(), prog = if (shown != null && shown.id == focus.target?.id) focus.prog else null)
 }
