@@ -296,7 +296,12 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                             icon = if (n.startsWith(PlGroups.P)) null else if (ChLock.version >= 0 && ChLock.isGroupLocked(PlGroups.label(n) ?: n)) AIcon.Lock else icon, raw = ml != null || PlGroups.isPl(n), header = n.startsWith(PlGroups.P),
                             indent = n.startsWith(PlGroups.G),
                             expanded = if (n.startsWith(PlGroups.P)) !PlGroups.collapsed(PlGroups.label(n) ?: "") else null
-                        ) { if (n.startsWith(PlGroups.P)) PlGroups.toggle(ctx, PlGroups.label(n) ?: "") else toChannels() }
+                        ) {
+                            // Optik > Gruppen > „Beim Antippen einer Wiedergabeliste“ (TiviMate): auf-/zuklappen oder alle Kanäle der Liste
+                            if (n.startsWith(PlGroups.P) && Tm.i(Tm.GRP_PL_TAP, 0) == 0) PlGroups.toggle(ctx, PlGroups.label(n) ?: "")
+                            else if (n.startsWith(PlGroups.P)) { sel = n; toChannels() }
+                            else toChannels()
+                        }
                         // Menü einer Gruppe (OK gedrückt halten, TiviMate): Favorit, sperren, ausblenden
                         if (grpMenu) {
                             val gName = PlGroups.label(n) ?: n

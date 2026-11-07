@@ -426,6 +426,13 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
             PAct.PREV -> if (Tm.b(Tm.RC_PRESS_AGAIN, false)) peek(-1) else zap(-1)
             PAct.PEEK_NEXT -> peek(1)
             PAct.PEEK_PREV -> peek(-1)
+            PAct.GROUPS -> { controls = false; focusedCh = curItem; chanCat = playCat; showCats = true; showChannels = true }
+            PAct.LIST_PREVIEW -> { AppNav.toGuide = true; onBack() }
+            PAct.VOL_UP, PAct.VOL_DOWN, PAct.MUTE -> {
+                val am = ctx.getSystemService(android.media.AudioManager::class.java)
+                am?.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, when (a) { PAct.VOL_UP -> android.media.AudioManager.ADJUST_RAISE; PAct.VOL_DOWN -> android.media.AudioManager.ADJUST_LOWER; else -> android.media.AudioManager.ADJUST_TOGGLE_MUTE }, android.media.AudioManager.FLAG_SHOW_UI)
+            }
+            PAct.EXIT -> findActivity(ctx)?.finishAffinity()
             PAct.HISTORY -> openLog()
             PAct.PLAYPAUSE -> { val was = player.isPlaying; togglePlay(); if (was) { liveMenu = false; controls = true } }
             PAct.LIVE -> {

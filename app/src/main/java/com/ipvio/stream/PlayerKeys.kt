@@ -30,7 +30,13 @@ enum class PAct(val label: String) {
     MULTIVIEW("Multiview"),
     RESTART("Sendung neu starten"),
     PEEK_NEXT("Infofeld des nächsten Senders"),
-    PEEK_PREV("Infofeld des vorherigen Senders")
+    PEEK_PREV("Infofeld des vorherigen Senders"),
+    GROUPS("Gruppen anzeigen"),
+    LIST_PREVIEW("Senderliste im Vorschaumodus"),
+    VOL_UP("Lauter"),
+    VOL_DOWN("Leiser"),
+    MUTE("Ton aus/an"),
+    EXIT("Beenden")
 }
 
 /** Tasten des Live-Players mit TiviMate-Standardbelegung. [long] = langer Druck. */

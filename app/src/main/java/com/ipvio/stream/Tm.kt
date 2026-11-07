@@ -55,6 +55,7 @@ object Tm {
     const val GRP_ALL_PLAYLISTS = "grp_all_playlists"
     const val GRP_FAVS = "grp_favs"
     const val GRP_ALL = "grp_all"
+    const val GRP_PL_TAP = "grp_pl_tap"          // Antippen einer Wiedergabeliste: 0 auf-/zuklappen, 1 alle Kanäle der Liste
 
     // ---------------------------------------------------------------- Optik > Player
     const val PL_BLACK_SWITCH = "pl_black_switch"

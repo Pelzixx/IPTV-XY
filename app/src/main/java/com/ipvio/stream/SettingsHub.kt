@@ -2016,6 +2016,9 @@ private fun TmLookGroups(ctx: Context, onLang: () -> Unit) {
     ToggleRow("Zeige \"alle Playlists\" Kategorie", null, Tm.b(Tm.GRP_ALL_PLAYLISTS, true)) { Tm.set(ctx, Tm.GRP_ALL_PLAYLISTS, it) }
     ToggleRow("Zeige \"Favoriten\" Kategorie", null, Tm.b(Tm.GRP_FAVS, true)) { Tm.set(ctx, Tm.GRP_FAVS, it) }
     ToggleRow("Zeige \"alle Kanäle\" Kategorie", null, Tm.b(Tm.GRP_ALL, true)) { Tm.set(ctx, Tm.GRP_ALL, it) }
+    val taps = listOf(Lang.tr("Auf- und zuklappen"), Lang.tr("Alle Kanäle der Liste zeigen"))
+    val ti = Tm.i(Tm.GRP_PL_TAP, 0).coerceIn(0, 1)
+    SelectRow("Beim Antippen einer Wiedergabeliste", taps[ti], taps, ti) { Tm.set(ctx, Tm.GRP_PL_TAP, it) }
     FilterPage(ctx) { onLang() }
 }
 
