@@ -158,4 +158,56 @@ Sleeptimer¦Sleep timer¦Uyku zamanlayıcısı¦Tajmer za spavanje¦Tajmer za sp
 Favoritenstatus ändern¦Change favourite status¦Favori durumunu değiştir¦Promijeni status favorita¦Promijeni status favorita¦Promeni status omiljenog¦Cambiar favorito¦Modifier le favori¦Cambia preferito
 Kanaloptionen¦Channel options¦Kanal seçenekleri¦Opcije kanala¦Opcije programa¦Opcije kanala¦Opciones del canal¦Options de la chaîne¦Opzioni canale
 Filme & Serien¦Movies & series¦Filmler ve diziler¦Filmovi i serije¦Filmovi i serije¦Filmovi i serije¦Películas y series¦Films et séries¦Film e serie
+Audio Decoder¦Audio decoder¦Ses kod çözücü¦Audio dekoder¦Audio dekoder¦Audio dekoder¦Decodificador de audio¦Décodeur audio¦Decoder audio
+Video Decoder¦Video decoder¦Video kod çözücü¦Video dekoder¦Video dekoder¦Video dekoder¦Decodificador de vídeo¦Décodeur vidéo¦Decoder video
+Hardware¦Hardware¦Donanım¦Hardver¦Hardver¦Hardver¦Hardware¦Matériel¦Hardware
+Software¦Software¦Yazılım¦Softver¦Softver¦Softver¦Software¦Logiciel¦Software
+Wähle standardmäßig die Surround-Audiospur aus¦Select surround audio track by default¦Varsayılan olarak surround ses izini seç¦Zadano odaberi surround audio zapis¦Zadano odaberi surround audio zapis¦Podrazumevano izaberi surround audio zapis¦Elegir pista surround por defecto¦Choisir la piste surround par défaut¦Scegli la traccia surround per impostazione predefinita
+Audio-Passthrough¦Audio passthrough¦Ses geçişi¦Audio passthrough¦Audio passthrough¦Audio passthrough¦Paso de audio (passthrough)¦Audio passthrough¦Passthrough audio
+Getunnelte Wiedergabe¦Tunneled playback¦Tünelli oynatma¦Tunelirana reprodukcija¦Tunelirana reprodukcija¦Tunelovana reprodukcija¦Reproducción tunelizada¦Lecture tunnelisée¦Riproduzione tunneled
+Externen Player nutzen¦Use external player¦Harici oynatıcı kullan¦Koristi vanjski player¦Koristi vanjski player¦Koristi spoljni plejer¦Usar reproductor externo¦Utiliser un lecteur externe¦Usa lettore esterno
+Nein¦No¦Hayır¦Ne¦Ne¦Ne¦No¦Non¦No
+Ja¦Yes¦Evet¦Da¦Da¦Da¦Sí¦Oui¦Sì
+Nur für Filme und Serien¦Only for movies and series¦Yalnızca film ve diziler¦Samo za filmove i serije¦Samo za filmove i serije¦Samo za filmove i serije¦Solo películas y series¦Seulement films et séries¦Solo film e serie
+Schritte überspringen¦Seek steps¦Atlama adımları¦Koraci preskakanja¦Koraci preskakanja¦Koraci preskakanja¦Pasos de salto¦Pas de saut¦Passi di salto
+Sprungschritt für Zeitleiste (rückwärts)¦Timeline step (backward)¦Zaman çizelgesi adımı (geri)¦Korak na traci (nazad)¦Korak na traci (natrag)¦Korak na traci (nazad)¦Paso de la línea de tiempo (atrás)¦Pas de la barre (arrière)¦Passo della barra (indietro)
+Sprungschritt für Zeitleiste (vorwärts)¦Timeline step (forward)¦Zaman çizelgesi adımı (ileri)¦Korak na traci (naprijed)¦Korak na traci (naprijed)¦Korak na traci (napred)¦Paso de la línea de tiempo (adelante)¦Pas de la barre (avant)¦Passo della barra (avanti)
+Überspringe den Schritt für die RW-Taste¦Seek step for RW key¦RW tuşu atlama adımı¦Korak za tipku RW¦Korak za tipku RW¦Korak za taster RW¦Paso de la tecla RW¦Pas de la touche RW¦Passo del tasto RW
+Überspringe den Schritt für die FF-Taste¦Seek step for FF key¦FF tuşu atlama adımı¦Korak za tipku FF¦Korak za tipku FF¦Korak za taster FF¦Paso de la tecla FF¦Pas de la touche FF¦Passo del tasto FF
+Fernbedienung¦Remote control¦Uzaktan kumanda¦Daljinski upravljač¦Daljinski upravljač¦Daljinski upravljač¦Mando a distancia¦Télécommande¦Telecomando
+Aktion für jede Taste und jeden langen Druck¦Action for every key and long press¦Her tuş ve uzun basış için eylem¦Radnja za svaku tipku i dugi pritisak¦Radnja za svaku tipku i dugi pritisak¦Radnja za svaki taster i dugi pritisak¦Acción para cada tecla y pulsación larga¦Action pour chaque touche et appui long¦Azione per ogni tasto e pressione lunga
+Spuloptionen¦Seek options¦Sarma seçenekleri¦Opcije premotavanja¦Opcije premotavanja¦Opcije premotavanja¦Opciones de avance¦Options d’avance¦Opzioni di avanzamento
+Verwende RW / FF / Pause zum Suchen / Pausieren, während du anschaust¦Use RW / FF / Pause to seek / pause while watching¦İzlerken arama/duraklatma için RW / FF / Pause kullan¦Koristi RW / FF / Pauzu za premotavanje / pauzu tokom gledanja¦Koristi RW / FF / Pauzu za premotavanje / pauzu tijekom gledanja¦Koristi RW / FF / Pauzu za premotavanje / pauzu tokom gledanja¦Usar RW / FF / Pausa para avanzar / pausar mientras ves¦Utiliser RW / FF / Pause pour avancer / mettre en pause¦Usa RW / FF / Pausa per scorrere / mettere in pausa
+Verwende RW, um den Live-Stream zurückzuspulen¦Use RW to rewind the live stream¦Canlı yayını geri sarmak için RW kullan¦Koristi RW za vraćanje live streama¦Koristi RW za vraćanje live streama¦Koristi RW za vraćanje live strima¦Usar RW para retroceder el directo¦Utiliser RW pour revenir en arrière en direct¦Usa RW per riavvolgere la diretta
+Verwende Links/Rechts zum Spulen, während du Catchup schaust¦Use Left/Right to seek while watching catch-up¦Catch-up izlerken Sol/Sağ ile sar¦Koristi Lijevo/Desno za premotavanje u catch-upu¦Koristi Lijevo/Desno za premotavanje u catch-upu¦Koristi Levo/Desno za premotavanje u catch-upu¦Usar Izquierda/Derecha en catch-up¦Utiliser Gauche/Droite en replay¦Usa Sinistra/Destra nel catch-up
+Verwende Down / Up zum Suchen, während du den Catchup schaust¦Use Down / Up to seek while watching catch-up¦Catch-up izlerken Aşağı/Yukarı ile sar¦Koristi Dolje / Gore u catch-upu¦Koristi Dolje / Gore u catch-upu¦Koristi Dole / Gore u catch-upu¦Usar Abajo / Arriba en catch-up¦Utiliser Bas / Haut en replay¦Usa Giù / Su nel catch-up
+Keine Aktion¦No action¦Eylem yok¦Bez radnje¦Bez radnje¦Bez radnje¦Sin acción¦Aucune action¦Nessuna azione
+Infofenster und Bedienfeld anzeigen¦Show info window and controls¦Bilgi penceresi ve kontrolleri göster¦Prikaži info prozor i kontrole¦Prikaži info prozor i kontrole¦Prikaži info prozor i kontrole¦Mostrar información y controles¦Afficher infos et commandes¦Mostra info e controlli
+Zeige Menü¦Show menu¦Menüyü göster¦Prikaži meni¦Prikaži izbornik¦Prikaži meni¦Mostrar menú¦Afficher le menu¦Mostra menu
+Wiedergabe stoppen¦Stop playback¦Oynatmayı durdur¦Zaustavi reprodukciju¦Zaustavi reprodukciju¦Zaustavi reprodukciju¦Detener reproducción¦Arrêter la lecture¦Interrompi riproduzione
+Senderliste im Overlay-Modus anzeigen¦Show channel list (overlay)¦Kanal listesini göster (kaplama)¦Prikaži listu kanala (preklop)¦Prikaži popis programa (preklop)¦Prikaži listu kanala (preklop)¦Mostrar lista de canales (superpuesta)¦Afficher la liste des chaînes (superposée)¦Mostra elenco canali (sovrapposto)
+TV-Guide anzeigen¦Show TV guide¦TV rehberini göster¦Prikaži TV vodič¦Prikaži TV vodič¦Prikaži TV vodič¦Mostrar guía de TV¦Afficher le guide TV¦Mostra guida TV
+Den zuletzt angesehenen Sender anzeigen¦Show last watched channel¦Son izlenen kanalı göster¦Prikaži zadnji gledani kanal¦Prikaži zadnji gledani program¦Prikaži poslednji gledani kanal¦Mostrar último canal visto¦Afficher la dernière chaîne regardée¦Mostra l’ultimo canale visto
+Nächsten Sender anzeigen¦Show next channel¦Sonraki kanalı göster¦Prikaži sljedeći kanal¦Prikaži sljedeći program¦Prikaži sledeći kanal¦Mostrar canal siguiente¦Chaîne suivante¦Canale successivo
+Vorherigen Sender anzeigen¦Show previous channel¦Önceki kanalı göster¦Prikaži prethodni kanal¦Prikaži prethodni program¦Prikaži prethodni kanal¦Mostrar canal anterior¦Chaîne précédente¦Canale precedente
+Play/Pause¦Play/Pause¦Oynat/Duraklat¦Reprodukcija/Pauza¦Reprodukcija/Pauza¦Reprodukcija/Pauza¦Reproducir/Pausa¦Lecture/Pause¦Riproduci/Pausa
+Geh zum Live Stream¦Go to live stream¦Canlı yayına git¦Idi na live stream¦Idi na live stream¦Idi na live strim¦Ir al directo¦Revenir au direct¦Vai alla diretta
+Okay¦OK¦Tamam¦OK¦OK¦OK¦OK¦OK¦OK
+Lang OK¦Long OK¦Uzun OK¦Dugo OK¦Dugo OK¦Dugo OK¦OK largo¦OK long¦OK lungo
+Lang Zurück¦Long Back¦Uzun Geri¦Dugo Nazad¦Dugo Natrag¦Dugo Nazad¦Atrás largo¦Retour long¦Indietro lungo
+Lang Links¦Long Left¦Uzun Sol¦Dugo Lijevo¦Dugo Lijevo¦Dugo Levo¦Izquierda larga¦Gauche long¦Sinistra lungo
+Rechts¦Right¦Sağ¦Desno¦Desno¦Desno¦Derecha¦Droite¦Destra
+Lang Rechts¦Long Right¦Uzun Sağ¦Dugo Desno¦Dugo Desno¦Dugo Desno¦Derecha larga¦Droite long¦Destra lungo
+Hoch¦Up¦Yukarı¦Gore¦Gore¦Gore¦Arriba¦Haut¦Su
+Lang Hoch¦Long Up¦Uzun Yukarı¦Dugo Gore¦Dugo Gore¦Dugo Gore¦Arriba largo¦Haut long¦Su lungo
+Runter¦Down¦Aşağı¦Dolje¦Dolje¦Dole¦Abajo¦Bas¦Giù
+Lang Runter¦Long Down¦Uzun Aşağı¦Dugo Dolje¦Dugo Dolje¦Dugo Dole¦Abajo largo¦Bas long¦Giù lungo
+Lang Menü¦Long Menu¦Uzun Menü¦Dugo Meni¦Dugo Izbornik¦Dugo Meni¦Menú largo¦Menu long¦Menu lungo
+Play / Pause¦Play / Pause¦Oynat / Duraklat¦Reprodukcija / Pauza¦Reprodukcija / Pauza¦Reprodukcija / Pauza¦Reproducir / Pausa¦Lecture / Pause¦Riproduci / Pausa
+Lang Play/Pause¦Long Play/Pause¦Uzun Oynat/Duraklat¦Dugo Reprodukcija/Pauza¦Dugo Reprodukcija/Pauza¦Dugo Reprodukcija/Pauza¦Reproducir/Pausa largo¦Lecture/Pause long¦Riproduci/Pausa lungo
+Stopp¦Stop¦Durdur¦Stop¦Stop¦Stop¦Detener¦Stop¦Stop
+Zurückspulen (RW)¦Rewind (RW)¦Geri sar (RW)¦Premotaj nazad (RW)¦Premotaj natrag (RW)¦Premotaj nazad (RW)¦Retroceder (RW)¦Retour rapide (RW)¦Indietro (RW)
+Vorspulen (FF)¦Fast forward (FF)¦İleri sar (FF)¦Premotaj naprijed (FF)¦Premotaj naprijed (FF)¦Premotaj napred (FF)¦Avanzar (FF)¦Avance rapide (FF)¦Avanti (FF)
+Pg+ (Ch+)¦Pg+ (Ch+)¦Pg+ (Ch+)¦Pg+ (Ch+)¦Pg+ (Ch+)¦Pg+ (Ch+)¦Pg+ (Ch+)¦Pg+ (Ch+)¦Pg+ (Ch+)
+Pg- (Ch-)¦Pg- (Ch-)¦Pg- (Ch-)¦Pg- (Ch-)¦Pg- (Ch-)¦Pg- (Ch-)¦Pg- (Ch-)¦Pg- (Ch-)¦Pg- (Ch-)
 """

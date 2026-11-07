@@ -151,7 +151,13 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
             .setAllowCrossProtocolRedirects(true)
             .setConnectTimeoutMs(10_000)
             .setReadTimeoutMs(15_000)
+        // Wiedergabe (TiviMate): getunnelte Wiedergabe, Surround-Tonspur bevorzugen (aus = höchstens Stereo, wenn vorhanden)
+        val ts = androidx.media3.exoplayer.trackselection.DefaultTrackSelector(ctx).apply {
+            setParameters(buildUponParameters().setTunnelingEnabled(Tm.b(Tm.PB_TUNNEL, false))
+                .apply { if (!Tm.b(Tm.PB_SURROUND, false)) setMaxAudioChannelCount(2) })
+        }
         ExoPlayer.Builder(ctx, SoftAudio.factory(ctx))
+            .setTrackSelector(ts)
             .setLoadControl(Mem.loadControl(ctx))
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .setMediaSourceFactory(DefaultMediaSourceFactory(ctx).setDataSourceFactory(DefaultDataSource.Factory(ctx, http)))
@@ -258,8 +264,9 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     val step = AppSettings.seekStep * 1000L
     // TiviMate: OK zeigt erst Senderinfo + Verlaufszeile; Runter öffnet die Menüleiste
     var liveMenu by remember { mutableStateOf(false) }
-    var okHeld by remember { mutableStateOf(false) }
-    var okLong by remember { mutableStateOf(false) }
+    var heldKey by remember { mutableStateOf<PKey?>(null) }
+    var longDone by remember { mutableStateOf(false) }
+    var backLong by remember { mutableStateOf(false) }
     val recentFirst = remember { FocusRequester() }
     val seekBarReq = remember { FocusRequester() }
     val firstFocus = if (cur.live) (if (liveMenu) liveFirst else recentFirst) else playBtn
@@ -342,9 +349,10 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     }
 
     fun lastChannel() {
-        val it = zapSrc.firstOrNull { c -> c.id == lastChId } ?: return
+        val it = zapSrc.firstOrNull { c -> c.id == lastChId } ?: liveAll.firstOrNull { c -> c.id == lastChId } ?: return
         switchTo(it, zapSrc)
     }
+
 
     fun commitDigits() {
         val n = digitBuf.toIntOrNull() ?: 0
@@ -364,6 +372,37 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
         val pp = panelParent
         panelParent = Panel.NONE
         panel = if (pp != Panel.NONE) pp else Panel.NONE
+    }
+
+    /** Aktion einer Taste ausführen (TiviMate: Fernbedienung > Player). */
+    fun runAct(a: PAct) {
+        when (a) {
+            PAct.NONE -> {}
+            PAct.INFO -> { liveMenu = false; controls = true }
+            PAct.MENU -> { liveMenu = true; controls = true }
+            PAct.STOP -> onBack()
+            PAct.LIST_OV -> openChannels()
+            PAct.GUIDE -> { AppNav.toGuide = true; onBack() }
+            PAct.LAST -> lastChannel()
+            PAct.DESC -> { controls = false; bannerTick++ }
+            PAct.NEXT -> zap(1)
+            PAct.PREV -> zap(-1)
+            PAct.HISTORY -> openRecent()
+            PAct.PLAYPAUSE -> { val was = player.isPlaying; togglePlay(); if (was) { liveMenu = false; controls = true } }
+            PAct.LIVE -> {
+                if (player.isCurrentMediaItemSeekable) player.seekToDefaultPosition() else { player.stop(); player.prepare() }
+                player.play(); behindSec = 0L; flash = Flash(PIcon.Play, "LIVE")
+            }
+            PAct.FAV -> Library.toggleFav(ctx, cur.itemId)
+            PAct.CH_OPTS -> { liveMenu = true; controls = true }
+            PAct.EXTERNAL -> { player.pause(); openExternal(ctx, cur.url, cur.title) }
+            PAct.SEARCH -> { AppNav.toSearch = true; onBack() }
+            PAct.AUDIO -> openPanel(Panel.TRACKS)
+            PAct.SUBS -> { openPanel(Panel.TRACKS); h.postDelayed({ runCatching { subsFocus.requestFocus() } }, 150) }
+            PAct.ASPECT -> openPanel(Panel.ASPECT)
+            PAct.SLEEP -> openPanel(Panel.SLEEP)
+            PAct.SETTINGS -> { AppNav.toSettings = true; onBack() }
+        }
     }
 
     /** Weitere Quellen des laufenden Titels: beim Film aus der Playlist, bei Serien die Quellen der Folge. */
@@ -930,6 +969,11 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
         }
     }
     LaunchedEffect(cur.itemId, cur.url) { audioFixTries = 0 }
+    // Wiedergabe > Externen Player nutzen (TiviMate): Ja = immer, 2 = nur Filme/Serien
+    LaunchedEffect(cur.url) {
+        val ext = Tm.i(Tm.PB_EXTERNAL, 0)
+        if (ext == 1 || (ext == 2 && !cur.live)) { player.pause(); openExternal(ctx, cur.url, cur.title); onBack() }
+    }
     LaunchedEffect(cur.itemId) {
         triedUrls.clear()
         applyTrackPrefs()
@@ -949,26 +993,36 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
             .onPreviewKeyEvent { e ->
                 interact = System.currentTimeMillis()
                 // Zurück selbst behandeln: sonst nimmt Compose zuerst nur den Fokus weg und das Menü bleibt offen
+                val liveIdle = cur.live && !controls && panel == Panel.NONE && !showChannels && !showGuide && digitBuf.isEmpty() && !showNextCard
                 if (e.key == Key.Back) {
-                    if (e.type == KeyEventType.KeyUp) handleBack()
-                    true
-                } else if ((e.key == Key.DirectionCenter || e.key == Key.Enter) && (okHeld || (cur.live && !controls &&
-                        panel == Panel.NONE && !showChannels && !showGuide && digitBuf.isEmpty() && !showNextCard))) {
-                    // TiviMate: kurz OK = Senderinfo mit Verlaufszeile, lang OK = Menüleiste. Bis zum Loslassen gehört OK hierher,
-                    // damit das Loslassen nicht noch einen Knopf der gerade geöffneten Leiste auslöst.
-                    when (e.type) {
-                        KeyEventType.KeyDown -> {
-                            if (e.nativeKeyEvent.repeatCount == 0) { okHeld = true; okLong = false }
-                            else if (!okLong) { okLong = true; liveMenu = true; controls = true }
-                        }
-                        KeyEventType.KeyUp -> {
-                            if (okHeld && !okLong) { liveMenu = false; controls = true }
-                            okHeld = false; okLong = false
-                        }
-                        else -> {}
+                    // Fernbedienung (TiviMate): lang Zurück hat eine eigene Aktion (Standard: Wiedergabe stoppen)
+                    if (e.type == KeyEventType.KeyDown && e.nativeKeyEvent.repeatCount == 1 && liveIdle && PlayerKeys.action(PKey.BACK_LONG) != PAct.NONE) {
+                        backLong = true; runAct(PlayerKeys.action(PKey.BACK_LONG))
                     }
+                    if (e.type == KeyEventType.KeyUp) { if (backLong) backLong = false else handleBack() }
                     true
-                } else false
+                } else {
+                    // Fernbedienung > Player (TiviMate): jede Taste und jeder lange Druck mit eigener Aktion.
+                    // Mit Aktion für langen Druck wirkt der kurze erst beim Loslassen; bis dahin gehört die Taste hierher.
+                    val pk = pkOf(e.key)
+                    if (pk != null && (pk == PKey.RW || pk == PKey.FF) && liveIdle && Tm.b(Tm.SP_RWFF, true) && player.isCurrentMediaItemSeekable) {
+                        // Spuloptionen: RW/FF spulen auch beim Live-Fernsehen (im Zeitversatz)
+                        if (e.type == KeyEventType.KeyDown) player.seekTo((player.currentPosition + (if (pk == PKey.FF) 1 else -1) * 10_000L).coerceAtLeast(0L))
+                        true
+                    } else if (pk != null && (heldKey == pk || (heldKey == null && liveIdle))) {
+                        val longA = pk.longKey?.let { PlayerKeys.action(it) } ?: PAct.NONE
+                        when (e.type) {
+                            KeyEventType.KeyDown -> {
+                                if (e.nativeKeyEvent.repeatCount == 0) {
+                                    if (longA == PAct.NONE) runAct(PlayerKeys.action(pk)) else { heldKey = pk; longDone = false }
+                                } else if (heldKey == pk && !longDone) { longDone = true; runAct(longA) }
+                            }
+                            KeyEventType.KeyUp -> if (heldKey == pk) { if (!longDone) runAct(PlayerKeys.action(pk)); heldKey = null }
+                            else -> {}
+                        }
+                        true
+                    } else false
+                }
             }
             .onKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onKeyEvent false
@@ -984,8 +1038,9 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                     k == Key.MediaPlayPause || k == Key.Spacebar -> { val was = player.isPlaying; togglePlay(); if (cur.live && was && !controls) controls = true; true }
                     k == Key.MediaPlay -> { player.play(); true }
                     k == Key.MediaPause -> { player.pause(); if (cur.live && !controls) controls = true; true }
-                    k == Key.MediaFastForward && !cur.live -> { stepSeek(1); true }
-                    k == Key.MediaRewind && !cur.live -> { stepSeek(-1); true }
+                    // Wiedergabe > Schritte überspringen (TiviMate): eigene Weiten für RW- und FF-Taste
+                    k == Key.MediaFastForward && !cur.live -> { stepSeek(1, Tm.i(Tm.PB_STEP_FF, 10) * 1000L); true }
+                    k == Key.MediaRewind && !cur.live -> { stepSeek(-1, Tm.i(Tm.PB_STEP_RW, 10) * 1000L); true }
                     k == Key.MediaNext && cur.live -> { zap(1); true }
                     k == Key.MediaPrevious && cur.live -> { zap(-1); true }
                     k == Key.MediaNext && cur.archive != null -> { val ch = curItem; val nx = archNext; if (ch != null && nx != null) playArchive(ch, nx) else backToLive(); true }
@@ -1010,8 +1065,9 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                     controls || panel != Panel.NONE || showChannels || showGuide -> false
                     else -> when (k) {
                         // TV-Stil: Links führt in den TV-Guide (der Sender läuft dort im Vorschaufenster weiter)
-                        Key.DirectionLeft -> { if (cur.live) openChannels() else stepSeek(-1); true }
-                        Key.DirectionRight -> { if (cur.live) { controls = false; showGuide = true } else stepSeek(1); true }
+                        // TiviMate: Links = Senderliste, Rechts = zuletzt angesehener Sender; bei Filmen Zeitleiste (eigene Sprungweiten)
+                        Key.DirectionLeft -> { if (cur.live) openChannels() else stepSeek(-1, Tm.i(Tm.PB_STEP_TL_BACK, AppSettings.seekStep) * 1000L); true }
+                        Key.DirectionRight -> { if (cur.live) lastChannel() else stepSeek(1, Tm.i(Tm.PB_STEP_TL_FWD, AppSettings.seekStep) * 1000L); true }
                         Key.DirectionCenter, Key.Enter -> {
                             val seg = activeSeg
                             if (showNextCard) { playEpisode(epList[epIdx + 1]); true }
@@ -1769,4 +1825,23 @@ private fun mediaLabel(player: androidx.media3.exoplayer.ExoPlayer, ver: Int): S
     if (w <= 0 || h <= 0) return null
     if (Tm.b(Tm.IF_RES_NUM, false)) return "${w}x$h"
     return when { h >= 2000 -> "4K"; h >= 1000 -> "FHD"; h >= 700 -> "HD"; else -> "SD" }
+}
+
+/** Compose-Taste -> Taste der Fernbedienungs-Belegung (nur die kurzen; lang ergibt sich aus der Haltedauer). */
+private fun pkOf(k: Key): PKey? = when (k) {
+    Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> PKey.OK
+    Key.DirectionLeft -> PKey.LEFT
+    Key.DirectionRight -> PKey.RIGHT
+    Key.DirectionUp -> PKey.UP
+    Key.DirectionDown -> PKey.DOWN
+    Key.Menu -> PKey.MENU
+    Key.MediaPlayPause -> PKey.PLAYPAUSE
+    Key.MediaStop -> PKey.STOP
+    Key.MediaRewind -> PKey.RW
+    Key.MediaFastForward -> PKey.FF
+    Key.ChannelUp -> PKey.CH_UP
+    Key.ChannelDown -> PKey.CH_DOWN
+    Key.Info -> PKey.INFO
+    Key.Guide -> PKey.GUIDE
+    else -> null
 }

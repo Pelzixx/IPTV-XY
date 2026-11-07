@@ -1555,6 +1555,7 @@ private val PANEL = listOf(
     PanelCat("EPG", listOf(8)),
     PanelCat("Optik", listOf(2, 4)),
     PanelCat("Wiedergabe", listOf(5, 6)),
+    PanelCat("Fernbedienung", emptyList()),
     PanelCat("Kindersicherung", listOf(12)),
     PanelCat("Sonstiges", listOf(7, 13, 14)),
     PanelCat("Über", listOf(15))
@@ -1638,8 +1639,9 @@ fun SettingsPanel(onAdd: () -> Unit, reload: () -> Unit, onClose: () -> Unit) {
                                 2 -> TmEpg(ctx) { open("epg_src", "EPG Quellen") }
                                 3 -> TmLook(ctx, open)
                                 4 -> TmPlayback(ctx, open)
-                                5 -> ParentalPage(ctx) { back() }
-                                6 -> TmMisc(open)
+                                5 -> TmRemote(ctx, open)
+                                6 -> ParentalPage(ctx) { back() }
+                                7 -> TmMisc(open)
                                 else -> AboutPage(ctx, open)
                             }
                         }
@@ -1652,6 +1654,8 @@ fun SettingsPanel(onAdd: () -> Unit, reload: () -> Unit, onClose: () -> Unit) {
                             "lp_info" -> TmLpInfo(ctx)
                             "lp_hist" -> TmLpHist(ctx)
                             "lp_menu" -> TmLpMenu(ctx)
+                            "play_steps" -> TmSteps(ctx)
+                            "rc_player" -> TmRemotePlayer(ctx)
                             "look_groups" -> TmLookGroups(ctx) { stack.add(SP.Lang) }
                             "look_vod", "misc_vod" -> ViewPage(ctx)
                             "look_menu" -> MenuPage(ctx)
@@ -1964,14 +1968,20 @@ private fun TmLpMenu(ctx: Context) {
 private fun TmPlayback(ctx: Context, open: (String, String) -> Unit) {
     val bufNames = listOf("Automatisch", "Normal", "Groß", "Sehr groß")
     SelectRow("Puffergröße", bufNames[AppSettings.bufferMode], bufNames, AppSettings.bufferMode) { AppSettings.setBufferMode(ctx, it) }
+    // Reihenfolge wie TiviMate (Wiedergabe); Änderungen an Decoder/Passthrough/Tunneling gelten ab dem nächsten Sender
+    val dec = listOf(Lang.tr("Hardware"), Lang.tr("Software"))
+    SelectRow("Audio Decoder", dec[Tm.i(Tm.PB_AUDIO_DEC, 0)], dec, Tm.i(Tm.PB_AUDIO_DEC, 0)) { Tm.set(ctx, Tm.PB_AUDIO_DEC, it) }
+    SelectRow("Video Decoder", dec[Tm.i(Tm.PB_VIDEO_DEC, 0)], dec, Tm.i(Tm.PB_VIDEO_DEC, 0)) { Tm.set(ctx, Tm.PB_VIDEO_DEC, it) }
     val afr = listOf("Aus", "An")
     SelectRow("Automatische Anpassung der Framerate (AFR)", afr[if (AppSettings.autoFps) 1 else 0], afr, if (AppSettings.autoFps) 1 else 0) {
         AppSettings.setAutoFps(ctx, it == 1)
     }
-    val steps = listOf(5, 10, 15, 30, 60)
-    SelectRow("Schritte überspringen", "${AppSettings.seekStep} s", steps.map { "$it s" }, steps.indexOf(AppSettings.seekStep).coerceAtLeast(0)) {
-        AppSettings.setPlayer(ctx, AppSettings.skipIntro, AppSettings.showInfo, steps[it])
-    }
+    ToggleRow("Wähle standardmäßig die Surround-Audiospur aus", null, Tm.b(Tm.PB_SURROUND, false)) { Tm.set(ctx, Tm.PB_SURROUND, it) }
+    ToggleRow("Audio-Passthrough", null, Tm.b(Tm.PB_PASSTHROUGH, false)) { Tm.set(ctx, Tm.PB_PASSTHROUGH, it) }
+    ToggleRow("Getunnelte Wiedergabe", null, Tm.b(Tm.PB_TUNNEL, false)) { Tm.set(ctx, Tm.PB_TUNNEL, it) }
+    val ext = listOf(Lang.tr("Nein"), Lang.tr("Ja"), Lang.tr("Nur für Filme und Serien"))
+    SelectRow("Externen Player nutzen", ext[Tm.i(Tm.PB_EXTERNAL, 0)], ext, Tm.i(Tm.PB_EXTERNAL, 0)) { Tm.set(ctx, Tm.PB_EXTERNAL, it) }
+    SettingRow("Schritte überspringen", null, onClick = { open("play_steps", "Schritte überspringen") })
     SelectRow("Bildformat", General.ASPECT_NAMES[General.defaultAspect], General.ASPECT_NAMES, General.defaultAspect) { General.setAspect(ctx, it) }
     SettingRow("Audio & Untertitel", Lang.tr("Sprachen, Untertitel-Stil"), onClick = { open("play_audio", "Audio & Untertitel") })
     PanelSection(Lang.tr("Filme & Serien"))
@@ -1995,3 +2005,41 @@ private fun TmMisc(open: (String, String) -> Unit) {
     SettingRow("Diagnose", null, onClick = { open("misc_diag", "Diagnose") })
 }
 private const val PANEL_SCALE = 0.8f
+
+/** Wiedergabe > Schritte überspringen (TiviMate): getrennte Sprungweiten für Zeitleiste und RW-/FF-Taste. */
+@Composable
+private fun TmSteps(ctx: Context) {
+    val opts = listOf(5, 10, 15, 30, 60, 120, 300, 600)
+    fun label(s: Int) = if (s >= 60) "${s / 60} Min" else "$s Sek"
+    @Composable fun row(title: String, key: String, def: Int) {
+        val v = Tm.i(key, def)
+        SelectRow(title, label(v), opts.map { label(it) }, opts.indexOf(v).coerceAtLeast(0)) { Tm.set(ctx, key, opts[it]) }
+    }
+    row("Sprungschritt für Zeitleiste (rückwärts)", Tm.PB_STEP_TL_BACK, AppSettings.seekStep)
+    row("Sprungschritt für Zeitleiste (vorwärts)", Tm.PB_STEP_TL_FWD, AppSettings.seekStep)
+    row("Überspringe den Schritt für die RW-Taste", Tm.PB_STEP_RW, 10)
+    row("Überspringe den Schritt für die FF-Taste", Tm.PB_STEP_FF, 10)
+}
+
+/** Fernbedienung (TiviMate): Tastenbelegung im Player und Spuloptionen. */
+@Composable
+private fun TmRemote(ctx: Context, open: (String, String) -> Unit) {
+    SettingRow("Player", Lang.tr("Aktion für jede Taste und jeden langen Druck"), onClick = { open("rc_player", "Player") })
+    PanelSection(Lang.tr("Spuloptionen"))
+    ToggleRow("Verwende RW / FF / Pause zum Suchen / Pausieren, während du anschaust", null, Tm.b(Tm.SP_RWFF, true)) { Tm.set(ctx, Tm.SP_RWFF, it) }
+    ToggleRow("Verwende RW, um den Live-Stream zurückzuspulen", null, Tm.b(Tm.SP_RW_LIVE, false)) { Tm.set(ctx, Tm.SP_RW_LIVE, it) }
+    ToggleRow("Verwende Links/Rechts zum Spulen, während du Catchup schaust", null, Tm.b(Tm.SP_LR_CATCHUP, false)) { Tm.set(ctx, Tm.SP_LR_CATCHUP, it) }
+    ToggleRow("Verwende Down / Up zum Suchen, während du den Catchup schaust", null, Tm.b(Tm.SP_UD_CATCHUP, false)) { Tm.set(ctx, Tm.SP_UD_CATCHUP, it) }
+}
+
+/** Fernbedienung > Player (TiviMate): jede Taste mit eigener Aktion. */
+@Composable
+private fun TmRemotePlayer(ctx: Context) {
+    val acts = PAct.entries
+    val labels = acts.map { Lang.tr(it.label) }
+    PKey.entries.forEach { k ->
+        val a = PlayerKeys.action(k)
+        SelectRow(k.label, Lang.tr(a.label), labels, a.ordinal) { PlayerKeys.set(ctx, k, acts[it]) }
+    }
+    SettingRow("Auf Standard zurücksetzen", null, onClick = { PlayerKeys.reset(ctx) })
+}

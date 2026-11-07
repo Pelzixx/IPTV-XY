@@ -90,6 +90,24 @@ object Tm {
     // Eingeklappte Wiedergabelisten in der Gruppenübersicht (Namen, durch 0001 getrennt)
     const val PL_COLLAPSED = "pl_collapsed"
 
+    // ---------------------------------------------------------------- Fernbedienung > Spuloptionen
+    const val SP_RWFF = "sp_rwff"                  // RW/FF/Pause zum Suchen/Pausieren während des Anschauens
+    const val SP_RW_LIVE = "sp_rw_live"            // RW spult den Live-Stream zurück
+    const val SP_LR_CATCHUP = "sp_lr_catchup"      // Links/Rechts spulen im Catchup
+    const val SP_UD_CATCHUP = "sp_ud_catchup"      // Hoch/Runter spulen im Catchup
+
+    // ---------------------------------------------------------------- Wiedergabe
+    const val PB_AUDIO_DEC = "pb_audio_dec"          // 0 Hardware, 1 Software
+    const val PB_VIDEO_DEC = "pb_video_dec"          // 0 Hardware, 1 Software
+    const val PB_SURROUND = "pb_surround"
+    const val PB_PASSTHROUGH = "pb_passthrough"
+    const val PB_TUNNEL = "pb_tunnel"
+    const val PB_EXTERNAL = "pb_external"            // 0 Nein, 1 Ja, 2 Nur für VOD
+    const val PB_STEP_TL_BACK = "pb_step_tl_back"    // Sekunden
+    const val PB_STEP_TL_FWD = "pb_step_tl_fwd"
+    const val PB_STEP_RW = "pb_step_rw"
+    const val PB_STEP_FF = "pb_step_ff"
+
     val SORT_NAMES = listOf("Anordnung in der Wiedergabeliste", "Name (A–Z)", "Name (Z–A)")
 
     fun <T> sorted(list: List<T>, mode: Int, name: (T) -> String): List<T> = when (mode) {
