@@ -347,6 +347,9 @@ private fun AppContent() {
     LaunchedEffect(AppNav.tabNow) { val t = AppNav.tabNow; if (t >= 0) { AppNav.tabNow = -1; goTab(t); AppNav.focusTab = t } }
     LaunchedEffect(Unit) { Recorder.init(ctx); Recorder.schedule(ctx) }
     // Wiedergabeliste von Hand aktualisiert: Meldung, sobald sie fertig ist (TiviMate)
+    LaunchedEffect(Xmltv.doneSignal) {
+        if (Xmltv.doneSignal > 0) android.widget.Toast.makeText(ctx, Xmltv.doneMsg, android.widget.Toast.LENGTH_LONG).show()
+    }
     LaunchedEffect(PlaylistStore.doneSignal) {
         if (PlaylistStore.doneSignal > 0) android.widget.Toast.makeText(ctx, PlaylistStore.doneMsg, android.widget.Toast.LENGTH_LONG).show()
     }

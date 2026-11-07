@@ -386,6 +386,10 @@ Meine Liste · TV-Sendungen¦My list · TV programs¦Listem · TV programları¦
 Namen wiederherstellen¦Restore name¦Adı geri yükle¦Vrati naziv¦Vrati naziv¦Vrati naziv¦Restaurar nombre¦Restaurer le nom¦Ripristina nome
 Von Anfang an ansehen¦Watch from the beginning¦Baştan izle¦Gledaj od početka¦Gledaj od početka¦Gledaj od početka¦Ver desde el principio¦Regarder depuis le début¦Guarda dall’inizio
 Sendung neu starten¦Restart program¦Programı yeniden başlat¦Ponovo pokreni emisiju¦Ponovno pokreni emisiju¦Ponovo pokreni emisiju¦Reiniciar programa¦Redémarrer le programme¦Riavvia programma
+Archiv-Zeitversatz (Stunden)¦Archive time offset (hours)¦Arşiv zaman farkı (saat)¦Pomak vremena arhive (sati)¦Pomak vremena arhive (sati)¦Pomak vremena arhive (sati)¦Desfase del archivo (horas)¦Décalage horaire de l’archive (heures)¦Sfasamento archivio (ore)
+Neu hinzugekommene Gruppen anzeigen¦Show newly added groups¦Yeni eklenen grupları göster¦Prikaži nove grupe¦Prikaži nove grupe¦Prikaži nove grupe¦Mostrar grupos nuevos¦Afficher les nouveaux groupes¦Mostra i gruppi nuovi
+EPG aktualisiert¦EPG updated¦EPG güncellendi¦EPG ažuriran¦EPG ažuriran¦EPG ažuriran¦EPG actualizada¦EPG mis à jour¦EPG aggiornato
+EPG-Fehler¦EPG error¦EPG hatası¦EPG greška¦EPG pogreška¦EPG greška¦Error de EPG¦Erreur EPG¦Errore EPG
 Info¦Info¦Bilgi¦Info¦Info¦Info¦Info¦Info¦Info
 Guide¦Guide¦Rehber¦Vodič¦Vodič¦Vodič¦Guía¦Guide¦Guida
 """

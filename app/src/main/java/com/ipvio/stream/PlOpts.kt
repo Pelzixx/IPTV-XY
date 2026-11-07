@@ -23,6 +23,9 @@ object PlOpts {
     /** Archiv: 0 Automatisch (aus der Playlist), 1 Keine. */
     fun archive(list: String?): Int = if (list == null) 0 else Tm.i(k(list, "arch"), 0)
     fun setArchive(c: Context, list: String, v: Int) = Tm.set(c, k(list, "arch"), v)
+    /** Zeitversatz für das Archiv in Stunden (−12 … +12). */
+    fun archOffset(list: String?): Int = if (list == null) 0 else Tm.i(k(list, "archoff"), 0)
+    fun setArchOffset(c: Context, list: String, v: Int) = Tm.set(c, k(list, "archoff"), v)
 
     fun ua(list: String?): String = if (list == null) "" else Tm.s(k(list, "ua")).trim()
     fun setUa(c: Context, list: String, v: String) = Tm.set(c, k(list, "ua"), v.trim())
@@ -62,6 +65,18 @@ object PlOpts {
         if (hide) s.add(gk(list, group)) else s.remove(gk(list, group))
         Tm.set(c, HIDDEN, s.joinToString(SEP))
         version++
+    }
+
+    // „Neu hinzugekommene Gruppen anzeigen“ (TiviMate, je Liste): aus = neue Gruppen gleich ausblenden
+    fun showNew(list: String): Boolean = Tm.b(k(list, "shownew"), true)
+    fun setShowNew(c: Context, list: String, v: Boolean) = Tm.set(c, k(list, "shownew"), v)
+
+    /** Nach dem Laden: bekannte Gruppen merken, neue bei „aus“ ausblenden. */
+    fun trackGroups(c: Context, list: String, groups: List<String>) {
+        val key = k(list, "known")
+        val known = Tm.s(key).split(SEP).filter { it.isNotEmpty() }.toSet()
+        if (known.isNotEmpty() && !showNew(list)) groups.filter { it !in known }.forEach { setHidden(c, list, it, true) }
+        if (groups.any { it !in known }) Tm.set(c, key, (known + groups).joinToString(SEP))
     }
 
     /** Sender ausgeblendeter Gruppen entfernen (nur Live-TV; Filme und Serien bleiben). */

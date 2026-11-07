@@ -92,6 +92,12 @@ object Xmltv {
     private val progs = ConcurrentHashMap<String, List<EpgEntry>>()
     /** Alle Kanäle der EPG-Quellen (Kennung -> Anzeigename), für „EPG zuweisen“. */
     val chanNames = ConcurrentHashMap<String, String>()
+    /** Von Hand angestoßen: Meldung nach dem Einlesen (siehe MainActivity). */
+    @Volatile var manual = false
+    var doneSignal by mutableStateOf(0)
+        private set
+    var doneMsg = ""
+        private set
     // 60 s ohne Daten oder 10 min insgesamt: Quelle abbrechen und mit der nächsten weitermachen
     private val client = Net.withTimeouts(20, 60).newBuilder().callTimeout(10, java.util.concurrent.TimeUnit.MINUTES).build()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -209,6 +215,13 @@ object Xmltv {
                 map.isEmpty() -> "Geladen: ${progs.size} Sender mit Programm (gespeichert, Aktualisieren fehlgeschlagen)"
                 truncated -> "Geladen: ${progs.size} Sender mit Programm (gekürzt, Speicher knapp)"
                 else -> "Geladen: ${progs.size} Sender mit Programm"
+            }
+            // Von Hand aktualisiert (TiviMate): Meldung „EPG für N Kanäle aktualisiert“ bzw. Fehler mit Quelle und Uhrzeit
+            if (manual) {
+                manual = false
+                doneMsg = if (map.isNotEmpty()) Lang.tr("EPG aktualisiert") + ": " + progs.size + " " + Lang.tr("Kanäle")
+                    else Lang.tr("EPG-Fehler") + " (" + hhmm(System.currentTimeMillis() / 1000) + "): " + (sources.firstOrNull { it.state == EpgSourceStat.ERROR }?.let { s -> s.label + " – " + (s.error ?: "") } ?: (err ?: ""))
+                doneSignal++
             }
         }
     }

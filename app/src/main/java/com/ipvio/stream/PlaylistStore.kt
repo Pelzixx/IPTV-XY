@@ -849,6 +849,8 @@ object PlaylistStore {
         else if (manualUpdate) { manualUpdate = false; doneMsg = Lang.tr("Fehler beim Aktualisieren der Wiedergabeliste") + (error?.let { ": " + Lang.tr(it) } ?: ""); doneSignal++ }
         // Weitere eingeschaltete Playlists dazuholen (erst nach dem Freigeben der Sperre, sie laden ggf. selbst)
         if (ok) runCatching { loadExtras(c) }
+        // Gruppen verwalten > „Neu hinzugekommene Gruppen anzeigen“
+        if (ok) runCatching { for (n in activePlaylistNames()) PlOpts.trackGroups(c, n, groupsOf(n)) }
         return ok
     }
 

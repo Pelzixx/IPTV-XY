@@ -40,10 +40,21 @@ object Catchup {
 
     private class Saved(val m3u: Map<String, CatchupInfo>, val xt: Map<String, Int>, val tz: String?, val xtAt: Long)
 
-    fun of(item: Item?): CatchupInfo? = if (item != null && item.kind == Kind.LIVE && !archiveOff(item)) map[item.id] else null
-
-    /** Wiedergabeliste > Archiv „Keine“ (TiviMate): Archiv dieser Liste abgeschaltet. */
-    private fun archiveOff(item: Item): Boolean = PlOpts.archive(PlaylistStore.playlistOf(item.id)) == 1
+    fun of(item: Item?): CatchupInfo? {
+        if (item == null || item.kind != Kind.LIVE) return null
+        // Wiedergabeliste > Archiv (TiviMate): 0 Automatisch, 1 Keine, sonst fester Typ (auch ohne Angabe in der Playlist)
+        val sel = PlOpts.archive(PlaylistStore.playlistOf(item.id))
+        val base = map[item.id]
+        return when (sel) {
+            0 -> base
+            1 -> null
+            else -> {
+                val mode = when (sel) { 2 -> CatchupLogic.XC; 3 -> CatchupLogic.DEFAULT; 4 -> CatchupLogic.APPEND; 5 -> CatchupLogic.SHIFT; else -> CatchupLogic.FLUSSONIC }
+                if (mode == CatchupLogic.XC && CatchupLogic.xtreamLive(item.url) == null) base
+                else (base ?: CatchupInfo(mode, CatchupLogic.DEFAULT_DAYS)).copy(mode = mode)
+            }
+        }
+    }
 
     fun has(item: Item?): Boolean = of(item) != null
 
@@ -62,7 +73,9 @@ object Catchup {
     fun urlFor(item: Item, e: EpgEntry, now: Long = System.currentTimeMillis() / 1000): String? {
         val i = of(item) ?: return null
         if (!CatchupLogic.canPlay(i, e.start, e.end, now)) return null
-        return CatchupLogic.url(i, item.url, e.start, e.end, now, zone)
+        // Zeitversatz für das Archiv (TiviMate): Server, deren Archiv um Stunden verschoben ist
+        val off = PlOpts.archOffset(PlaylistStore.playlistOf(item.id)) * 3600L
+        return CatchupLogic.url(i, item.url, e.start + off, e.end + off, now, zone)
     }
 
     fun file(c: Context, url: String) = File(c.filesDir, "pl_" + url.trim().hashCode() + ".cu")

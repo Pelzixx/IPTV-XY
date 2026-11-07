@@ -1836,7 +1836,10 @@ private fun TmEpg(ctx: Context, onSources: () -> Unit) {
     }
     ToggleRow("Aktualisieren beim Starten der App", null, EpgPrefs.onStart) { EpgPrefs.set(ctx, start = it) }
     ToggleRow("Aktualisieren bei Playlisten-Änderung", null, EpgPrefs.onPlaylistChange) { EpgPrefs.set(ctx, plChange = it) }
-    SettingRow("Aktualisieren", null, onClick = { Xmltv.start(ctx, PlaylistStore.epgUrls, PlaylistStore.channels, force = true) })
+    SettingRow("Aktualisieren", if (Xmltv.status.startsWith("Wird geladen")) Lang.tr(Xmltv.status) else null, rawValue = true, onClick = {
+        Xmltv.manual = true
+        Xmltv.start(ctx, (PlaylistStore.epgUrls + PlaylistStore.extraEpg).distinct(), PlaylistStore.channels, force = true)
+    })
     SettingRow("EPG löschen", Lang.tr("Gespeichertes TV-Programm verwerfen und neu laden"), onClick = {
         runCatching { java.io.File(ctx.cacheDir, "xmltv.bin").delete() }
         Xmltv.start(ctx, PlaylistStore.epgUrls, PlaylistStore.channels, force = true)
@@ -2180,9 +2183,14 @@ private fun PlaylistTmRows(ctx: Context, name: String, onGroups: () -> Unit, ask
     val lp = PlOpts.logoPrio(name)
     val lpNames = listOf(Lang.tr("Wie unter Optik > Logos")) + Logos.PRIO_NAMES.map { Lang.tr(it) }
     SelectRow("Logo Priorität", lpNames[lp + 1], lpNames, lp + 1) { PlOpts.setLogoPrio(ctx, name, it - 1) }
-    val arch = listOf(Lang.tr("Automatisch"), Lang.tr("Keine"))
-    val ai = PlOpts.archive(name).coerceIn(0, 1)
+    val arch = listOf(Lang.tr("Automatisch"), Lang.tr("Keine"), "Xtream Codes", Lang.tr("Standard"), "Append", "Shift", "Flussonic")
+    val ai = PlOpts.archive(name).coerceIn(0, arch.lastIndex)
     SelectRow("Archiv", arch[ai], arch, ai) { PlOpts.setArchive(ctx, name, it) }
+    if (ai != 1) {
+        val offs = (-12..12).toList()
+        val ao = PlOpts.archOffset(name)
+        SelectRow("Archiv-Zeitversatz (Stunden)", (if (ao > 0) "+" else "") + ao, offs.map { (if (it > 0) "+" else "") + it }, offs.indexOf(ao).coerceAtLeast(0)) { PlOpts.setArchOffset(ctx, name, offs[it]) }
+    }
     val ua = PlOpts.ua(name)
     SettingRow("User-Agent", ua.ifEmpty { Lang.tr("Nicht festgelegt") }, rawValue = true, onClick = {
         ask(Ask("User-Agent", ua, TmNet.userAgent()) { PlOpts.setUa(ctx, name, it) })
@@ -2212,6 +2220,7 @@ private fun PlaylistGroupsPage(ctx: Context, idx: Int) {
         Text("Diese Wiedergabeliste ist nicht aktiv oder hat keine Sendergruppen.", color = Muted, fontSize = 16.sp)
         return
     }
+    ToggleRow("Neu hinzugekommene Gruppen anzeigen", null, PlOpts.showNew(pl.name)) { PlOpts.setShowNew(ctx, pl.name, it) }
     val allShown = groups.none { PlOpts.isHidden(pl.name, it) }
     SettingRow(if (allShown) "Alle ausblenden" else "Alle einblenden", null, onClick = {
         groups.forEach { g -> PlOpts.setHidden(ctx, pl.name, g, allShown) }
