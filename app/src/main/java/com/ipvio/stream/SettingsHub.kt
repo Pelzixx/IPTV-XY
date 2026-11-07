@@ -1465,15 +1465,44 @@ private fun InfoRow(title: String, value: String) {
 /** Rechtliche Hinweise (von „Über“ ausgelagert, damit die Seite übersichtlich bleibt). */
 @Composable
 private fun AboutLegal() {
-    Column(Modifier.padding(horizontal = 25.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        listOf(
-            "IPTV-XY ist ein Player und liefert selbst keine Inhalte. Nutze nur Quellen, für die du eine Berechtigung hast.",
-            "Dieses Produkt verwendet die TMDB-API, wird aber nicht von TMDB unterstützt oder zertifiziert. Wertungen: OMDb. Intro-Zeiten: TheIntroDB.",
-            "IPTV-XY ist freie Software unter der GNU General Public License v3 (GPL-3.0). Verwendete Bibliotheken: AndroidX/Jetpack Compose, Media3 (Apache 2.0), OkHttp, Coil (Apache 2.0), Jellyfin FFmpeg-Decoder (GPL-3.0), Schriften Outfit und Inter (SIL Open Font License)."
-        ).forEach { Text(it, color = Tok.TextMid, fontSize = 14.sp, lineHeight = 19.sp) }
-        // Fokussierbar, damit die Seite einen Fokus hat und Zurück/Tasten funktionieren
-        Box(Modifier.size(1.dp).focusable())
+    // Jede Zeile ist wählbar: so lässt sich die lange Seite mit Hoch/Runter durchblättern (nicht wählbarer Text wäre nicht erreichbar)
+    PanelSection(Lang.tr("Rechtlicher Hinweis"))
+    LegalText("IPTV-XY ist ein Player und liefert selbst keine Inhalte. Nutze nur Quellen, für die du eine Berechtigung hast.")
+    LegalText("IPTV-XY ist nicht mit den Anbietern von Wiedergabelisten, Sendern oder Programmdaten verbunden. Für Inhalte und deren Rechte sind die jeweiligen Anbieter verantwortlich.")
+    PanelSection(Lang.tr("Datenschutz"))
+    LegalText("Zugangsdaten von Wiedergabelisten werden verschlüsselt nur auf diesem Gerät gespeichert.")
+    LegalText("Die App ruft nur die Adressen ab, die du einträgst (Wiedergabelisten, EPG), sowie die Dienste für Film- und Serieninfos, Wertungen und Updates.")
+    PanelSection(Lang.tr("Lizenz"))
+    LegalText("IPTV-XY ist freie Software unter der GNU General Public License v3 (GPL-3.0) und basiert auf IPVIO Stream. Es gibt keine Gewährleistung.")
+    PanelSection(Lang.tr("Bibliotheken"))
+    listOf(
+        "AndroidX (Activity, Compose, Work)" to "Apache License 2.0",
+        "AndroidX Media3 (ExoPlayer, HLS)" to "Apache License 2.0",
+        "Jellyfin Media3 FFmpeg-Decoder (FFmpeg)" to "GNU GPL v3",
+        "OkHttp (Square)" to "Apache License 2.0",
+        "Coil" to "Apache License 2.0",
+        "Kotlin, Kotlin Coroutines (JetBrains)" to "Apache License 2.0"
+    ).forEach { (n, l) -> SettingRow(n, l, rawTitle = true, rawValue = true, onClick = {}) }
+    PanelSection(Lang.tr("Schriften"))
+    listOf("Outfit (The Outfit Project Authors)", "Inter (The Inter Project Authors)").forEach {
+        SettingRow(it, "SIL Open Font License 1.1", rawTitle = true, rawValue = true, onClick = {})
     }
+    PanelSection(Lang.tr("Online-Dienste"))
+    SettingRow("The Movie Database (TMDB)", Lang.tr("Film- und Serieninfos, Bilder"), rawTitle = true, rawValue = true, onClick = {})
+    LegalText("Dieses Produkt verwendet die TMDB-API, wird aber nicht von TMDB unterstützt oder zertifiziert.")
+    SettingRow("OMDb API", Lang.tr("Wertungen von IMDb und Rotten Tomatoes"), rawTitle = true, rawValue = true, onClick = {})
+    SettingRow("TheIntroDB", Lang.tr("Zeiten für Intro, Rückblick und Abspann"), rawTitle = true, rawValue = true, onClick = {})
+    PanelSection(Lang.tr("Marken"))
+    LegalText("IMDb, Rotten Tomatoes, TMDB, Android TV, Google TV und Fire TV sind Marken ihrer jeweiligen Inhaber. IPTV-XY ist mit ihnen nicht verbunden.")
+}
+
+/** Wählbarer Textabsatz (für lange Hinweise im Einstellungs-Panel). */
+@Composable
+private fun LegalText(text: String) {
+    var f by remember { mutableStateOf(false) }
+    Text(text, color = if (f) DS.FocusInk else Tok.TextMid, fontSize = 15.sp, lineHeight = 20.sp,
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(DS.RadiusS)).background(if (f) TvFocusFill else Color.Transparent)
+            .onFocusChanged { f = it.isFocused }.focusable().padding(horizontal = 25.dp, vertical = 10.dp))
 }
 
 
