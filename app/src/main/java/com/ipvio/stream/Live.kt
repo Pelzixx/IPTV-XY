@@ -144,10 +144,37 @@ object Reminders {
         init(c)
         if (!foreground) {
             val now = System.currentTimeMillis() / 1000
-            for (r in pending(now)) { notify(c, r, now); markDone(c, r) }
+            val due = pending(now)
+            for (r in due) { notify(c, r, now); markDone(c, r) }
+            runCatching { Tm.init(c) }
+            if (due.isNotEmpty() && Tm.b(Tm.REM_WAKE, false)) wake(c, due.first())
         }
         schedule(c)
     }
+
+    /**
+     * Sonstiges > Erinnerungen > „Wache aus dem Schlafmodus auf“ (TiviMate): Bildschirm einschalten und den Sender öffnen.
+     * Android erlaubt den Start aus dem Hintergrund nicht überall – dann bleibt es bei der Benachrichtigung.
+     */
+    private fun wake(c: Context, r: Reminder) {
+        runCatching {
+            val pm = c.getSystemService(android.os.PowerManager::class.java)
+            @Suppress("DEPRECATION")
+            val wl = pm?.newWakeLock(
+                android.os.PowerManager.FULL_WAKE_LOCK or android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or android.os.PowerManager.ON_AFTER_RELEASE,
+                "iptvxy:reminder"
+            )
+            wl?.acquire(10_000)
+        }
+        runCatching {
+            c.startActivity(
+                Intent(c, MainActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    .putExtra(EXTRA_CH, r.chId).putExtra(EXTRA_WAKE, true)
+            )
+        }
+    }
+    const val EXTRA_WAKE = "ipvio_remind_wake"
 
     /** Text der Erinnerung: „In 5 Min“ bzw. „Läuft jetzt“. */
     fun whenText(r: Reminder, nowSec: Long): String {

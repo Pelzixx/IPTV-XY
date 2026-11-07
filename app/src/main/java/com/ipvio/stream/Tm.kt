@@ -119,6 +119,16 @@ object Tm {
     const val PB_STEP_RW = "pb_step_rw"
     const val PB_STEP_FF = "pb_step_ff"
 
+    // ---------------------------------------------------------------- Sonstiges > Suchen / Erinnerungen
+    const val SE_VOICE = "se_voice"               // Sprachsuche bevorzugen (beim Öffnen gleich zuhören)
+    const val SE_HIST = "se_hist"                 // Suchverlauf anzeigen
+    const val SE_FAVS = "se_favs"                 // Lieblingssender zuerst anzeigen
+    const val SE_PAST = "se_past"                 // vergangene Sendungen anzeigen (auch ohne Archiv)
+    const val SE_STAY = "se_stay"                 // nach dem Umschalten auf der Suchseite bleiben
+    const val REM_TIMEOUT = "rem_timeout"         // Popup-Timeout in Sekunden
+    const val REM_ACTION = "rem_action"           // Standardaktion nach dem Timeout: 0 Anschauen, 1 Schließen
+    const val REM_WAKE = "rem_wake"               // Gerät aus dem Schlafmodus wecken
+
     val SORT_NAMES = listOf("Anordnung in der Wiedergabeliste", "Name (A–Z)", "Name (Z–A)")
 
     fun <T> sorted(list: List<T>, mode: Int, name: (T) -> String): List<T> = when (mode) {

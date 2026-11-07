@@ -68,18 +68,22 @@ fun SearchScreen(
 
     SideEffect { NavState.tab = tab; ContentFocus.tab = tab }
     var canVoice by remember { mutableStateOf(VoiceSearch.available(ctx)) }
+    fun addS(t: String) { if (Tm.b(Tm.SE_HIST, true)) AppSettings.addSearch(ctx, t) }
     val voice = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
         res.data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()?.takeIf { it.isNotBlank() }?.let {
             SearchState.query = it
-            AppSettings.addSearch(ctx, it)
+            addS(it)
         }
     }
+    val showHist = Tm.b(Tm.SE_HIST, true)
     var fieldFocused by remember { mutableStateOf(false) }
     // Beim Öffnen der Suche sofort ins Suchfeld (nicht beim Zurückkommen von einer Detailseite: dann zum gewählten Titel).
     // Erst aufhören, wenn das Feld den Fokus WIRKLICH hat – die Seitenleiste hält ihn beim Wechsel noch kurz fest.
     LaunchedEffect(Unit) {
         if (LastFocus.pending != null) return@LaunchedEffect
         AppNav.focusTab = -1
+        // Sonstiges > Suchen > Sprachsuche bevorzugen: beim Öffnen gleich zuhören
+        if (Tm.b(Tm.SE_VOICE, false) && canVoice && SearchState.query.isBlank()) runCatching { voice.launch(VoiceSearch.intent()) }
         repeat(20) {
             delay(100)
             if (fieldFocused) return@LaunchedEffect
@@ -98,16 +102,21 @@ fun SearchScreen(
         value = q to withContext(Dispatchers.Default) { idx.find(q) }
     }
     val searching = q.length >= 2 && found.first != q
-    val (rm0, rs, rl) = if (q.length < 2 || searching) none else found.second
+    val (rm0, rs, rl0) = if (q.length < 2 || searching) none else found.second
     // Derselbe Film in mehreren Fassungen nur einmal (Quelle wählt man auf der Detailseite)
     val rm: List<Item> = remember(rm0) { PlaylistLogic.firstPerKey(rm0) { it.mk + "|" + it.lang } }
-    val firstKey = when { rm.isNotEmpty() -> "rm"; rs.isNotEmpty() -> "rs"; rl.isNotEmpty() -> "rl"; else -> "" }
+    val rl: List<Item> = remember(rl0) { if (Tm.b(Tm.SE_FAVS, true)) rl0.sortedBy { !Library.isFav(it.id) } else rl0 }
+    val rp by produceState(emptyList<Pair<Item, EpgEntry>>(), found) {
+        val (fq, res) = found
+        value = if (fq.length < 2) emptyList() else withContext(Dispatchers.Default) { SearchProgs.find(fq, index?.all.orEmpty()) }
+    }
+    val firstKey = when { rm.isNotEmpty() -> "rm"; rs.isNotEmpty() -> "rs"; rl.isNotEmpty() -> "rl"; rp.isNotEmpty() -> "rp"; else -> "" }
     // Zurück: im Suchfeld (Tastatur schon zu) erst zu den letzten Suchanfragen bzw. Treffern, sonst in die Seitenleiste
     BackHandler(enabled = !inSidebar) {
         val target = when {
             !fieldFocused -> null
             firstKey.isNotEmpty() -> firstRes
-            q.length < 2 && AppSettings.searchHistory.isNotEmpty() -> firstHistory
+            q.length < 2 && showHist && AppSettings.searchHistory.isNotEmpty() -> firstHistory
             else -> null
         }
         val moved = target != null && runCatching { target.requestFocus() }.isSuccess
@@ -122,7 +131,7 @@ fun SearchScreen(
                     Box(
                         Modifier.padding(horizontal = DS.PageX, vertical = 8.dp).onPreviewKeyEvent { e ->
                             if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionDown &&
-                                (firstKey.isNotEmpty() || (q.length < 2 && AppSettings.searchHistory.isNotEmpty()))
+                                (firstKey.isNotEmpty() || (q.length < 2 && showHist && AppSettings.searchHistory.isNotEmpty()))
                             ) {
                                 runCatching { (if (firstKey.isNotEmpty()) firstRes else firstHistory).requestFocus() }; true
                             } else false
@@ -142,7 +151,7 @@ fun SearchScreen(
                     }
                 }
                 if (q.length < 2) {
-                    if (AppSettings.searchHistory.isNotEmpty()) item(key = "sh") {
+                    if (showHist && AppSettings.searchHistory.isNotEmpty()) item(key = "sh") {
                         Column {
                             SectionHeader("Letzte Suchanfragen")
                             LazyRow(
@@ -175,28 +184,36 @@ fun SearchScreen(
                         }
                     }
                 } else {
-                    val openS: (Item) -> Unit = { i -> AppSettings.addSearch(ctx, q); onOpen(i) }
+                    val openS: (Item) -> Unit = { i ->
+                        addS(q)
+                        // Sonstiges > Suchen: ohne „auf der Suchseite bleiben“ führt Zurück aus dem Player in den TV-Guide
+                        if (i.kind == Kind.LIVE && !Tm.b(Tm.SE_STAY, false)) AppNav.toGuide = true
+                        onOpen(i)
+                    }
                     if (searching) item {
                         Text("Suche …", color = Muted, fontSize = 16.sp, modifier = Modifier.padding(horizontal = DS.PageX, vertical = 16.dp))
-                    } else if (rm.isEmpty() && rs.isEmpty() && rl.isEmpty()) item {
+                    } else if (rm.isEmpty() && rs.isEmpty() && rl.isEmpty() && rp.isEmpty()) item {
                         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                             EmptyState(AIcon.Info, "Keine Treffer", "Prüfe die Schreibweise oder suche nach einem Teil des Titels. Kleine Tippfehler findet die Suche trotzdem.")
                         }
                     }
                     if (rm.isNotEmpty()) item(key = "rm") {
                         SearchRow("Filme", rm, cardW, openS, if (firstKey == "rm") firstRes else null) {
-                            AppSettings.addSearch(ctx, q); onBrowse(BrowseReq("Suche „$q“ · Filme", rm, S_SORT_AZ))
+                            addS(q); onBrowse(BrowseReq("Suche „$q“ · Filme", rm, S_SORT_AZ))
                         }
                     }
                     if (rs.isNotEmpty()) item(key = "rs") {
                         SearchRow("Serien", rs, cardW, openS, if (firstKey == "rs") firstRes else null) {
-                            AppSettings.addSearch(ctx, q); onBrowse(BrowseReq("Suche „$q“ · Serien", rs, S_SORT_AZ))
+                            addS(q); onBrowse(BrowseReq("Suche „$q“ · Serien", rs, S_SORT_AZ))
                         }
                     }
                     if (rl.isNotEmpty()) item(key = "rl") {
                         SearchRow("Live TV", rl, cardW, openS, if (firstKey == "rl") firstRes else null) {
-                            AppSettings.addSearch(ctx, q); onBrowse(BrowseReq("Suche „$q“ · Live TV", rl, S_SORT_AZ))
+                            addS(q); onBrowse(BrowseReq("Suche „$q“ · Live TV", rl, S_SORT_AZ))
                         }
+                    }
+                    if (rp.isNotEmpty()) item(key = "rp") {
+                        ProgRow(rp, if (firstKey == "rp") firstRes else null) { ch, e -> addS(q); progAction(ctx, ch, e) { openS(it) } }
                     }
                 }
             }
@@ -309,6 +326,91 @@ private fun SearchRow(
                     else PosterCard(x, { onOpen(x) }, Modifier.width(cardW.dp).restoreFocus(x.id).then(fr))
                 }
                 item { SearchAllTile(liveRow, if (liveRow) (cardW * 4 / 3).dp else cardW.dp, onAll) }
+            }
+        }
+    }
+}
+
+/** Suche in den Sendungen (EPG) der Sender – wie TiviMate „Sendungen“ neben „Kanäle“. */
+object SearchProgs {
+    const val MAX = 60
+
+    fun find(q: String, all: List<Item>): List<Pair<Item, EpgEntry>> {
+        val n = q.trim().lowercase()
+        if (n.length < 2) return emptyList()
+        val now = System.currentTimeMillis() / 1000
+        val past = Tm.b(Tm.SE_PAST, false)
+        val out = ArrayList<Pair<Item, EpgEntry>>()
+        val seen = HashSet<String>()
+        for (ch in all) {
+            if (ch.kind != Kind.LIVE) continue
+            val list = Xmltv.forItem(ch)
+            if (list.isEmpty()) continue
+            // Vergangene Sendungen nur mit Archiv – oder wenn „Vergangene Sendungen anzeigen“ an ist
+            val keepPast = past || Catchup.has(ch)
+            for (e in list) {
+                if (e.end <= now && !keepPast) continue
+                if (!e.title.lowercase().contains(n)) continue
+                // Dieselbe Sendung auf mehreren Sendern (gleiche Liste in HD/SD): einmal je Sender und Beginn
+                if (!seen.add(ch.id + "|" + e.start)) continue
+                out.add(ch to e)
+            }
+        }
+        // Laufende zuerst, dann künftige nach Beginn, vergangene zuletzt (neueste zuerst)
+        val sorted = out.sortedWith(compareBy<Pair<Item, EpgEntry>>({
+            val e = it.second
+            when { e.start <= now && e.end > now -> 0; e.start > now -> 1; else -> 2 }
+        }, { if (it.second.end <= now) -it.second.start else it.second.start }))
+        val favFirst = if (Tm.b(Tm.SE_FAVS, true)) sorted.sortedBy { !Library.isFav(it.first.id) } else sorted
+        return favFirst.take(MAX)
+    }
+}
+
+/** Trefferzeile „Sendungen“: Titel, Sender, Tag und Uhrzeit; OK wie im TV-Guide (laufend/Archiv/Erinnerung). */
+@Composable
+private fun ProgRow(list: List<Pair<Item, EpgEntry>>, firstReq: FocusRequester?, onOk: (Item, EpgEntry) -> Unit) {
+    val rowState = RowStates.get("${NavState.tab}|progs")
+    val now = System.currentTimeMillis() / 1000
+    Column {
+        Row(Modifier.padding(start = DS.PageX, top = 22.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.width(4.dp).height(22.dp).clip(RoundedCornerShape(2.dp)).background(Accent1))
+            Spacer(Modifier.width(10.dp))
+            Text("Sendungen", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.width(10.dp))
+            Text(raw = true, text = list.size.toString(), color = Muted, fontSize = 18.sp)
+        }
+        LazyRow(
+            state = rowState,
+            contentPadding = PaddingValues(horizontal = DS.PageX, vertical = 18.dp),
+            horizontalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            itemsIndexed(list) { i, (ch, e) ->
+                var f by remember { mutableStateOf(false) }
+                val shape = RoundedCornerShape(DS.RadiusM)
+                val running = e.start <= now && e.end > now
+                val fr = if (i == 0 && firstReq != null) Modifier.focusRequester(firstReq) else Modifier
+                Column(
+                    Modifier.width(320.dp).then(fr).focusGlow(f, shape).clip(shape).background(if (f) Color(0xFFE6E7E8) else Surf)
+                        .border(DS.FocusBorder, if (f) Accent2 else Surf2, shape)
+                        .onFocusChanged { f = it.isFocused }
+                        .clickable { onOk(ch, e) }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    val fg = if (f) Color(0xFF15171A) else Color.White
+                    val sub = if (f) Color(0xFF3A3D42) else Muted
+                    Text(raw = true, text = e.title, color = fg, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    Text(raw = true, text = ChannelEdit.title(ch), color = sub, fontSize = 15.sp, maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    val tag = when {
+                        running -> Lang.tr("Läuft jetzt")
+                        e.start > now && Reminders.isSet(ch.id, e.start) -> Lang.tr("Erinnerung gesetzt")
+                        else -> ""
+                    }
+                    Text(raw = true, text = dayLabel(e.start) + " " + hhmm(e.start) + " — " + hhmm(e.end) + (if (tag.isNotEmpty()) "  ·  $tag" else ""),
+                        color = if (running && !f) Accent2 else sub, fontSize = 14.sp, maxLines = 1)
+                }
             }
         }
     }

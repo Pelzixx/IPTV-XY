@@ -73,7 +73,7 @@ data class Reminder(val chId: String, val chTitle: String, val title: String, va
 /** Wann an welche Sendung erinnert wird (ohne Android, testbar). */
 object ReminderLogic {
     /** Vorlaufzeiten zur Auswahl in Minuten. */
-    val LEADS = listOf(0, 2, 5, 10, 15)
+    val LEADS = listOf(0, 1, 2, 3, 5, 10, 15, 20, 30)
 
     /** Fällig: Vorlauf erreicht und die Sendung ist noch nicht zu Ende. */
     fun due(list: List<Reminder>, nowSec: Long, leadSec: Long): List<Reminder> =

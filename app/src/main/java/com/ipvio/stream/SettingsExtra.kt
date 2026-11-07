@@ -113,11 +113,18 @@ fun ChannelListsSection(ctx: Context) {
 @Composable
 fun ReminderSettingsSection(ctx: Context) {
     Reminders.init(ctx)
-    SectionTitle("Erinnerungen")
     val leads = ReminderLogic.LEADS
     val li = leads.indexOf(Reminders.leadMin).coerceAtLeast(0)
-    SelectRow("Erinnern", if (Reminders.leadMin == 0) "Zum Beginn" else "${Reminders.leadMin} Min vorher",
-        leads.map { if (it == 0) "Zum Beginn" else "$it Min vorher" }, li) { Reminders.setLead(ctx, leads[it]) }
+    // Aufbau wie TiviMate: Vorlauf, Popup-Timeout, Standardaktion, aus dem Schlafmodus wecken
+    SelectRow("Vor Programmstart erinnern (Minuten)", Reminders.leadMin.toString(), leads.map { it.toString() }, li) { Reminders.setLead(ctx, leads[it]) }
+    val tos = listOf(5, 10, 15, 20, 30, 45, 60)
+    val to = Tm.i(Tm.REM_TIMEOUT, 10)
+    SelectRow("Popup-Timeout (Sekunden)", to.toString(), tos.map { it.toString() }, tos.indexOf(to).coerceAtLeast(0)) { Tm.set(ctx, Tm.REM_TIMEOUT, tos[it]) }
+    val acts = listOf("Anschauen", "Schließen")
+    val ai = Tm.i(Tm.REM_ACTION, 0).coerceIn(0, 1)
+    SelectRow("Standardaktion", Lang.tr(acts[ai]), acts.map { Lang.tr(it) }, ai) { Tm.set(ctx, Tm.REM_ACTION, it) }
+    ToggleRow("Wache aus dem Schlafmodus auf", Lang.tr("Funktioniert nicht auf allen Geräten"), Tm.b(Tm.REM_WAKE, false)) { Tm.set(ctx, Tm.REM_WAKE, it) }
+    SectionTitle("Meine Erinnerungen")
     val list = Reminders.list.toList()
     if (list.isEmpty()) Text("Keine Erinnerungen gesetzt.", color = Muted, fontSize = 16.sp)
     else Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

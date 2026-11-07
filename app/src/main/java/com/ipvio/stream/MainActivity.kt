@@ -68,6 +68,7 @@ class MainActivity : ComponentActivity() {
                 .build()
         )
         ScreenAwake.attach(this)
+        if (intent?.getBooleanExtra(Reminders.EXTRA_WAKE, false) == true) turnScreenOn()
         intent?.getStringExtra(Reminders.EXTRA_CH)?.let { AppNav.openChannel = it }
         setContent { App(pick) }
     }
@@ -75,7 +76,14 @@ class MainActivity : ComponentActivity() {
     /** Erinnerung angetippt, während die App schon läuft: Sender öffnen. */
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
+        if (intent.getBooleanExtra(Reminders.EXTRA_WAKE, false)) turnScreenOn()
         intent.getStringExtra(Reminders.EXTRA_CH)?.let { AppNav.openChannel = it }
+    }
+
+    /** Erinnerung weckt das Gerät: Bildschirm einschalten, auch über der Sperre. */
+    private fun turnScreenOn() {
+        if (android.os.Build.VERSION.SDK_INT >= 27) { setTurnScreenOn(true); setShowWhenLocked(true) }
+        else @Suppress("DEPRECATION") window.addFlags(android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED)
     }
 
     override fun onStart() {

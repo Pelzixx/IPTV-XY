@@ -206,18 +206,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     DisposableEffect(Unit) { onDispose { preview.release() } }
     fun open(ch: Item) { preview.stop(); ZapContext.list = list; ZapContext.key = sel; LiveMemory.setSel(ctx, sel); onOpen(ch) }
     // OK auf einer gewählten Sendung (TiviMate): vergangen = Archiv, künftig = Erinnerung, laufend = Sender
-    fun progOk(ch: Item, e: EpgEntry) {
-        val now = System.currentTimeMillis() / 1000
-        when {
-            e.end <= now -> if (Catchup.has(ch)) { AppNav.archiveStart = ch.id to e; open(ch) }
-                else Toast.makeText(ctx, Lang.tr("Für diesen Sender gibt es kein Archiv."), Toast.LENGTH_SHORT).show()
-            e.start > now -> {
-                val on = Reminders.toggle(ctx, Reminder(ch.id, ChannelEdit.title(ch), e.title, e.start, e.end))
-                Toast.makeText(ctx, Lang.tr(if (on) "Erinnerung gesetzt" else "Erinnerung entfernt"), Toast.LENGTH_SHORT).show()
-            }
-            else -> open(ch)
-        }
-    }
+    fun progOk(ch: Item, e: EpgEntry) = progAction(ctx, ch, e) { open(it) }
     Box(Modifier.fillMaxSize()) {
     // Zeitleiste: ab der laufenden halben Stunde, 2 Stunden breit; „jetzt“ wird alle 30 s nachgeführt
     val nowSec by produceState(System.currentTimeMillis() / 1000) {
@@ -629,8 +618,10 @@ fun ReminderCard(r: Reminder, modifier: Modifier, onClose: () -> Unit, onSwitch:
     LaunchedEffect(r.key) {
         kotlinx.coroutines.delay(150)
         runCatching { fr.requestFocus() }
-        repeat(4) { kotlinx.coroutines.delay(15_000); nowSec = System.currentTimeMillis() / 1000 }
-        onClose()
+        // Sonstiges > Erinnerungen: Popup-Timeout, danach die Standardaktion (Anschauen oder nur schließen)
+        var left = Tm.i(Tm.REM_TIMEOUT, 10).coerceAtLeast(3)
+        while (left > 0) { kotlinx.coroutines.delay(1000); left--; nowSec = System.currentTimeMillis() / 1000 }
+        if (Tm.i(Tm.REM_ACTION, 0) == 0) onSwitch() else onClose()
     }
     val shape = RoundedCornerShape(DS.RadiusL)
     Row(
@@ -671,4 +662,18 @@ private fun RowScope.GuideTop(focus: GuideFocusState, first: Item?, preview: Liv
     // Optik > EPG > Vorschau: aus = kein Vorschaubild, die Sendung nutzt die ganze Breite
     if (AppSettings.livePreview) LivePreview(preview, focus.shown, Modifier.fillMaxHeight().aspectRatio(16f / 9f), fallback = shown)
     LiveInfo(shown, Modifier.weight(1f).fillMaxHeight(), prog = if (shown != null && shown.id == focus.target?.id) focus.prog else null)
+}
+
+/** OK auf eine Sendung (TV-Guide, Suche): vergangen → Archiv, künftig → Erinnerung an/aus, laufend → Sender öffnen. */
+fun progAction(ctx: android.content.Context, ch: Item, e: EpgEntry, open: (Item) -> Unit) {
+    val now = System.currentTimeMillis() / 1000
+    when {
+        e.end <= now -> if (Catchup.has(ch)) { AppNav.archiveStart = ch.id to e; open(ch) }
+            else Toast.makeText(ctx, Lang.tr("Für diesen Sender gibt es kein Archiv."), Toast.LENGTH_SHORT).show()
+        e.start > now -> {
+            val on = Reminders.toggle(ctx, Reminder(ch.id, ChannelEdit.title(ch), e.title, e.start, e.end))
+            Toast.makeText(ctx, Lang.tr(if (on) "Erinnerung gesetzt" else "Erinnerung entfernt"), Toast.LENGTH_SHORT).show()
+        }
+        else -> open(ch)
+    }
 }

@@ -1661,7 +1661,7 @@ fun SettingsPanel(onAdd: () -> Unit, reload: () -> Unit, onClose: () -> Unit) {
                             "look_vod", "misc_vod" -> ViewPage(ctx)
                             "look_menu" -> MenuPage(ctx)
                             "play_audio" -> AudioPage(ctx)
-                            "misc_search" -> SettingRow("Suchverlauf löschen", null, onClick = { AppSettings.clearSearch(ctx) })
+                            "misc_search" -> TmSearch(ctx)
                             "misc_rem" -> ReminderSettingsSection(ctx)
                             "about_legal" -> AboutLegal()
                             "misc_lists" -> TmChannelLists(ctx)
@@ -2078,4 +2078,15 @@ private fun TmRemotePlayer(ctx: Context) {
         SelectRow(k.label, Lang.tr(a.label), labels, a.ordinal) { PlayerKeys.set(ctx, k, acts[it]) }
     }
     SettingRow("Auf Standard zurücksetzen", null, onClick = { PlayerKeys.reset(ctx) })
+}
+
+/** Sonstiges > Suchen (TiviMate). */
+@Composable
+private fun TmSearch(ctx: Context) {
+    ToggleRow("Sprachsuche bevorzugen", null, Tm.b(Tm.SE_VOICE, false)) { Tm.set(ctx, Tm.SE_VOICE, it) }
+    ToggleRow("Suchverlauf anzeigen", null, Tm.b(Tm.SE_HIST, true)) { Tm.set(ctx, Tm.SE_HIST, it) }
+    ToggleRow("Lieblingssender zuerst anzeigen", null, Tm.b(Tm.SE_FAVS, true)) { Tm.set(ctx, Tm.SE_FAVS, it) }
+    ToggleRow("Vergangene Sendungen anzeigen", null, Tm.b(Tm.SE_PAST, false)) { Tm.set(ctx, Tm.SE_PAST, it) }
+    ToggleRow("Bleibe auf dem Suchbildschirm, wenn du den Kanal wechselst", null, Tm.b(Tm.SE_STAY, false)) { Tm.set(ctx, Tm.SE_STAY, it) }
+    SettingRow("Suchverlauf löschen", null, onClick = { AppSettings.clearSearch(ctx) })
 }
