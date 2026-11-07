@@ -59,4 +59,11 @@ Video¦Video¦Video¦Video¦Video¦Video¦Vídeo¦Vidéo¦Video
 Zu Favoriten¦Add to favorites¦Favorilere ekle¦Dodaj u favorite¦Dodaj u favorite¦Dodaj u omiljene¦Añadir a favoritos¦Ajouter aux favoris¦Aggiungi ai preferiti
 Aus Favoriten¦Remove favorite¦Favorilerden çıkar¦Ukloni iz favorita¦Ukloni iz favorita¦Ukloni iz omiljenih¦Quitar de favoritos¦Retirer des favoris¦Rimuovi dai preferiti
 Haupt-Wiedergabeliste¦Main playlist¦Ana oynatma listesi¦Glavna playlista¦Glavna playlista¦Glavna plejlista¦Lista principal¦Playlist principale¦Playlist principale
+Name der Liste¦List name¦Liste adı¦Naziv liste¦Naziv popisa¦Naziv liste¦Nombre de la lista¦Nom de la liste¦Nome della lista
+Sender danach im TV-Guide mit OK gedrückt halten hinzufügen¦Then add channels in the TV guide by holding OK¦Ardından TV rehberinde OK basılı tutarak kanal ekle¦Zatim dodaj kanale u TV vodiču držanjem OK¦Zatim dodaj programe u TV vodiču držanjem OK¦Zatim dodaj kanale u TV vodiču držanjem OK¦Después añade canales en la guía manteniendo OK¦Ajoute ensuite des chaînes dans le guide en maintenant OK¦Poi aggiungi canali nella guida tenendo premuto OK
+Nach Updates suchen¦Check for updates¦Güncellemeleri denetle¦Provjeri ažuriranja¦Provjeri ažuriranja¦Proveri ažuriranja¦Buscar actualizaciones¦Rechercher des mises à jour¦Cerca aggiornamenti
+Hinweise und Lizenzen¦Notices and licenses¦Bildirimler ve lisanslar¦Napomene i licence¦Napomene i licence¦Napomene i licence¦Avisos y licencias¦Mentions et licences¦Note e licenze
+Gerätename¦Device name¦Cihaz adı¦Naziv uređaja¦Naziv uređaja¦Naziv uređaja¦Nombre del dispositivo¦Nom de l’appareil¦Nome dispositivo
+Neue Version¦New version¦Yeni sürüm¦Nova verzija¦Nova verzija¦Nova verzija¦Nueva versión¦Nouvelle version¦Nuova versione
+Playlists, Favoriten und Verlauf bleiben erhalten¦Playlists, favorites and history are kept¦Oynatma listeleri, favoriler ve geçmiş korunur¦Playliste, favoriti i povijest ostaju¦Playliste, favoriti i povijest ostaju¦Plejliste, omiljeni i istorija ostaju¦Se conservan listas, favoritos e historial¦Playlists, favoris et historique sont conservés¦Playlist, preferiti e cronologia restano
 """

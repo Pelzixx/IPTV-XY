@@ -1,5 +1,6 @@
 package com.ipvio.stream
 
+import androidx.compose.foundation.focusable
 import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
@@ -153,7 +154,7 @@ fun SettingsHub(onAdd: () -> Unit, reload: () -> Unit) {
                 12 -> ParentalPage(ctx) { page = CAT_ORDER.first() }
                 13 -> StoragePage(ctx)
                 14 -> DiagPage(ctx, reload)
-                else -> AboutPage(ctx)
+                else -> AboutPage(ctx) { _, _ -> }
             }
         }
     }
@@ -1051,6 +1052,45 @@ private fun TextAskDialog(title: String, initial: String, hint: String, password
 /** Was gerade abgefragt wird (Texteingabe auf der Seite einer Wiedergabeliste). */
 private class Ask(val title: String, val initial: String, val hint: String, val password: Boolean = false, val onSave: (String) -> Unit)
 
+/**
+ * Eigene Senderlisten (TiviMate: „Eigene Gruppen“): „Neue Senderliste“ und je Liste Umbenennen/Löschen.
+ * Immer mindestens ein wählbarer Eintrag, damit die Seite nie ohne Fokus ist (sonst reagierte keine Taste mehr).
+ */
+@Composable
+private fun TmChannelLists(ctx: Context) {
+    ChannelLists.init(ctx)
+    var ask by remember { mutableStateOf<Ask?>(null) }
+    var menuFor by remember { mutableStateOf<ChList?>(null) }
+    var confirmDel by remember { mutableStateOf<ChList?>(null) }
+    val ls = ChannelLists.lists.toList()
+    SettingRow("Neue Senderliste", Lang.tr("Sender danach im TV-Guide mit OK gedrückt halten hinzufügen"), leading = { f ->
+        Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) { AppIcon(AIcon.Plus, if (f) DS.FocusInk else Color.White, size = 22.dp) }
+    }, onClick = {
+        ask = Ask("Neue Senderliste", Lang.tr("Senderliste " + (ls.size + 1)), "Name der Liste") { n ->
+            if (n.isNotBlank()) ChannelLists.create(ctx, n.trim().take(ChannelListLogic.MAX_NAME), null)
+        }
+    })
+    if (ls.isNotEmpty()) PanelSection(Lang.tr("Eigene Senderlisten"))
+    ls.forEach { l ->
+        SettingRow(l.name, l.ids.size.toString() + " " + Lang.tr("Sender"), rawTitle = true, rawValue = true, onClick = { menuFor = l })
+    }
+    menuFor?.let { l ->
+        SideMenu(listOf(SideSection(l.name, listOf(
+            SideEntry("Umbenennen", AIcon.Edit) {
+                ask = Ask("Umbenennen", l.name, "Name der Liste") { n -> if (n.isNotBlank()) ChannelLists.rename(ctx, l.id, n.trim().take(ChannelListLogic.MAX_NAME)) }
+            },
+            SideEntry("Liste löschen", AIcon.Close) { confirmDel = l }
+        ))), { menuFor = null })
+    }
+    confirmDel?.let { l ->
+        SideMenu(listOf(SideSection(l.name, listOf(
+            SideEntry("Löschen", AIcon.Close) { ChannelLists.delete(ctx, l.id) },
+            SideEntry("Abbrechen", AIcon.Left) {}
+        ))), { confirmDel = null })
+    }
+    ask?.let { a -> TextAskDialog(Lang.tr(a.title), a.initial, a.hint, a.password, onDismiss = { ask = null }) { ask = null; a.onSave(it) } }
+}
+
 /** Wiedergabeliste ändern und speichern; neue Adresse lädt die aktive Liste neu, neue EPG-Quellen das TV-Programm. */
 private fun savePlaylist(ctx: Context, scope: kotlinx.coroutines.CoroutineScope, idx: Int, name: String? = null, url: String? = null, epg: String? = null) {
     val pl = PlaylistStore.lists.getOrNull(idx) ?: return
@@ -1356,67 +1396,84 @@ private fun ApiKeysPage(ctx: Context) {
 }
 
 @Composable
-private fun AboutPage(ctx: Context) {
-    Text("IPTV-XY · Version " + appVersion(ctx), color = Color.White, fontSize = 18.sp)
-    Hint("IPTV-XY ist ein Player und liefert selbst keine Inhalte. Nutze nur Quellen, für die du eine Berechtigung hast.")
-    Hint("Dieses Produkt verwendet die TMDB-API, wird aber nicht von TMDB unterstützt oder zertifiziert. Wertungen: OMDb. Intro-Zeiten: TheIntroDB.")
-    Hint("IPTV-XY ist freie Software unter der GNU General Public License v3 (GPL-3.0). Verwendete Bibliotheken: AndroidX/Jetpack Compose, Media3 (Apache 2.0), OkHttp, Coil (Apache 2.0), Jellyfin FFmpeg-Decoder (GPL-3.0), Schriften Outfit und Inter (SIL Open Font License).")
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        PillButton("Systemeinstellungen der App") {
-            runCatching {
-                ctx.startActivity(
-                    android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:" + ctx.packageName))
-                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_USER_ACTION)
-                )
-            }
-        }
-    }
-    UpdateSection(ctx)
-    SectionTitle("Zurücksetzen")
-    ConfirmPill("Alle Einstellungen zurücksetzen") { AppSettings.resetAll(ctx); General.resetAll(ctx) }
-    Hint("Setzt Ansicht, Design, Menü, Player, Ton und Start auf die Standardwerte. Playlists, Favoriten, Verlauf und Fortsetzen-Positionen bleiben erhalten. Zwischenspeicher leerst du unter „Speicher“.")
-}
-
-/** App-Aktualisierung aus der App heraus. Die Update-Adresse ist fest eingebaut und wird nicht angezeigt. */
-@Composable
-private fun UpdateSection(ctx: Context) {
-    SectionTitle("App-Aktualisierung")
+private fun AboutPage(ctx: Context, open: (String, String) -> Unit) {
+    // TiviMate-Aufbau: schlichte Zeilen (Titel, darunter klein der Wert), Info-Zeilen grau und nicht wählbar, kurzer Hinweis unten
     var status by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var info by remember { mutableStateOf<UpdateInfo?>(null) }
-    // Schon heruntergeladen (z. B. wenn erst „Apps installieren“ erlaubt werden musste): beim nächsten Klick nur installieren
     var apk by remember { mutableStateOf<java.io.File?>(null) }
+    var confirmReset by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     fun check() {
-        busy = true; status = "Suche …"; info = null; apk = null
+        busy = true; status = Lang.tr("Suche …"); info = null; apk = null
         scope.launch {
             AppUpdate.check(ctx)
-                .onSuccess { r -> info = r; status = if (r == null) "Du hast die neueste Version." else if (r.notes.isNotBlank()) r.notes else "" }
-                .onFailure { status = it.message ?: "Fehler" }
+                .onSuccess { r -> info = r; status = if (r == null) Lang.tr("Du hast die neueste Version.") else Lang.tr("Neue Version") + " " + r.name }
+                .onFailure { status = it.message ?: Lang.tr("Fehler") }
             busy = false
         }
     }
     fun install(f: java.io.File) {
-        status = if (AppUpdate.install(ctx, f)) "Installation gestartet" else "Erlaube der App einmal „Apps installieren“ und tippe dann erneut."
+        status = Lang.tr(if (AppUpdate.install(ctx, f)) "Installation gestartet" else "Erlaube der App einmal „Apps installieren“ und tippe dann erneut.")
     }
-    // Beim Öffnen gleich nachsehen: gibt es eine neue Version, reicht danach ein Klick
     LaunchedEffect(Unit) { check() }
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        val u = info
-        if (u != null) PillButton(if (busy) "Bitte warten …" else "Jetzt aktualisieren auf ${u.name}", light = true) {
-            if (busy) return@PillButton
-            apk?.let { install(it); return@PillButton }
-            busy = true
-            scope.launch {
-                AppUpdate.download(ctx, u) { p -> status = if (p >= 0) "Lade … $p %" else "Lade …" }
-                    .onSuccess { f -> apk = f; install(f) }
-                    .onFailure { status = it.message ?: "Fehler" }
-                busy = false
-            }
-        } else PillButton(if (busy) "Bitte warten …" else "Nach Update suchen") { if (!busy) check() }
+    val u = info
+    SettingRow(if (u != null) "Jetzt aktualisieren" else "Nach Updates suchen", status.ifBlank { null }, rawValue = true, onClick = {
+        if (busy) return@SettingRow
+        if (u == null) { check(); return@SettingRow }
+        apk?.let { install(it); return@SettingRow }
+        busy = true
+        scope.launch {
+            AppUpdate.download(ctx, u) { p -> status = if (p >= 0) Lang.tr("Lade …") + " $p %" else Lang.tr("Lade …") }
+                .onSuccess { f -> apk = f; install(f) }
+                .onFailure { status = it.message ?: Lang.tr("Fehler") }
+            busy = false
+        }
+    })
+    SettingRow("Hinweise und Lizenzen", null, onClick = { open("about_legal", "Hinweise und Lizenzen") })
+    SettingRow("Systemeinstellungen der App", null, onClick = {
+        runCatching {
+            ctx.startActivity(
+                android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:" + ctx.packageName))
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_USER_ACTION)
+            )
+        }
+    })
+    SettingRow("Alle Einstellungen zurücksetzen", Lang.tr("Playlists, Favoriten und Verlauf bleiben erhalten"), onClick = { confirmReset = true })
+    InfoRow("Gerätename", (android.os.Build.MANUFACTURER.replaceFirstChar { it.uppercase() } + " " + android.os.Build.MODEL).trim())
+    InfoRow("Version", appVersion(ctx))
+    Text("IPTV-XY ist ein Player und liefert selbst keine Inhalte. Nutze nur Quellen, für die du eine Berechtigung hast.",
+        color = Tok.TextMid, fontSize = 13.sp, lineHeight = 17.sp, modifier = Modifier.padding(horizontal = 25.dp, vertical = 12.dp))
+    if (confirmReset) SideMenu(
+        listOf(SideSection(Lang.tr("Alle Einstellungen zurücksetzen"), listOf(
+            SideEntry("Zurücksetzen", AIcon.Refresh) { AppSettings.resetAll(ctx); General.resetAll(ctx) },
+            SideEntry("Abbrechen", AIcon.Left) {}
+        ))),
+        { confirmReset = false }
+    )
+}
+
+/** Nicht wählbare Info-Zeile wie bei TiviMate (Gerätename, Version): Titel und Wert grau. */
+@Composable
+private fun InfoRow(title: String, value: String) {
+    Column(Modifier.fillMaxWidth().heightIn(min = 58.dp).padding(horizontal = 25.dp, vertical = 10.dp), verticalArrangement = Arrangement.Center) {
+        Text(title, color = Tok.TextMid, fontSize = 17.sp)
+        Text(raw = true, text = value, color = Tok.TextMid, fontSize = 13.sp)
     }
-    if (status.isNotBlank()) Text(status, color = Muted, fontSize = 16.sp)
-    Hint("Sucht nach einer neuen Version von IPTV-XY und installiert sie. Deine Einstellungen und Playlists bleiben erhalten.")
+}
+
+/** Rechtliche Hinweise (von „Über“ ausgelagert, damit die Seite übersichtlich bleibt). */
+@Composable
+private fun AboutLegal() {
+    Column(Modifier.padding(horizontal = 25.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        listOf(
+            "IPTV-XY ist ein Player und liefert selbst keine Inhalte. Nutze nur Quellen, für die du eine Berechtigung hast.",
+            "Dieses Produkt verwendet die TMDB-API, wird aber nicht von TMDB unterstützt oder zertifiziert. Wertungen: OMDb. Intro-Zeiten: TheIntroDB.",
+            "IPTV-XY ist freie Software unter der GNU General Public License v3 (GPL-3.0). Verwendete Bibliotheken: AndroidX/Jetpack Compose, Media3 (Apache 2.0), OkHttp, Coil (Apache 2.0), Jellyfin FFmpeg-Decoder (GPL-3.0), Schriften Outfit und Inter (SIL Open Font License)."
+        ).forEach { Text(it, color = Tok.TextMid, fontSize = 14.sp, lineHeight = 19.sp) }
+        // Fokussierbar, damit die Seite einen Fokus hat und Zurück/Tasten funktionieren
+        Box(Modifier.size(1.dp).focusable())
+    }
 }
 
 
@@ -1529,7 +1586,7 @@ fun SettingsPanel(onAdd: () -> Unit, reload: () -> Unit, onClose: () -> Unit) {
                                 4 -> TmPlayback(ctx, open)
                                 5 -> ParentalPage(ctx) { back() }
                                 6 -> TmMisc(open)
-                                else -> AboutPage(ctx)
+                                else -> AboutPage(ctx, open)
                             }
                         }
                         is SP.Sub -> when (top.key) {
@@ -1542,7 +1599,8 @@ fun SettingsPanel(onAdd: () -> Unit, reload: () -> Unit, onClose: () -> Unit) {
                             "play_audio" -> AudioPage(ctx)
                             "misc_search" -> SettingRow("Suchverlauf löschen", null, onClick = { AppSettings.clearSearch(ctx) })
                             "misc_rem" -> ReminderSettingsSection(ctx)
-                            "misc_lists" -> ChannelListsSection(ctx)
+                            "about_legal" -> AboutLegal()
+                            "misc_lists" -> TmChannelLists(ctx)
                             "misc_storage" -> StoragePage(ctx)
                             "misc_diag" -> DiagPage(ctx, reload)
                         }
