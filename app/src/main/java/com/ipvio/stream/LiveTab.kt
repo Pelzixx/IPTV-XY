@@ -481,7 +481,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
 
 /** Kleiner Dialog: Name eingeben (Bildschirmtastatur), Speichern oder Abbrechen. */
 @Composable
-private fun NameDialog(title: String, initial: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+internal fun NameDialog(title: String, initial: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
     var text by remember { mutableStateOf(initial) }
     val fr = remember { FocusRequester() }
     androidx.activity.compose.BackHandler { onDismiss() }

@@ -428,6 +428,10 @@ private fun AppContent() {
             }
             // Runde 17: jeder Bildschirm blendet weich ein (screenEnter); der Player bewusst ohne Effekt
             personTop != null -> key(personTop.id) { Box(Modifier.fillMaxSize().screenEnter()) { PersonScreen(personTop, all, onOpen = { pushTop(it) }, onBack = { popTop() }) } }
+            // TiviMate-Aufbau: eigene Detailseite (Infos, Abspielen, Extern, Trailer, Meine Liste, Staffelreihen)
+            d != null && d.kind != Kind.LIVE && Tm.b(Tm.VOD_TM, true) -> key(d.id) { Box(Modifier.fillMaxSize().screenEnter()) {
+                VodDetail(d, all, onPlay = { url, t, pos -> start(d, t, url, pos) }, onBack = { popTop() })
+            } }
             d != null -> key(d.id) { Box(Modifier.fillMaxSize().screenEnter()) {
                 DetailScreen(
                     d, all, onPlay = { url, t, pos -> start(d, t, url, pos) },
@@ -452,6 +456,11 @@ private fun AppContent() {
             tab == MenuLogic.REC -> Box(Modifier.fillMaxSize().screenEnter()) { RecordingsScreen(tab, onTab = { goTab(it) }) { r ->
                 playing = PlayReq(r.title, RecStore.playUrl(r.file), "rec:" + r.id, false, 0L)
             } }
+            // Filme/Serien im Aufbau von TiviMate (Gruppen links, Infos oben, Posterraster)
+            (tab == 1 || tab == 2) && Tm.b(Tm.VOD_TM, true) -> Box(Modifier.fillMaxSize().screenEnter(tab)) { VodTab(
+                tab, onTab = { goTab(it) }, onOpen = open,
+                onPlay = { i -> LastFocus.pending = i.id; if (i.kind == Kind.SERIES) pushTop(i) else { pushTop(i); start(i, i.title, i.url) } }
+            ) }
             tab == 4 && all.isNotEmpty() -> Box(Modifier.fillMaxSize().screenEnter()) { SearchScreen(
                 tab = tab, state = states[4],
                 onOpen = open,

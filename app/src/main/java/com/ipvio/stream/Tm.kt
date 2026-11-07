@@ -140,6 +140,14 @@ object Tm {
     const val SE_FAVS = "se_favs"                 // Lieblingssender zuerst anzeigen
     const val SE_PAST = "se_past"                 // vergangene Sendungen anzeigen (auch ohne Archiv)
     const val SE_STAY = "se_stay"                 // nach dem Umschalten auf der Suchseite bleiben
+    // Filme/Serien im TiviMate-Aufbau (VodTab)
+    const val VOD_TM = "vod_tm"
+    const val VOD_SORT_M = "vod_sort_m"
+    const val VOD_SORT_S = "vod_sort_s"
+    const val VOD_GRP_ALL_M = "vod_grp_all_m"
+    const val VOD_GRP_ALL_S = "vod_grp_all_s"
+    const val VOD_LAST_M = "vod_last_m"
+    const val VOD_LAST_S = "vod_last_s"
     const val REM_TIMEOUT = "rem_timeout"         // Popup-Timeout in Sekunden
     const val REM_ACTION = "rem_action"           // Standardaktion nach dem Timeout: 0 Anschauen, 1 Schließen
     const val REM_WAKE = "rem_wake"               // Gerät aus dem Schlafmodus wecken

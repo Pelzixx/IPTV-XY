@@ -410,6 +410,10 @@ object History {
         while (ids.size > 80) ids.removeAt(ids.lastIndex)
         prefs(c).edit().putString("ids", ids.joinToString("\n")).apply()
     }
+
+    fun remove(c: Context, id: String) {
+        if (ids.remove(id)) prefs(c).edit().putString("ids", ids.joinToString("\n")).apply()
+    }
 }
 
 /**
