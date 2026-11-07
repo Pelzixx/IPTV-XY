@@ -751,3 +751,27 @@ object ProgList {
 
     fun remove(c: Context, m: ProgMark) { list.removeAll { it.key == m.key }; save(c) }
 }
+
+/** Sehdauer je Sender in Sekunden (TiviMate: Sortierung „Sehdauer“, „Sehdauer zurücksetzen“). */
+object WatchTime {
+    private val map = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    @Volatile private var inited = false
+    private fun prefs(c: Context) = c.applicationContext.getSharedPreferences("ipvio_watchtime", Context.MODE_PRIVATE)
+
+    fun init(c: Context) {
+        if (inited) return
+        inited = true
+        prefs(c).all.forEach { (k, v) -> (v as? Long)?.let { map[k] = it } }
+    }
+
+    fun sec(id: String): Long = map[id] ?: 0L
+
+    fun add(c: Context, id: String, s: Long) {
+        init(c)
+        val n = sec(id) + s
+        map[id] = n
+        prefs(c).edit().putLong(id, n).apply()
+    }
+
+    fun reset(c: Context) { map.clear(); prefs(c).edit().clear().apply() }
+}

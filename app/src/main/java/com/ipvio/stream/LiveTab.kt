@@ -52,6 +52,7 @@ private class NameAsk(val title: String, val initial: String, val onSave: (Strin
 @Composable
 fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>, onOpen: (Item) -> Unit) {
     val ctx = LocalContext.current
+    WatchTime.init(ctx)
     CatFavs.init(ctx)
     ChannelLists.init(ctx)
     ChannelEdit.init(ctx)
@@ -104,7 +105,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
             else -> groups[sel].orEmpty()
         },
         { it.id }, ChannelEdit::isHidden, showHidden
-    ).let { l -> if (curList != null) l else Tm.sorted(l, chSort) { ChannelEdit.title(it) } } }
+    ).let { l -> if (curList != null) l else (if (chSort == 3) l.sortedByDescending { WatchTime.sec(it.id) } else Tm.sorted(l, chSort) { ChannelEdit.title(it) }) } }
     // Optik > EPG: Darstellung der Zeilen, einmal je Liste
     val look = GuideLook(
         Tm.b(Tm.EPG_NUMBERS, false), Tm.b(Tm.EPG_NAMES, true), Tm.b(Tm.EPG_TWO_LINE_NAMES, false), Tm.b(Tm.EPG_CATCHUP_ICON, true),

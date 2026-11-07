@@ -1637,6 +1637,11 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
             if (secs.isEmpty()) SideMenu(listOf(SideSection(Lang.tr("Verlauf"), listOf(SideEntry("Noch keine Sendungen im Verlauf") {}))), { showLog = false })
             else SideMenu(secs, { showLog = false })
         }
+        // Sehdauer je Sender (Sortierung „Sehdauer“): jede Minute Live-Wiedergabe zählt
+        LaunchedEffect(cur.itemId, cur.live) {
+            if (!cur.live) return@LaunchedEffect
+            while (true) { delay(60_000); if (player.isPlaying) WatchTime.add(ctx, cur.itemId, 60) }
+        }
         // Gesehene Sendung nach der Verzögerung in den Verlauf (bei jedem Sendungswechsel neu)
         LaunchedEffect(cur.itemId, cur.live) {
             if (!cur.live) return@LaunchedEffect

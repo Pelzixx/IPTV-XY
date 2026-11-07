@@ -404,6 +404,8 @@ M3U-Datei wählen¦Choose M3U file¦M3U dosyası seç¦Odaberi M3U datoteku¦Oda
 PIN-Eingabe¦PIN entry¦PIN girişi¦Unos PIN-a¦Unos PIN-a¦Unos PIN-a¦Introducir PIN¦Saisie du code PIN¦Inserimento PIN
 Ziffernfeld¦Number pad¦Sayı tuş takımı¦Numerička tipkovnica¦Numerička tipkovnica¦Numerička tastatura¦Teclado numérico¦Pavé numérique¦Tastierino numerico
 Zahlenschloss¦Combination lock¦Şifreli kilit¦Brava s brojevima¦Brava s brojevima¦Brava sa brojevima¦Candado de combinación¦Cadenas à chiffres¦Lucchetto a combinazione
+Sehdauer¦Watch time¦İzleme süresi¦Vrijeme gledanja¦Vrijeme gledanja¦Vreme gledanja¦Tiempo visto¦Durée de visionnage¦Tempo di visione
+Sehdauer zurücksetzen¦Reset watch time¦İzleme süresini sıfırla¦Resetuj vrijeme gledanja¦Poništi vrijeme gledanja¦Resetuj vreme gledanja¦Restablecer tiempo visto¦Réinitialiser la durée de visionnage¦Azzera tempo di visione
 Info¦Info¦Bilgi¦Info¦Info¦Info¦Info¦Info¦Info
 Guide¦Guide¦Rehber¦Vodič¦Vodič¦Vodič¦Guía¦Guide¦Guida
 """

@@ -1983,7 +1983,9 @@ private fun TmLookEpg(ctx: Context) {
     // Aufbau und Reihenfolge wie TiviMate (Optik > EPG)
     var ask by remember { mutableStateOf<Ask?>(null) }
     val sorts = Tm.SORT_NAMES.map { Lang.tr(it) }
-    SelectRow("Sender Sortierung", sorts[Tm.i(Tm.EPG_CH_SORT, 0)], sorts, Tm.i(Tm.EPG_CH_SORT, 0)) { Tm.set(ctx, Tm.EPG_CH_SORT, it) }
+    val chSorts = sorts + Lang.tr("Sehdauer")
+    val cs = Tm.i(Tm.EPG_CH_SORT, 0).coerceIn(0, chSorts.lastIndex)
+    SelectRow("Sender Sortierung", chSorts[cs], chSorts, cs) { Tm.set(ctx, Tm.EPG_CH_SORT, it) }
     val prev = listOf(Lang.tr("Einschalten"), Lang.tr("Ausschalten"))
     SelectRow("Vorschau", prev[if (AppSettings.livePreview) 0 else 1], prev, if (AppSettings.livePreview) 0 else 1) { AppSettings.setLivePreview(ctx, it == 0) }
     val ed = Tm.s(Tm.EPG_NAME_EDIT)
@@ -2083,6 +2085,8 @@ private fun TmLpHist(ctx: Context) {
     SelectRow("Verzögerung vor dem Hinzufügen zum Verlauf, Sekunden", Tm.i(Tm.HI_DELAY, 10).toString(), delays.map { "$it" }, delays.indexOf(Tm.i(Tm.HI_DELAY, 10)).coerceAtLeast(0)) { Tm.set(ctx, Tm.HI_DELAY, delays[it]) }
     ToggleRow("Aktuelles Programm anzeigen", null, Tm.b(Tm.HI_NOW, true)) { Tm.set(ctx, Tm.HI_NOW, it) }
     ToggleRow("Vergangene Sendungen anzeigen", null, Tm.b(Tm.HI_PAST, false)) { Tm.set(ctx, Tm.HI_PAST, it) }
+    SettingRow("Verlauf löschen", null, onClick = { WatchLog.init(ctx); WatchLog.clear(ctx); android.widget.Toast.makeText(ctx, Lang.tr("Gelöscht"), android.widget.Toast.LENGTH_SHORT).show() })
+    SettingRow("Sehdauer zurücksetzen", null, onClick = { WatchTime.reset(ctx); android.widget.Toast.makeText(ctx, Lang.tr("Gelöscht"), android.widget.Toast.LENGTH_SHORT).show() })
     PanelSection(Lang.tr("Zuletzt angesehene Sender"))
     val counts = listOf(5, 10, 15, 20, 30)
     SelectRow("Anzahl der letzten Sender", Tm.i(Tm.RC_COUNT, 10).toString(), counts.map { "$it" }, counts.indexOf(Tm.i(Tm.RC_COUNT, 10)).coerceAtLeast(0)) { Tm.set(ctx, Tm.RC_COUNT, counts[it]) }
