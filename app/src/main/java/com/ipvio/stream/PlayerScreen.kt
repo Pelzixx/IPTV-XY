@@ -362,7 +362,14 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     var peekItem by remember { mutableStateOf<Item?>(null) }
     var peekDir by remember { mutableIntStateOf(0) }
     var peekTick by remember { mutableIntStateOf(0) }
-    LaunchedEffect(peekTick) { if (peekTick > 0) { delay(AppSettings.hideSec * 1000L + 2000); peekItem = null } }
+    // Fernbedienung > „Verzögerung vor dem Umschalten“ (TiviMate): nach N Sekunden auf den gezeigten Sender umschalten, sonst ausblenden
+    LaunchedEffect(peekTick) {
+        if (peekTick > 0) {
+            val zd = Tm.i(Tm.RC_ZAP_DELAY, 0)
+            if (zd > 0) { delay(zd * 1000L); val p = peekItem; peekItem = null; if (p != null) switchTo(p, zapSrc) }
+            else { delay(AppSettings.hideSec * 1000L + 2000); peekItem = null }
+        }
+    }
     fun zap(d: Int) {
         if (zapSrc.size < 2) return
         val i = if (curIdx < 0) 0 else curIdx

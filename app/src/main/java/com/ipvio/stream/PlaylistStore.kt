@@ -77,7 +77,7 @@ object PlaylistStore {
         var r = if (Parental.hideAdult) Parental.filter(l) else l
         if (DeadLinks.hide) r = DeadLinks.filter(r)
         // Wiedergabeliste > Gruppen verwalten (TiviMate): ausgeblendete Gruppen fehlen überall in Live-TV
-        if (PlOpts.anyHidden) r = PlOpts.filter(r) { owners[it.id] ?: lists.getOrNull(active)?.name }
+        if (PlOpts.anyHidden && !Tm.b(Tm.GRP_HIDDEN_ALL, false)) r = PlOpts.filter(r) { owners[it.id] ?: lists.getOrNull(active)?.name }
         // Aktive Liste ist eine VOD-Playlist: ihre TV-Sender nicht zeigen
         val main = lists.getOrNull(active)?.name
         if (PlOpts.vod(main)) r = r.filter { it.kind != Kind.LIVE || owners[it.id] != null }

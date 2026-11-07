@@ -56,6 +56,7 @@ object Tm {
     const val GRP_FAVS = "grp_favs"
     const val GRP_ALL = "grp_all"
     const val GRP_PL_TAP = "grp_pl_tap"          // Antippen einer Wiedergabeliste: 0 auf-/zuklappen, 1 alle Kanäle der Liste
+    const val GRP_HIDDEN_ALL = "grp_hidden_all"  // Sender ausgeblendeter Gruppen in „Alle Kanäle“ zeigen
 
     // ---------------------------------------------------------------- Optik > Player
     const val PL_BLACK_SWITCH = "pl_black_switch"
@@ -92,6 +93,7 @@ object Tm {
     const val RC_DELAY = "rc_delay"
     const val RC_NAMES = "rc_names"
     const val RC_PRESS_AGAIN = "rc_press_again"   // Umschalten erst beim zweiten Drücken (vorher Infofeld des Ziels)
+    const val RC_ZAP_DELAY = "rc_zap_delay"       // Infofeld des nächsten Senders: nach N Sekunden umschalten (0 = aus)
     // Menü (Knöpfe der Leiste: Reihenfolge und ausgeblendete)
     const val MENU_ORDER = "menu_order"
     const val MENU_HIDDEN = "menu_hidden"
@@ -140,6 +142,10 @@ object Tm {
     const val SE_FAVS = "se_favs"                 // Lieblingssender zuerst anzeigen
     const val SE_PAST = "se_past"                 // vergangene Sendungen anzeigen (auch ohne Archiv)
     const val SE_STAY = "se_stay"                 // nach dem Umschalten auf der Suchseite bleiben
+    const val SE_INC_LIVE = "se_inc_live"
+    const val SE_INC_PROGS = "se_inc_progs"
+    const val SE_INC_MOVIES = "se_inc_movies"
+    const val SE_INC_SERIES = "se_inc_series"
     // Filme/Serien im TiviMate-Aufbau (VodTab)
     const val VOD_TM = "vod_tm"
     const val VOD_SORT_M = "vod_sort_m"

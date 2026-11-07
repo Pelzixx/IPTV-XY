@@ -8,6 +8,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -109,7 +111,10 @@ private fun sizeText(b: Long): String = when {
     else -> ""
 }
 
-/** Bereich „Aufnahmen“ in der Seitenleiste (TiviMate): laufende, geplante und fertige Aufnahmen. */
+/**
+ * Bereich „Aufnahmen“ im Aufbau von TiviMate: links die Tage (dazu „Alle Aufnahmen“), rechts die Aufnahmen mit Uhrzeit, Dauer,
+ * Senderlogo und Papierkorb. Im Inhalt oben rechts „Aufnahmen“ mit Zahnrad und eine Karte zur markierten Aufnahme.
+ */
 @Composable
 fun RecordingsScreen(tab: Int, onTab: (Int) -> Unit, onPlay: (Rec) -> Unit) {
     val ctx = LocalContext.current
@@ -118,47 +123,78 @@ fun RecordingsScreen(tab: Int, onTab: (Int) -> Unit, onPlay: (Rec) -> Unit) {
     // Größe laufender Aufnahmen regelmäßig neu anzeigen
     var tick by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) { while (true) { delay(5000); tick++ } }
-    val all = remember(Recorder.version, Recorder.list.size, tick) { Recorder.list.toList() }
-    val running = all.filter { it.state == Rec.RUNNING }
-    val planned = all.filter { it.state == Rec.PLANNED }.sortedBy { it.start }
-    val done = all.filter { it.state == Rec.DONE || it.state == Rec.FAILED }.sortedByDescending { it.start }
+    val all = remember(Recorder.version, Recorder.list.size, tick) { Recorder.list.toList().sortedByDescending { it.start } }
+    val days = remember(all) { all.map { recDay(it.start) }.distinct() }
+    var selDay by remember { mutableStateOf("") }   // "" = Alle Aufnahmen
+    val shown = if (selDay.isEmpty()) all else all.filter { recDay(it.start) == selDay }
     var menuFor by remember { mutableStateOf<Rec?>(null) }
+    var focusRec by remember { mutableStateOf<Rec?>(null) }
+    var inContent by remember { mutableStateOf(false) }
     val sideFocus = remember { FocusRequester() }
+    val firstRow = remember { FocusRequester() }
     var inSidebar by remember { mutableStateOf(false) }
     BackHandler(enabled = !inSidebar) { runCatching { sideFocus.requestFocus() } }
     LaunchedEffect(Unit) { repeat(10) { delay(80); if (runCatching { ContentFocus.req.requestFocus() }.isSuccess) return@LaunchedEffect } }
 
     Box(Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize().padding(start = DS.SidebarW + DS.PageX, end = DS.PageX), contentPadding = PaddingValues(top = 32.dp, bottom = 48.dp)) {
-            item {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Aufnahmen", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.weight(1f))
-                    val free = RecStore.free(ctx)
-                    Text(raw = true, text = RecStore.dir(ctx) + if (free > 0) "  ·  " + Lang.tr("frei") + " " + sizeText(free) else "",
-                        color = Muted, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 700.dp))
+        if (all.isEmpty()) Box(Modifier.fillMaxSize().padding(start = DS.SidebarW), contentAlignment = Alignment.Center) {
+            EmptyState(AIcon.Rec, "Keine Aufnahmen", "Im TV-Guide OK gedrückt halten und „Aufnahme hinzufügen“ wählen, oder im Player über das Menü aufnehmen.",
+                action = "Zum TV-Guide", actionModifier = Modifier.focusRequester(ContentFocus.req)) { onTab(3) }
+        } else Row(Modifier.fillMaxSize().padding(start = DS.SidebarW)) {
+            if (!inContent) LazyColumn(
+                Modifier.width(250.dp).fillMaxHeight().padding(start = 14.dp),
+                contentPadding = PaddingValues(top = 180.dp, bottom = 200.dp), verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                item(key = "all") {
+                    RecDayRow(Lang.tr("Alle Aufnahmen"), selDay.isEmpty(), if (selDay.isEmpty()) Modifier.focusRequester(ContentFocus.req) else Modifier,
+                        onFocus = { selDay = "" }) { runCatching { firstRow.requestFocus() } }
+                }
+                items(days, key = { it }) { d ->
+                    RecDayRow(recDayLabel(d, false), selDay == d, if (selDay == d) Modifier.focusRequester(ContentFocus.req) else Modifier,
+                        onFocus = { selDay = d }) { runCatching { firstRow.requestFocus() } }
                 }
             }
-            if (all.isEmpty()) item {
-                Box(Modifier.fillMaxWidth().padding(top = 60.dp), contentAlignment = Alignment.Center) {
-                    EmptyState(AIcon.Rec, "Keine Aufnahmen", "Im TV-Guide OK gedrückt halten und „Aufnahme hinzufügen“ wählen, oder im Player über das Menü aufnehmen.",
-                        action = "Zum TV-Guide", actionModifier = Modifier.focusRequester(ContentFocus.req)) { onTab(3) }
+            Box(Modifier.weight(1f).fillMaxHeight().padding(start = 24.dp, end = 24.dp)) {
+                if (inContent) {
+                    Row(Modifier.align(Alignment.TopEnd).padding(top = 18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Text("Aufnahmen", color = Tok.TextHi, fontSize = 30.sp, fontWeight = FontWeight.Light)
+                        RecGear { SettingsOpen.value = true }
+                    }
+                    focusRec?.let { r ->
+                        Column(Modifier.align(Alignment.TopEnd).padding(top = 80.dp).width(340.dp).clip(RoundedCornerShape(10.dp)).background(Tok.Card).padding(16.dp)) {
+                            Text(raw = true, text = r.title, color = Tok.TextHi, fontSize = 18.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Text(raw = true, text = java.text.SimpleDateFormat("EE, d. MMM", java.util.Locale.GERMAN).format(java.util.Date(r.start * 1000)) + ", " + hhmm(r.start) + " — " + hhmm(r.end),
+                                color = Tok.TextLow, fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp))
+                            val status = when (r.state) {
+                                Rec.RUNNING -> Lang.tr("Aufnahme läuft") + (sizeText(r.size).let { if (it.isEmpty()) "" else " · $it" })
+                                Rec.PLANNED -> Lang.tr("Geplant") + when (r.repeat) { 1 -> " · " + Lang.tr("Täglich"); 2 -> " · " + Lang.tr("Wöchentlich"); else -> "" }
+                                Rec.FAILED -> Lang.tr("Fehlgeschlagen") + if (r.msg.isNotEmpty()) ": " + Lang.tr(r.msg) else ""
+                                else -> sizeText(r.size)
+                            }
+                            if (status.isNotEmpty()) Text(raw = true, text = status, color = if (r.state == Rec.FAILED) Color(0xFFE5484D) else Tok.TextLow, fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))
+                        }
+                    }
+                }
+                LazyColumn(
+                    Modifier.fillMaxHeight().fillMaxWidth(if (inContent) 0.58f else 1f).onFocusChanged { inContent = it.hasFocus },
+                    contentPadding = PaddingValues(top = 180.dp, bottom = 120.dp)
+                ) {
+                    var firstSet = false
+                    shown.groupBy { recDay(it.start) }.forEach { (d, l) ->
+                        item(key = "h$d") {
+                            Text(raw = true, text = recDayLabel(d, true), color = Tok.TextLow, fontSize = 15.sp, fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(top = 8.dp, bottom = 6.dp))
+                        }
+                        val isFirst = !firstSet
+                        firstSet = true
+                        items(l, key = { it.id }) { r ->
+                            RecRow(r, if (isFirst && r === l.first()) Modifier.focusRequester(firstRow) else Modifier,
+                                onFocus = { focusRec = r },
+                                onOk = { if (r.state == Rec.DONE || r.state == Rec.RUNNING) onPlay(r) else menuFor = r }, onMenu = { menuFor = r })
+                        }
+                    }
                 }
             }
-            var first = true
-            fun section(title: String, l: List<Rec>) {
-                if (l.isEmpty()) return
-                item { Text(title, color = Accent2, fontSize = 18.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(top = 22.dp, bottom = 8.dp)) }
-                val isFirst = first
-                first = false
-                items(l, key = { it.id }) { r ->
-                    RecRow(r, if (isFirst && r === l.first()) Modifier.focusRequester(ContentFocus.req) else Modifier,
-                        onOk = { if (r.state == Rec.DONE || r.state == Rec.RUNNING) onPlay(r) else menuFor = r }, onMenu = { menuFor = r })
-                }
-            }
-            section(Lang.tr("Laufende Aufnahmen"), running)
-            section(Lang.tr("Geplante Aufnahmen"), planned)
-            section(Lang.tr("Aufgenommen"), done)
         }
         Sidebar(tab, { onTab(it) }, Modifier.align(Alignment.CenterStart), sideFocus) { inSidebar = it }
     }
@@ -174,32 +210,62 @@ fun RecordingsScreen(tab: Int, onTab: (Int) -> Unit, onPlay: (Rec) -> Unit) {
     }
 }
 
+private fun recDay(sec: Long): String = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US).format(java.util.Date(sec * 1000))
+private fun recDayLabel(d: String, long: Boolean): String {
+    val date = runCatching { java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US).parse(d) }.getOrNull() ?: return d
+    return java.text.SimpleDateFormat(if (long) "d. MMMM" else "d. MMM", java.util.Locale.GERMAN).format(date)
+}
+
 @Composable
-private fun RecRow(r: Rec, modifier: Modifier, onOk: () -> Unit, onMenu: () -> Unit) {
+private fun RecDayRow(name: String, selected: Boolean, modifier: Modifier, onFocus: () -> Unit, onClick: () -> Unit) {
     var f by remember { mutableStateOf(false) }
-    val shape = RoundedCornerShape(DS.RadiusM)
+    Box(
+        modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(if (f) TvFocusFill else Color.Transparent)
+            .onFocusChanged { f = it.isFocused; if (it.isFocused) onFocus() }.clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+    ) { Text(raw = true, text = name, color = if (f) Color(0xFF15171A) else if (selected) Accent2 else Tok.TextHi, fontSize = 17.sp, maxLines = 1) }
+}
+
+@Composable
+private fun RecGear(onClick: () -> Unit) {
+    var f by remember { mutableStateOf(false) }
+    Box(Modifier.size(36.dp).clip(RoundedCornerShape(50)).background(if (f) TvFocusFill else Color(0x33FFFFFF)).onFocusChanged { f = it.isFocused }.clickable(onClick = onClick),
+        contentAlignment = Alignment.Center) { AppIcon(AIcon.Gear, if (f) Color(0xFF15171A) else Tok.TextHi, size = 20.dp) }
+}
+
+/** Zeile wie in TiviMate: Titel, „00:25 — 00:26, 1 Min“, Senderlogo und Name, Papierkorb (bzw. roter Punkt bei laufender Aufnahme). */
+@Composable
+private fun RecRow(r: Rec, modifier: Modifier, onFocus: () -> Unit, onOk: () -> Unit, onMenu: () -> Unit) {
+    var f by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(8.dp)
+    val ink = Color(0xFF15171A)
+    val ch = remember(r.chId) { PlaylistStore.channels.firstOrNull { it.id == r.chId } }
     Row(
-        modifier.fillMaxWidth().padding(vertical = 4.dp).clip(shape).background(if (f) TvFocusFill else Surf)
-            .onFocusChanged { f = it.isFocused }
+        modifier.fillMaxWidth().padding(vertical = 3.dp).clip(shape).background(if (f) TvFocusFill else Color.Transparent)
+            .onFocusChanged { f = it.isFocused; if (it.isFocused) onFocus() }
             .menuKeys(onMenu = onMenu, onLong = onMenu)
             .clickable { onOk() }
-            .padding(horizontal = 18.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        AppIcon(AIcon.Rec, if (r.state == Rec.RUNNING) Color(0xFFE5484D) else if (f) DS.FocusInk else Muted, size = 22.dp)
         Column(Modifier.weight(1f)) {
-            Text(raw = true, text = r.title, color = if (f) DS.FocusInk else Color.White, fontSize = 19.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            val rep = when (r.repeat) { 1 -> "  ·  " + Lang.tr("Täglich"); 2 -> "  ·  " + Lang.tr("Wöchentlich"); else -> "" }
-            Text(raw = true, text = r.chTitle + "  ·  " + dayLabel(r.start) + " " + hhmm(r.start) + " — " + hhmm(r.end) + rep,
-                color = if (f) Color(0xFF3A3D42) else Muted, fontSize = 15.sp, maxLines = 1)
+            Text(raw = true, text = r.title, color = if (f) ink else Tok.TextHi, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val mins = ((r.end - r.start) / 60).coerceAtLeast(0)
+            Text(raw = true, text = hhmm(r.start) + " — " + hhmm(r.end) + ",  " + mins + " Min", color = if (f) Color(0xFF3A3D42) else Tok.TextLow, fontSize = 14.sp, maxLines = 1)
         }
-        val status = when (r.state) {
-            Rec.RUNNING -> Lang.tr("Aufnahme läuft") + (sizeText(r.size).let { if (it.isEmpty()) "" else " · $it" })
-            Rec.FAILED -> Lang.tr("Fehlgeschlagen") + if (r.msg.isNotEmpty()) ": " + Lang.tr(r.msg) else ""
-            Rec.DONE -> sizeText(r.size)
-            else -> ""
+        Box(Modifier.size(width = 36.dp, height = 36.dp).clip(RoundedCornerShape(4.dp)).background(Color(0xFF3A3D42)), contentAlignment = Alignment.Center) {
+            val logo = ch?.let { Logos.of(it) }
+            if (logo != null) AsyncImage(logo, null, Modifier.fillMaxSize().padding(2.dp), contentScale = ContentScale.Fit)
+            else Text(raw = true, text = "TV", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         }
-        if (status.isNotEmpty()) Text(raw = true, text = status, color = if (r.state == Rec.FAILED) Color(0xFFE5484D) else if (f) DS.FocusInk else Muted, fontSize = 15.sp, maxLines = 1)
+        Text(raw = true, text = r.chTitle, color = if (f) ink else Tok.TextHi, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 2,
+            overflow = TextOverflow.Ellipsis, modifier = Modifier.width(110.dp))
+        when (r.state) {
+            Rec.RUNNING -> Box(Modifier.size(12.dp).clip(RoundedCornerShape(50)).background(Color(0xFFE5484D)))
+            Rec.FAILED -> AppIcon(AIcon.Warning, Color(0xFFE5484D), size = 20.dp)
+            Rec.PLANNED -> AppIcon(AIcon.Bell, if (f) ink else Tok.TextLow, size = 20.dp)
+            else -> AppIcon(AIcon.Close, if (f) ink else Tok.TextLow, size = 20.dp)
+        }
     }
 }
 

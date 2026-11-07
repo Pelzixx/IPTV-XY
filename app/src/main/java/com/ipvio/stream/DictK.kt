@@ -453,6 +453,44 @@ Gruppe erstellen¦Create group¦Grup oluştur¦Kreiraj grupu¦Stvori grupu¦Napr
 Kopieren nach¦Copy to¦Şuraya kopyala¦Kopiraj u¦Kopiraj u¦Kopiraj u¦Copiar a¦Copier vers¦Copia in
 Verschieben nach¦Move to¦Şuraya taşı¦Premjesti u¦Premjesti u¦Premesti u¦Mover a¦Déplacer vers¦Sposta in
 Playlist Typ¦Playlist type¦Oynatma listesi türü¦Vrsta liste¦Vrsta popisa¦Vrsta liste¦Tipo de lista¦Type de playlist¦Tipo di playlist
+Gruppenoptionen¦Group options¦Grup seçenekleri¦Opcije grupe¦Opcije grupe¦Opcije grupe¦Opciones de grupo¦Options du groupe¦Opzioni gruppo
+Gruppe umbenennen¦Rename group¦Grubu yeniden adlandır¦Preimenuj grupu¦Preimenuj grupu¦Preimenuj grupu¦Renombrar grupo¦Renommer le groupe¦Rinomina gruppo
+Gruppennamen wiederherstellen¦Restore group name¦Grup adını geri yükle¦Vrati naziv grupe¦Vrati naziv grupe¦Vrati naziv grupe¦Restaurar nombre del grupo¦Restaurer le nom du groupe¦Ripristina nome gruppo
+Wie allgemein eingestellt¦As set in general¦Genel ayardaki gibi¦Kao opće postavke¦Kao opće postavke¦Kao opšta podešavanja¦Como en la configuración general¦Comme le réglage général¦Come impostato in generale
+Reihenfolge in der Playlist¦Playlist order¦Liste sırası¦Redoslijed u listi¦Redoslijed u popisu¦Redosled u listi¦Orden de la lista¦Ordre de la playlist¦Ordine della playlist
+Name A–Z¦Name A–Z¦Ad A–Z¦Naziv A–Z¦Naziv A–Z¦Naziv A–Z¦Nombre A–Z¦Nom A–Z¦Nome A–Z
+Name Z–A¦Name Z–A¦Ad Z–A¦Naziv Z–A¦Naziv Z–A¦Naziv Z–A¦Nombre Z–A¦Nom Z–A¦Nome Z–A
+nach Häufigkeit der Sehdauer¦by watch time¦izleme süresine göre¦po vremenu gledanja¦po vremenu gledanja¦po vremenu gledanja¦por tiempo de visualización¦par durée de visionnage¦per tempo di visione
+Kanäle aus ausgeblendeten Gruppen anzeigen¦Show channels from hidden groups¦Gizli gruplardaki kanalları göster¦Prikaži kanale iz skrivenih grupa¦Prikaži programe iz skrivenih grupa¦Prikaži kanale iz skrivenih grupa¦Mostrar canales de grupos ocultos¦Afficher les chaînes des groupes masqués¦Mostra canali dei gruppi nascosti
+In „Alle Kanäle“; die Gruppen selbst bleiben ausgeblendet.¦In "All channels"; the groups themselves stay hidden.¦"Tüm kanallar" içinde; grupların kendisi gizli kalır.¦U „Svi kanali“; same grupe ostaju skrivene.¦U „Svi programi“; same grupe ostaju skrivene.¦U „Svi kanali“; same grupe ostaju skrivene.¦En «Todos los canales»; los grupos siguen ocultos.¦Dans « Toutes les chaînes » ; les groupes restent masqués.¦In «Tutti i canali»; i gruppi restano nascosti.
+Suchoptionen¦Search options¦Arama seçenekleri¦Opcije pretrage¦Opcije pretraživanja¦Opcije pretrage¦Opciones de búsqueda¦Options de recherche¦Opzioni di ricerca
+TV-Sender einbeziehen¦Include TV channels¦TV kanallarını dahil et¦Uključi TV kanale¦Uključi TV programe¦Uključi TV kanale¦Incluir canales de TV¦Inclure les chaînes TV¦Includi canali TV
+TV-Programme einbeziehen¦Include TV programs¦TV programlarını dahil et¦Uključi TV emisije¦Uključi TV emisije¦Uključi TV emisije¦Incluir programas de TV¦Inclure les programmes TV¦Includi programmi TV
+Filme einbeziehen¦Include movies¦Filmleri dahil et¦Uključi filmove¦Uključi filmove¦Uključi filmove¦Incluir películas¦Inclure les films¦Includi film
+Serien einbeziehen¦Include series¦Dizileri dahil et¦Uključi serije¦Uključi serije¦Uključi serije¦Incluir series¦Inclure les séries¦Includi serie
+Verzögerung vor dem Umschalten (Sekunden)¦Delay before switching (seconds)¦Geçişten önce gecikme (saniye)¦Kašnjenje prije prebacivanja (sekunde)¦Odgoda prije prebacivanja (sekunde)¦Kašnjenje pre prebacivanja (sekunde)¦Retraso antes de cambiar (segundos)¦Délai avant de changer (secondes)¦Ritardo prima del cambio (secondi)
+Systemeinstellungen für Untertitel¦System subtitle settings¦Sistem altyazı ayarları¦Sistemske postavke titlova¦Sustavne postavke titlova¦Sistemska podešavanja titlova¦Ajustes de subtítulos del sistema¦Paramètres système des sous-titres¦Impostazioni di sistema dei sottotitoli
+Systemeinstellungen für Untertitel können nicht geöffnet werden¦System subtitle settings cannot be opened¦Sistem altyazı ayarları açılamıyor¦Sistemske postavke titlova se ne mogu otvoriti¦Sustavne postavke titlova ne mogu se otvoriti¦Sistemska podešavanja titlova ne mogu da se otvore¦No se pueden abrir los ajustes de subtítulos¦Impossible d'ouvrir les paramètres des sous-titres¦Impossibile aprire le impostazioni dei sottotitoli
+Seriennummer (optional)¦Serial number (optional)¦Seri numarası (isteğe bağlı)¦Serijski broj (opcionalno)¦Serijski broj (neobavezno)¦Serijski broj (opciono)¦Número de serie (opcional)¦Numéro de série (facultatif)¦Numero di serie (facoltativo)
+Geräte-ID (optional)¦Device ID (optional)¦Cihaz kimliği (isteğe bağlı)¦ID uređaja (opcionalno)¦ID uređaja (neobavezno)¦ID uređaja (opciono)¦ID del dispositivo (opcional)¦ID de l'appareil (facultatif)¦ID dispositivo (facoltativo)
+Alle Aufnahmen¦All recordings¦Tüm kayıtlar¦Svi snimci¦Sve snimke¦Svi snimci¦Todas las grabaciones¦Tous les enregistrements¦Tutte le registrazioni
+Geplant¦Scheduled¦Planlandı¦Zakazano¦Zakazano¦Zakazano¦Programada¦Programmé¦Programmata
+Alle Filme¦All movies¦Tüm filmler¦Svi filmovi¦Svi filmovi¦Svi filmovi¦Todas las películas¦Tous les films¦Tutti i film
+Alle Serien¦All series¦Tüm diziler¦Sve serije¦Sve serije¦Sve serije¦Todas las series¦Toutes les séries¦Tutte le serie
+Keine Filme¦No movies¦Film yok¦Nema filmova¦Nema filmova¦Nema filmova¦No hay películas¦Aucun film¦Nessun film
+Keine Serien¦No series¦Dizi yok¦Nema serija¦Nema serija¦Nema serija¦No hay series¦Aucune série¦Nessuna serie
+nach Name¦by name¦ada göre¦po nazivu¦po nazivu¦po nazivu¦por nombre¦par nom¦per nome
+nach Bewertung¦by rating¦puana göre¦po ocjeni¦po ocjeni¦po oceni¦por valoración¦par note¦per valutazione
+nach Datum zuletzt hinzugefügt¦by date added¦eklenme tarihine göre¦po datumu dodavanja¦po datumu dodavanja¦po datumu dodavanja¦por fecha de adición¦par date d'ajout¦per data di aggiunta
+Gruppiere¦Group¦Grupla¦Grupiši¦Grupiraj¦Grupiši¦Agrupar¦Grouper¦Raggruppa
+nach Kategorien¦by categories¦kategorilere göre¦po kategorijama¦po kategorijama¦po kategorijama¦por categorías¦par catégories¦per categorie
+Wiedergeben¦Play¦Oynat¦Reproduciraj¦Reproduciraj¦Reprodukuj¦Reproducir¦Lire¦Riproduci
+Details¦Details¦Ayrıntılar¦Detalji¦Detalji¦Detalji¦Detalles¦Détails¦Dettagli
+Von Meiner Liste entfernen¦Remove from My list¦Listemden kaldır¦Ukloni iz Moje liste¦Ukloni s Mog popisa¦Ukloni sa Moje liste¦Quitar de Mi lista¦Retirer de Ma liste¦Rimuovi dalla Mia lista
+Zu Meiner Liste hinzufügen¦Add to My list¦Listeme ekle¦Dodaj u Moju listu¦Dodaj na Moj popis¦Dodaj u Moju listu¦Añadir a Mi lista¦Ajouter à Ma liste¦Aggiungi alla Mia lista
+Aus Verlauf entfernen¦Remove from history¦Geçmişten kaldır¦Ukloni iz historije¦Ukloni iz povijesti¦Ukloni iz istorije¦Quitar del historial¦Retirer de l'historique¦Rimuovi dalla cronologia
+Besetzung:¦Cast:¦Oyuncular:¦Glumci:¦Glumci:¦Glumci:¦Reparto:¦Distribution :¦Cast:
+Regisseur:¦Director:¦Yönetmen:¦Režiser:¦Redatelj:¦Režiser:¦Director:¦Réalisateur :¦Regista:
 TV Playlist¦TV playlist¦TV listesi¦TV lista¦TV popis¦TV lista¦Lista de TV¦Playlist TV¦Playlist TV
 VOD Playlist (ohne TV Kanäle)¦VOD playlist (no TV channels)¦VOD listesi (TV kanalı yok)¦VOD lista (bez TV kanala)¦VOD popis (bez TV programa)¦VOD lista (bez TV kanala)¦Lista VOD (sin canales de TV)¦Playlist VOD (sans chaînes TV)¦Playlist VOD (senza canali TV)
 Übergeordnete Wiedergabeliste¦Parent playlist¦Üst oynatma listesi¦Nadređena lista¦Nadređeni popis¦Nadređena lista¦Lista principal¦Playlist parente¦Playlist principale

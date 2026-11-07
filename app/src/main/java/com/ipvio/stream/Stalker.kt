@@ -24,7 +24,7 @@ object Stalker {
     fun isPlay(u: String) = u.startsWith(PLAY, true)
 
     /** Portal-Adresse und MAC aus einer stalker://- oder stalker-play://-Adresse. */
-    data class Ref(val portal: String, val mac: String, val cmd: String?)
+    data class Ref(val portal: String, val mac: String, val cmd: String?, val sn: String = "", val dev: String = "")
 
     fun parse(u: String): Ref? {
         val rest = u.substringAfter("://")
@@ -34,11 +34,15 @@ object Stalker {
         }.toMap()
         val mac = q["mac"] ?: return null
         val portal = (if (host.startsWith("http", true)) host else "http://$host").let { URLDecoder.decode(it, "UTF-8") }
-        return Ref(portal, mac.uppercase(), q["cmd"])
+        return Ref(portal, mac.uppercase(), q["cmd"], q["sn"].orEmpty(), q["dev"].orEmpty())
     }
 
-    fun listUrl(portal: String, mac: String): String =
-        LIST + URLEncoder.encode(portal.trim().trimEnd('/'), "UTF-8") + "?mac=" + URLEncoder.encode(mac.trim().uppercase(), "UTF-8")
+    /** TiviMate „Stalker Portal Parameter“: optional Seriennummer und Geräte-ID. */
+    fun listUrl(portal: String, mac: String, sn: String = "", dev: String = ""): String =
+        LIST + URLEncoder.encode(portal.trim().trimEnd('/'), "UTF-8") + "?mac=" + URLEncoder.encode(mac.trim().uppercase(), "UTF-8") + extra(sn, dev)
+
+    private fun extra(sn: String, dev: String): String =
+        (if (sn.isNotBlank()) "&sn=" + URLEncoder.encode(sn.trim(), "UTF-8") else "") + (if (dev.isNotBlank()) "&dev=" + URLEncoder.encode(dev.trim(), "UTF-8") else "")
 
     /** Adresse der Schnittstelle: …/portal.php bzw. …/stalker_portal/server/load.php. */
     fun api(portal: String): String {
@@ -70,7 +74,11 @@ object Stalker {
         if (!fresh) tokens[key]?.let { return it }
         val t = call(ref, "type=stb&action=handshake&token=", null).optJSONObject("js")?.optString("token").orEmpty()
         if (t.isEmpty()) throw java.io.IOException("Portal: keine Anmeldung möglich (MAC freigeschaltet?)")
-        runCatching { call(ref, "type=stb&action=get_profile", t) }
+        runCatching {
+            val p = (if (ref.sn.isNotBlank()) "&sn=" + URLEncoder.encode(ref.sn, "UTF-8") else "") +
+                (if (ref.dev.isNotBlank()) "&device_id=" + URLEncoder.encode(ref.dev, "UTF-8") + "&device_id2=" + URLEncoder.encode(ref.dev, "UTF-8") else "")
+            call(ref, "type=stb&action=get_profile" + p, t)
+        }
         tokens[key] = t
         return t
     }
@@ -94,7 +102,7 @@ object Stalker {
             val cmd = c.optString("cmd").trim().ifEmpty { continue }
             val group = genres[c.optString("tv_genre_id")]?.takeIf { it.isNotBlank() } ?: "Portal"
             val logo = c.optString("logo").takeIf { it.startsWith("http") } ?: ""
-            val play = PLAY + URLEncoder.encode(ref.portal, "UTF-8") + "?mac=" + URLEncoder.encode(ref.mac, "UTF-8") + "&cmd=" + URLEncoder.encode(cmd, "UTF-8")
+            val play = PLAY + URLEncoder.encode(ref.portal, "UTF-8") + "?mac=" + URLEncoder.encode(ref.mac, "UTF-8") + extra(ref.sn, ref.dev) + "&cmd=" + URLEncoder.encode(cmd, "UTF-8")
             out.write("#EXTINF:-1 tvg-name=\"" + name.replace("\"", "'") + "\" tvg-logo=\"" + logo + "\" group-title=\"" + group.replace("\"", "'") + "\"," + name + "\n" + play + "\n")
             n++
             if (n % 200 == 0) onCount(n)

@@ -50,8 +50,12 @@ private class NameAsk(val title: String, val initial: String, val onSave: (Strin
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>, onOpen: (Item) -> Unit) {
+fun LiveTab(live: List<Item>, groups0: Map<String, List<Item>>, favs: List<Item>, onOpen: (Item) -> Unit) {
     val ctx = LocalContext.current
+    // Optik > Gruppen > „Kanäle aus ausgeblendeten Gruppen anzeigen“: die Sender bleiben in „Alle Kanäle“, die Gruppen selbst fehlen
+    val hidAll = Tm.b(Tm.GRP_HIDDEN_ALL, false)
+    val mainPl = PlaylistStore.lists.getOrNull(PlaylistStore.active)?.name.orEmpty()
+    val groups = if (hidAll && PlOpts.anyHidden) groups0.filterKeys { g -> !PlOpts.isHidden(mainPl, g) } else groups0
     WatchTime.init(ctx)
     CatFavs.init(ctx)
     ChannelLists.init(ctx)
@@ -74,7 +78,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     val hiddenCat = if (ChannelEdit.hiddenCount() > 0) listOf(HIDDEN_CAT) else emptyList()
     // TiviMate: mehrere Wiedergabelisten aktiv = je Liste ein Abschnitt mit ihren Ordnern (statt einer gemischten Gruppenliste)
     val multi = PlaylistStore.multiPlaylist
-    val sections = remember(live, multi) { if (multi) PlGroups.sections(live) else emptyList() }
+    val sections = remember(live, multi, hidAll, PlOpts.version) { if (multi) PlGroups.sections(live).map { s -> if (hidAll) PlGroups.Section(s.playlist, s.count, s.groups.filter { (g, _) -> !PlOpts.isHidden(s.playlist, g) }) else s } else emptyList() }
     val plCounts = remember(sections) {
         HashMap<String, Int>().also { m -> sections.forEach { s -> m[PlGroups.keyP(s.playlist)] = s.count; s.groups.forEach { (g, c) -> m[PlGroups.keyG(s.playlist, g)] = c } } }
     }
@@ -103,7 +107,8 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     androidx.activity.compose.BackHandler(enabled = manage != 0) { manage = 0 }
     val showHidden = sel == HIDDEN_CAT
     // Nur neu filtern, wenn sich Auswahl oder Daten ändern – nicht bei jedem Fokuswechsel (tausende Sender)
-    val chSort = Tm.i(Tm.EPG_CH_SORT, 0)
+    // Gruppenoptionen (TiviMate): eigene Sortierung je Gruppe, sonst die allgemeine
+    val chSort = GroupOpts.sort(sel).takeIf { it >= 0 } ?: Tm.i(Tm.EPG_CH_SORT, 0)
     val list = remember(sel, live, favs, groups, curList, editVersion, showHidden, multi, chSort, manage, ChOrder.version) { ChannelEditLogic.visible(
         when {
             sel == FAV_CAT -> favs
@@ -140,6 +145,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     }
     val catState = remember { LazyListState() }
     var ask by remember { mutableStateOf<NameAsk?>(null) }
+    var grpSortFor by remember { mutableStateOf<String?>(null) }
     // Gruppenliste links: offen, solange man dort ist; beim Durchblättern der Sender eingeklappt (mehr Platz fürs Programm).
     // Links auf einem Sender klappt sie wieder auf.
     // Runde 20: Start mit dem Fokus auf den Sendern (Gruppen zu), wie bei TV-Playern; Links öffnet die Gruppen
@@ -239,14 +245,16 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     fun progOk(ch: Item, e: EpgEntry) = progAction(ctx, ch, e) { open(it) }
     // Vorschaumodus > „Timeout für Vollbildumschaltung“ (TiviMate): ohne Tastendruck nach N Sekunden ins Vollbild
     var idleTick by remember { mutableIntStateOf(0) }
+    var guideHasFocus by remember { mutableStateOf(false) }
     val fsTo = Tm.i(Tm.CV_FS_TIMEOUT, 0)
-    LaunchedEffect(idleTick, playingCh?.id, fsTo, manage) {
-        if (fsTo <= 0 || !AppSettings.livePreview || manage != 0) return@LaunchedEffect
+    LaunchedEffect(idleTick, playingCh?.id, fsTo, manage, guideHasFocus) {
+        // nur solange der Fokus im TV-Guide liegt (nicht in der Seitenleiste, in Menüs oder Dialogen)
+        if (fsTo <= 0 || !AppSettings.livePreview || manage != 0 || !guideHasFocus) return@LaunchedEffect
         val ch = (if (Tm.b(Tm.CV_AUTOPLAY, false)) focus.shown else null) ?: playingCh ?: return@LaunchedEffect
         kotlinx.coroutines.delay(fsTo * 1000L)
         open(ch)
     }
-    Box(Modifier.fillMaxSize().onPreviewKeyEvent { if (it.type == KeyEventType.KeyDown) idleTick++; false }) {
+    Box(Modifier.fillMaxSize().onFocusChanged { guideHasFocus = it.hasFocus }.onPreviewKeyEvent { if (it.type == KeyEventType.KeyDown) idleTick++; false }) {
     // Zeitleiste: ab der laufenden halben Stunde, 2 Stunden breit; „jetzt“ wird alle 30 s nachgeführt
     val nowSec by produceState(System.currentTimeMillis() / 1000) {
         while (true) { kotlinx.coroutines.delay(30_000); value = System.currentTimeMillis() / 1000 }
@@ -279,7 +287,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                         n == "ALL" -> if (multi) "Alle Playlists" else "Alle Sender"
                         n == HIDDEN_CAT -> "Ausgeblendete Sender"
                         ml != null -> ml.name
-                        else -> PlGroups.label(n) ?: n
+                        else -> GroupOpts.show(PlGroups.label(n) ?: n)
                     }
                     val icon = when {
                         n == FAV_CAT || n in CatFavs.list -> AIcon.Star
@@ -331,7 +339,19 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                                     PlOpts.setHidden(ctx, plName, gName, true)
                                     Toast.makeText(ctx, Lang.tr("Gruppe ausgeblendet. Zurückholen: Wiedergabeliste > Gruppen verwalten."), Toast.LENGTH_LONG).show()
                                 }
+                            )), SideSection(Lang.tr("Gruppenoptionen"), listOfNotNull(
+                                SideEntry("Umbenennen …", AIcon.Edit) { ask = NameAsk("Gruppe umbenennen", GroupOpts.show(gName)) { GroupOpts.rename(ctx, gName, if (it.trim() == gName) "" else it) } },
+                                if (GroupOpts.isRenamed(gName)) SideEntry("Gruppennamen wiederherstellen") { GroupOpts.rename(ctx, gName, "") } else null,
+                                SideEntry("Sortierung", AIcon.Sliders) { grpSortFor = n }
                             ))), { grpMenu = false })
+                        }
+                        // Sortierung nur für diese Gruppe (TiviMate: überschreibt die allgemeine Sortierung)
+                        if (grpSortFor == n) {
+                            val cur = GroupOpts.sort(n)
+                            val names = listOf("Wie allgemein eingestellt", "Reihenfolge in der Playlist", "Name A–Z", "Name Z–A", "nach Häufigkeit der Sehdauer", "Manuell")
+                            SideMenu(listOf(SideSection(Lang.tr("Sortierung"), names.mapIndexed { i, s ->
+                                SideEntry(s, if (cur == i - 1) AIcon.Check else null) { GroupOpts.setSort(ctx, n, i - 1) }
+                            })), { grpSortFor = null })
                         }
                         // Menü einer eigenen Liste (OK gedrückt halten): Sender hinzufügen, umbenennen, löschen
                         if (listMenu && ml != null) OptionPopup(

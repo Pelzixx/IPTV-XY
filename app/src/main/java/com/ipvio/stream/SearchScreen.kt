@@ -102,13 +102,17 @@ fun SearchScreen(
         value = q to withContext(Dispatchers.Default) { idx.find(q) }
     }
     val searching = q.length >= 2 && found.first != q
-    val (rm0, rs, rl0) = if (q.length < 2 || searching) none else found.second
+    val (rm1, rs1, rl1) = if (q.length < 2 || searching) none else found.second
+    // Suchoptionen (TiviMate): welche Bereiche durchsucht werden
+    val rm0 = if (Tm.b(Tm.SE_INC_MOVIES, true)) rm1 else emptyList()
+    val rs = if (Tm.b(Tm.SE_INC_SERIES, true)) rs1 else emptyList()
+    val rl0 = if (Tm.b(Tm.SE_INC_LIVE, true)) rl1 else emptyList()
     // Derselbe Film in mehreren Fassungen nur einmal (Quelle wählt man auf der Detailseite)
     val rm: List<Item> = remember(rm0) { PlaylistLogic.firstPerKey(rm0) { it.mk + "|" + it.lang } }
     val rl: List<Item> = remember(rl0) { if (Tm.b(Tm.SE_FAVS, true)) rl0.sortedBy { !Library.isFav(it.id) } else rl0 }
     val rp by produceState(emptyList<Pair<Item, EpgEntry>>(), found) {
         val (fq, res) = found
-        value = if (fq.length < 2) emptyList() else withContext(Dispatchers.Default) { SearchProgs.find(fq, index?.all.orEmpty()) }
+        value = if (fq.length < 2 || !Tm.b(Tm.SE_INC_PROGS, true)) emptyList() else withContext(Dispatchers.Default) { SearchProgs.find(fq, index?.all.orEmpty()) }
     }
     val firstKey = when { rm.isNotEmpty() -> "rm"; rs.isNotEmpty() -> "rs"; rl.isNotEmpty() -> "rl"; rp.isNotEmpty() -> "rp"; else -> "" }
     // Zurück: im Suchfeld (Tastatur schon zu) erst zu den letzten Suchanfragen bzw. Treffern, sonst in die Seitenleiste

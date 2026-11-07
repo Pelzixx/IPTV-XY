@@ -879,6 +879,11 @@ private fun AudioPage(ctx: Context) {
     TrackSettingsSection(ctx)
     // Runde 14: Untertitel-Stil mit Live-Vorschau. Markieren zeigt die Wirkung sofort im Bild oben, OK übernimmt.
     SectionTitle("Untertitel-Stil")
+    // TiviMate: „Systemeinstellungen für Untertitel“ (Android: Bedienungshilfen > Untertitel)
+    SettingRow("Systemeinstellungen für Untertitel", null, onClick = {
+        runCatching { ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_CAPTIONING_SETTINGS).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            .onFailure { android.widget.Toast.makeText(ctx, Lang.tr("Systemeinstellungen für Untertitel können nicht geöffnet werden"), android.widget.Toast.LENGTH_LONG).show() }
+    })
     var pSize by remember { mutableStateOf<Int?>(null) }
     var pColor by remember { mutableStateOf<Int?>(null) }
     var pBg by remember { mutableStateOf<Int?>(null) }
@@ -2065,6 +2070,7 @@ private fun TmLookGroups(ctx: Context, onLang: () -> Unit) {
     ToggleRow("Zeige \"alle Playlists\" Kategorie", null, Tm.b(Tm.GRP_ALL_PLAYLISTS, true)) { Tm.set(ctx, Tm.GRP_ALL_PLAYLISTS, it) }
     ToggleRow("Zeige \"Favoriten\" Kategorie", null, Tm.b(Tm.GRP_FAVS, true)) { Tm.set(ctx, Tm.GRP_FAVS, it) }
     ToggleRow("Zeige \"alle Kanäle\" Kategorie", null, Tm.b(Tm.GRP_ALL, true)) { Tm.set(ctx, Tm.GRP_ALL, it) }
+    ToggleRow("Kanäle aus ausgeblendeten Gruppen anzeigen", Lang.tr("In „Alle Kanäle“; die Gruppen selbst bleiben ausgeblendet."), Tm.b(Tm.GRP_HIDDEN_ALL, false)) { Tm.set(ctx, Tm.GRP_HIDDEN_ALL, it); PlOpts.bump() }
     val taps = listOf(Lang.tr("Auf- und zuklappen"), Lang.tr("Alle Kanäle der Liste zeigen"))
     val ti = Tm.i(Tm.GRP_PL_TAP, 0).coerceIn(0, 1)
     SelectRow("Beim Antippen einer Wiedergabeliste", taps[ti], taps, ti) { Tm.set(ctx, Tm.GRP_PL_TAP, it) }
@@ -2090,6 +2096,9 @@ private fun TmLookPlayer(ctx: Context, open: (String, String) -> Unit) {
     }
     ToggleRow("Zeige schwarzes Bild beim Senderwechsel", null, Tm.b(Tm.PL_BLACK_SWITCH, false)) { Tm.set(ctx, Tm.PL_BLACK_SWITCH, it) }
     ToggleRow("Zum Umschalten erneut drücken", Lang.tr("Erst das Infofeld des nächsten Senders, beim zweiten Drücken umschalten"), Tm.b(Tm.RC_PRESS_AGAIN, false)) { Tm.set(ctx, Tm.RC_PRESS_AGAIN, it) }
+    val zds = listOf(0, 1, 2, 3, 5, 10)
+    val zd = Tm.i(Tm.RC_ZAP_DELAY, 0)
+    SelectRow("Verzögerung vor dem Umschalten (Sekunden)", if (zd == 0) Lang.tr("Aus") else zd.toString(), zds.map { if (it == 0) "Aus" else "$it" }, zds.indexOf(zd).coerceAtLeast(0)) { Tm.set(ctx, Tm.RC_ZAP_DELAY, zds[it]) }
     PanelSection(Lang.tr("Filme & Serien"))
     ToggleRow("Stream-Info am Start", null, AppSettings.showInfo) { AppSettings.setPlayer(ctx, AppSettings.skipIntro, it, AppSettings.seekStep) }
     ToggleRow("Endzeit anzeigen", null, AppSettings.showEndTime) { AppSettings.setPlayerExtra(ctx, AppSettings.autoNext, AppSettings.hideSec, it, AppSettings.autoSkipIntro) }
@@ -2270,6 +2279,11 @@ private fun TmSearch(ctx: Context) {
     ToggleRow("Lieblingssender zuerst anzeigen", null, Tm.b(Tm.SE_FAVS, true)) { Tm.set(ctx, Tm.SE_FAVS, it) }
     ToggleRow("Vergangene Sendungen anzeigen", null, Tm.b(Tm.SE_PAST, false)) { Tm.set(ctx, Tm.SE_PAST, it) }
     ToggleRow("Bleibe auf dem Suchbildschirm, wenn du den Kanal wechselst", null, Tm.b(Tm.SE_STAY, false)) { Tm.set(ctx, Tm.SE_STAY, it) }
+    PanelSection(Lang.tr("Suchoptionen"))
+    ToggleRow("TV-Sender einbeziehen", null, Tm.b(Tm.SE_INC_LIVE, true)) { Tm.set(ctx, Tm.SE_INC_LIVE, it) }
+    ToggleRow("TV-Programme einbeziehen", null, Tm.b(Tm.SE_INC_PROGS, true)) { Tm.set(ctx, Tm.SE_INC_PROGS, it) }
+    ToggleRow("Filme einbeziehen", null, Tm.b(Tm.SE_INC_MOVIES, true)) { Tm.set(ctx, Tm.SE_INC_MOVIES, it) }
+    ToggleRow("Serien einbeziehen", null, Tm.b(Tm.SE_INC_SERIES, true)) { Tm.set(ctx, Tm.SE_INC_SERIES, it) }
     SettingRow("Suchverlauf löschen", null, onClick = { AppSettings.clearSearch(ctx) })
 }
 

@@ -13,6 +13,7 @@ object PlOpts {
     /** Steigt bei jeder Änderung der ausgeblendeten Gruppen (Senderliste neu filtern). */
     var version by mutableIntStateOf(0)
         private set
+    fun bump() { version++ }
 
     private fun k(list: String, what: String) = "plo_" + what + "_" + list.trim().lowercase().hashCode()
 
@@ -176,4 +177,16 @@ object ChOrder {
     }
 
     fun reset(c: Context, group: String) { Tm.set(c, k(group), ""); version++ }
+}
+
+/** Gruppen umbenennen und eigene Sortierung je Gruppe (TiviMate: Gruppenoptionen). */
+object GroupOpts {
+    private fun k(what: String, group: String) = "grp_" + what + "_" + group.trim().lowercase().hashCode()
+    /** Angezeigter Name einer Gruppe (umbenannt oder Original). */
+    fun show(group: String): String = Tm.s(k("alias", group)).ifBlank { group }
+    fun isRenamed(group: String) = Tm.s(k("alias", group)).isNotBlank()
+    fun rename(c: android.content.Context, group: String, alias: String) = Tm.set(c, k("alias", group), alias.trim())
+    /** Sortierung der Sender in dieser Gruppe; -1 = wie unter Optik > EPG. */
+    fun sort(group: String): Int = Tm.i(k("sort", group), -1)
+    fun setSort(c: android.content.Context, group: String, v: Int) = Tm.set(c, k("sort", group), v)
 }
