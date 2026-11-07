@@ -49,6 +49,9 @@ class MainActivity : ComponentActivity() {
         // Lief das Laden dort zuerst, während die Oberfläche schon las, stürzte die App beim Start ab
         // („Reading a state that was created after the snapshot was taken“).
         PlaylistStore.savedUrl(this)
+        // EPG-Einstellungen; „Aktualisieren beim Start“: einmal frisch laden statt den gespeicherten Stand zu nehmen
+        EpgPrefs.init(this)
+        if (EpgPrefs.onStart && savedInstanceState == null) EpgPrefs.forceNext = true
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch { Presets.refresh(applicationContext) }
         // Frischer Start (nicht nur gedrehter/neu erstellter Bildschirm): "Zuletzt Geschautes beim Start fortsetzen" darf wieder greifen.
         // Der Prozess lebt nach Beenden oft weiter; das Merker-Flag blieb deshalb vom ersten Start stehen und nichts wurde mehr geöffnet.

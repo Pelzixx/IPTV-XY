@@ -141,7 +141,10 @@ object Xmltv {
                 age = now - savedAt
                 status = "Geladen: ${progs.size} Sender mit Programm (gespeichert)"
             }
-            if (age < FRESH_SEC && progs.isNotEmpty()) return@launch
+            // Runde 20: Intervall einstellbar; „beim Start“ bzw. geänderte Wiedergabeliste laden einmal frisch
+            val forced = EpgPrefs.forceNext
+            EpgPrefs.forceNext = false
+            if (!forced && age < EpgPrefs.intervalH * 3600L && progs.isNotEmpty()) return@launch
             val hadSaved = progs.isNotEmpty()
             if (!hadSaved) status = "Wird geladen …"
             val map = HashMap<String, MutableList<EpgEntry>>()
@@ -153,7 +156,7 @@ object Xmltv {
                 val id = it.tvgId ?: continue
                 val d = Catchup.of(it)?.days ?: continue
                 val k = id.lowercase()
-                past[k] = maxOf(past[k] ?: 0, d.coerceAtMost(7))
+                past[k] = maxOf(past[k] ?: 0, d.coerceAtMost(EpgPrefs.keepDays))
             }
             val fresh = sources.toMutableList()
             for ((i, u) in all.withIndex()) {
@@ -269,7 +272,7 @@ object Xmltv {
                         e > now - (if (pd > 0) pd * 86400L else 3600L) && s < now + 129600 && epgSane(s, e)
                     ) {
                         val l = out.getOrPut(ch) { ArrayList() }
-                        if (l.size < MAX_PER_CHANNEL + pd * 48) l.add(EpgEntry(pool.of(title), shortDesc(desc), s, e))
+                        if (l.size < MAX_PER_CHANNEL + pd * 48) l.add(EpgEntry(pool.of(title), if (EpgPrefs.saveDesc) shortDesc(desc) else "", s, e))
                         hit.add(ch)
                     }
                     // Speicher wird knapp: aufhören und das bisher Gelesene behalten (lieber Lücken im Programm als ein Absturz)
@@ -393,5 +396,42 @@ object IntroDb {
         } catch (e: Exception) {
         }
         return out
+    }
+}
+/**
+ * Einstellungen zum TV-Programm (Einstellungen > EPG, Runde 20): Tage behalten, Beschreibungen speichern,
+ * Aktualisierungsintervall, Aktualisieren beim Start und bei Änderung der Wiedergabeliste.
+ */
+object EpgPrefs {
+    val DAY_OPTS = listOf(1, 2, 3, 5, 7, 14)
+    val HOUR_OPTS = listOf(3, 6, 12, 24, 48)
+    var keepDays by mutableStateOf(7)
+        private set
+    var saveDesc by mutableStateOf(true)
+        private set
+    var intervalH by mutableStateOf(6)
+        private set
+    var onStart by mutableStateOf(false)
+        private set
+    var onPlaylistChange by mutableStateOf(true)
+        private set
+    /** Beim nächsten Laden nicht den gespeicherten Stand nehmen (Start bzw. geänderte Wiedergabeliste). */
+    @Volatile var forceNext = false
+
+    private fun prefs(c: Context) = c.getSharedPreferences("ipvio_epg", Context.MODE_PRIVATE)
+
+    fun init(c: Context) {
+        val p = prefs(c)
+        keepDays = p.getInt("keep_days", 7).coerceIn(1, 14)
+        saveDesc = p.getBoolean("save_desc", true)
+        intervalH = p.getInt("interval_h", 6).coerceIn(1, 72)
+        onStart = p.getBoolean("on_start", false)
+        onPlaylistChange = p.getBoolean("on_pl_change", true)
+    }
+
+    fun set(c: Context, keep: Int = keepDays, desc: Boolean = saveDesc, hours: Int = intervalH, start: Boolean = onStart, plChange: Boolean = onPlaylistChange) {
+        keepDays = keep; saveDesc = desc; intervalH = hours; onStart = start; onPlaylistChange = plChange
+        prefs(c).edit().putInt("keep_days", keep).putBoolean("save_desc", desc).putInt("interval_h", hours)
+            .putBoolean("on_start", start).putBoolean("on_pl_change", plChange).apply()
     }
 }

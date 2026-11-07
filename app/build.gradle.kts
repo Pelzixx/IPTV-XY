@@ -65,6 +65,14 @@ android {
                 packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
             }
         }
+        // Test-App mit Release-Geschwindigkeit (nicht debugbar): gleiche App-ID und gleicher Test-Schlüssel wie „debug“,
+        // lässt sich also über die installierte Test-App spielen. Compose läuft im Debug-Build spürbar träger.
+        create("staging") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".debug"
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
