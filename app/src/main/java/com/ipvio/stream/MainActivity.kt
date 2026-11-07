@@ -99,7 +99,24 @@ class MainActivity : ComponentActivity() {
     /** Home-Taste (oder App-Wechsel) durch den Nutzer – nicht beim Bildschirmschoner und nicht bei Trailer/externem Player. */
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
+        if (enterPip()) return
         AppNav.leftByUser = true
+    }
+
+    /** Wiedergabe > Bild-in-Bild: läuft ein Video, beim Verlassen der App ins kleine Fenster. */
+    private fun enterPip(): Boolean {
+        if (!AppNav.playing || !Tm.b(Tm.PB_PIP, true) || android.os.Build.VERSION.SDK_INT < 26) return false
+        if (!packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)) return false
+        return runCatching {
+            Pip.entering = true
+            enterPictureInPictureMode(android.app.PictureInPictureParams.Builder().setAspectRatio(android.util.Rational(16, 9)).build())
+        }.getOrElse { Pip.entering = false; false }
+    }
+
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        Pip.active = isInPictureInPictureMode
+        if (!isInPictureInPictureMode) Pip.entering = false
     }
 
     /** Zurück in der App nach der Home-Taste: zur Startseite (siehe AppContent). */

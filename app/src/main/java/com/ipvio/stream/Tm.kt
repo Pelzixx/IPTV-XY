@@ -89,6 +89,7 @@ object Tm {
     const val MENU_HIDDEN = "menu_hidden"
     // Eingeklappte Wiedergabelisten in der Gruppenübersicht (Namen, durch 0001 getrennt)
     const val PL_COLLAPSED = "pl_collapsed"
+    const val PL_SORT = "pl_sort"                 // Playlist Sortierung: 0 Manuell, 1 Name
 
     // ---------------------------------------------------------------- Fernbedienung > Spuloptionen
     const val SP_RWFF = "sp_rwff"                  // RW/FF/Pause zum Suchen/Pausieren während des Anschauens
@@ -118,6 +119,8 @@ object Tm {
     const val PB_STEP_TL_FWD = "pb_step_tl_fwd"
     const val PB_STEP_RW = "pb_step_rw"
     const val PB_STEP_FF = "pb_step_ff"
+    const val PB_AUDIO_DELAY = "pb_audio_delay"     // Audioversatz in ms (positiv = Ton später)
+    const val PB_PIP = "pb_pip"                     // Bild-in-Bild beim Druck auf Home
 
     // ---------------------------------------------------------------- Sonstiges > Suchen / Erinnerungen
     const val SE_VOICE = "se_voice"               // Sprachsuche bevorzugen (beim Öffnen gleich zuhören)

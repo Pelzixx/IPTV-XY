@@ -400,6 +400,35 @@ object PlaylistStore {
         return urlChanged && i == active
     }
 
+    /** Wiedergabeliste verschieben (TiviMate: Playlisten neu anordnen); die aktive bleibt aktiv. */
+    fun move(c: Context, i: Int, to: Int) {
+        ensure(c)
+        if (i !in lists.indices) return
+        val j = to.coerceIn(0, lists.size - 1)
+        if (i == j) return
+        val activeUrl = lists.getOrNull(active)?.url
+        val p = lists.removeAt(i)
+        lists.add(j, p)
+        active = lists.indexOfFirst { it.url == activeUrl }.coerceAtLeast(0)
+        persist(c)
+        loadExtrasInBackground(c.applicationContext)
+    }
+
+    /** Nach Namen sortieren (TiviMate: Playlist Sortierung „Name“). */
+    fun sortByName(c: Context) {
+        ensure(c)
+        val activeUrl = lists.getOrNull(active)?.url
+        val s = lists.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
+        lists.clear(); lists.addAll(s)
+        active = lists.indexOfFirst { it.url == activeUrl }.coerceAtLeast(0)
+        persist(c)
+        loadExtrasInBackground(c.applicationContext)
+    }
+
+    /** Filme und Serien der Haupt-Wiedergabeliste (Anzeige wie TiviMate: „Kanäle: N, Filme: N, Serien: N“). */
+    val primaryMovieCount: Int get() = rawChannels.count { it.kind == Kind.MOVIE }
+    val primarySeriesCount: Int get() = rawChannels.count { it.kind == Kind.SERIES }
+
     fun remove(c: Context, i: Int) {
         ensure(c)
         if (i !in lists.indices) return

@@ -98,6 +98,13 @@ fun BoxScope.TracksPanel(
                         }
                     }
                 }
+                // Audioversatz (TiviMate: Lippensynchronität), gilt sofort
+                val octx = androidx.compose.ui.platform.LocalContext.current
+                Spacer(Modifier.height(10.dp))
+                PColumnHeader(Lang.tr("Audioversatz") + ": " + (if (AudioOffset.ms > 0) "+" else "") + AudioOffset.ms + " ms")
+                PPanelRow(Lang.tr("Ton 50 ms früher"), false, raw = true) { AudioOffset.set(octx, AudioOffset.ms - 50) }
+                PPanelRow(Lang.tr("Ton 50 ms später"), false, raw = true) { AudioOffset.set(octx, AudioOffset.ms + 50) }
+                if (AudioOffset.ms != 0) PPanelRow(Lang.tr("Zurücksetzen"), false, raw = true) { AudioOffset.set(octx, 0) }
             }
             Column(
                 Modifier.weight(1f).onPreviewKeyEvent { e ->

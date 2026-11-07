@@ -378,6 +378,8 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
         panelParent = Panel.NONE
         panel = if (pp != Panel.NONE) pp else Panel.NONE
     }
+    // Bild-in-Bild (TiviMate): im kleinen Fenster nur das Bild, alle Leisten und Listen zu
+    LaunchedEffect(Pip.active) { if (Pip.active) { closePanel(); controls = false; showChannels = false; showCats = false; showGuide = false; banner = false; liveMenu = false } }
 
     /** Aktion einer Taste ausführen (TiviMate: Fernbedienung > Player). */
     fun runAct(a: PAct) {
@@ -773,8 +775,10 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
         applyTrackPrefs()
         h.postDelayed(tick, 5000)
         AppNav.playing = true
+        findActivity(ctx)?.let { Pip.allow(it, true) }
         onDispose {
             AppNav.playing = false
+            findActivity(ctx)?.let { Pip.allow(it, false) }
             // Detailseite merkt sich die zuletzt gespielte Folge (auch nach „Nächste Folge“)
             if (!cur.live && cur.archive == null) DetailReturn.set(cur.itemId, cur.season, cur.episode)
             saveProgress()
@@ -791,8 +795,14 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
         val obs = LifecycleEventObserver { _, ev ->
             when (ev) {
                 Lifecycle.Event.ON_START -> foreground = true
-                Lifecycle.Event.ON_STOP -> foreground = false
-                Lifecycle.Event.ON_PAUSE -> {
+                Lifecycle.Event.ON_STOP -> {
+                    foreground = false
+                    // App nicht mehr sichtbar (auch Bild-in-Bild geschlossen): anhalten
+                    val inPip = android.os.Build.VERSION.SDK_INT >= 24 && findActivity(ctx)?.isInPictureInPictureMode == true
+                    Pip.entering = false
+                    if (!inPip && player.playWhenReady) { resumeAfter = true; player.pause(); saveProgress() }
+                }
+                Lifecycle.Event.ON_PAUSE -> if (!Pip.entering && !Pip.active && !Pip.autoOn) {
                     resumeAfter = player.playWhenReady
                     player.pause()
                     saveProgress()

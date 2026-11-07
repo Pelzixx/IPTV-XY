@@ -1,6 +1,8 @@
 package com.ipvio.stream
 
 import android.content.Context
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import android.os.Handler
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.audio.AudioCapabilities
@@ -42,15 +44,18 @@ object SoftAudio {
         val audioSoft = Tm.i(Tm.PB_AUDIO_DEC, 0) == 1
         val videoSoft = Tm.i(Tm.PB_VIDEO_DEC, 0) == 1
         val passthrough = Tm.b(Tm.PB_PASSTHROUGH, false)
+        AudioOffset.init()
         val f = object : DefaultRenderersFactory(ctx) {
             // Passthrough aus: Ton immer selbst decodieren (PCM) statt ihn roh an Receiver/Soundbar zu geben
-            override fun buildAudioSink(context: Context, enableFloatOutput: Boolean, enableAudioTrackPlaybackParams: Boolean): AudioSink? =
-                if (passthrough) super.buildAudioSink(context, enableFloatOutput, enableAudioTrackPlaybackParams)
+            override fun buildAudioSink(context: Context, enableFloatOutput: Boolean, enableAudioTrackPlaybackParams: Boolean): AudioSink? {
+                val sink = if (passthrough) super.buildAudioSink(context, enableFloatOutput, enableAudioTrackPlaybackParams)
                 else DefaultAudioSink.Builder(context)
                     .setAudioCapabilities(AudioCapabilities.DEFAULT_AUDIO_CAPABILITIES)
                     .setEnableFloatOutput(enableFloatOutput)
                     .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
                     .build()
+                return sink?.let { AudioOffset.wrap(it) }
+            }
         }
         f.setExtensionRendererMode(
             when {
@@ -65,5 +70,26 @@ object SoftAudio {
         })
         f.setEnableDecoderFallback(true)
         return f
+    }
+}
+
+/**
+ * Audioversatz (TiviMate: Lippensynchronität). Das Bild richtet sich nach der Audio-Uhr; wird sie um den Versatz
+ * verschoben, kommt der Ton entsprechend früher oder später zum Bild. Positiv = Ton später.
+ */
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+object AudioOffset {
+    /** Versatz in Millisekunden (gilt sofort, auch während der Wiedergabe). */
+    var ms by androidx.compose.runtime.mutableIntStateOf(0)
+
+    fun init() { ms = Tm.i(Tm.PB_AUDIO_DELAY, 0) }
+    fun set(c: Context, v: Int) { ms = v.coerceIn(-2000, 2000); Tm.set(c, Tm.PB_AUDIO_DELAY, ms) }
+
+    fun wrap(sink: AudioSink): AudioSink = object : androidx.media3.exoplayer.audio.ForwardingAudioSink(sink) {
+        override fun getCurrentPositionUs(sourceEnded: Boolean): Long {
+            val p = super.getCurrentPositionUs(sourceEnded)
+            if (p == AudioSink.CURRENT_POSITION_NOT_SET || ms == 0) return p
+            return (p + ms * 1000L).coerceAtLeast(0L)
+        }
     }
 }

@@ -311,4 +311,15 @@ Adresse der Freigabe¦Share address¦Paylaşım adresi¦Adresa dijeljenja¦Adres
 Als Aufnahmeverzeichnis verwenden¦Use as recording folder¦Kayıt klasörü olarak kullan¦Koristi kao mapu za snimke¦Koristi kao mapu za snimke¦Koristi kao fasciklu za snimke¦Usar como carpeta de grabaciones¦Utiliser comme dossier d’enregistrement¦Usa come cartella registrazioni
 Adresse¦Address¦Adres¦Adresa¦Adresa¦Adresa¦Dirección¦Adresse¦Indirizzo
 Verbindung löschen¦Delete connection¦Bağlantıyı sil¦Obriši vezu¦Obriši vezu¦Obriši vezu¦Eliminar conexión¦Supprimer la connexion¦Elimina connessione
+Manuell¦Manual¦Elle¦Ručno¦Ručno¦Ručno¦Manual¦Manuel¦Manuale
+Playlist Sortierung¦Playlist sorting¦Oynatma listesi sıralaması¦Sortiranje lista¦Sortiranje popisa¦Sortiranje lista¦Orden de listas¦Tri des playlists¦Ordinamento playlist
+Playlisten neu anordnen¦Reorder playlists¦Listeleri yeniden sırala¦Preuredi liste¦Preuredi popise¦Preuredi liste¦Reordenar listas¦Réorganiser les playlists¦Riordina playlist
+Ganz nach oben¦Move to top¦En üste taşı¦Na vrh¦Na vrh¦Na vrh¦Al principio¦Tout en haut¦In cima
+Ganz nach unten¦Move to bottom¦En alta taşı¦Na dno¦Na dno¦Na dno¦Al final¦Tout en bas¦In fondo
+Audioversatz (ms)¦Audio delay (ms)¦Ses gecikmesi (ms)¦Kašnjenje zvuka (ms)¦Kašnjenje zvuka (ms)¦Kašnjenje zvuka (ms)¦Retraso de audio (ms)¦Décalage audio (ms)¦Ritardo audio (ms)
+Audioversatz¦Audio delay¦Ses gecikmesi¦Kašnjenje zvuka¦Kašnjenje zvuka¦Kašnjenje zvuka¦Retraso de audio¦Décalage audio¦Ritardo audio
+Ton 50 ms früher¦Audio 50 ms earlier¦Ses 50 ms önce¦Zvuk 50 ms ranije¦Zvuk 50 ms ranije¦Zvuk 50 ms ranije¦Audio 50 ms antes¦Son 50 ms plus tôt¦Audio 50 ms prima
+Ton 50 ms später¦Audio 50 ms later¦Ses 50 ms sonra¦Zvuk 50 ms kasnije¦Zvuk 50 ms kasnije¦Zvuk 50 ms kasnije¦Audio 50 ms después¦Son 50 ms plus tard¦Audio 50 ms dopo
+Bild im Bild beim Drücken der Home-Taste¦Picture-in-picture when pressing Home¦Ana sayfa tuşunda resim içinde resim¦Slika u slici pri pritisku na Home¦Slika u slici pri pritisku na Home¦Slika u slici pri pritisku na Home¦Imagen en imagen al pulsar Inicio¦Image dans l’image avec la touche Accueil¦Picture-in-picture premendo Home
+Auf diesem Gerät nicht verfügbar¦Not available on this device¦Bu cihazda kullanılamaz¦Nije dostupno na ovom uređaju¦Nije dostupno na ovom uređaju¦Nije dostupno na ovom uređaju¦No disponible en este dispositivo¦Non disponible sur cet appareil¦Non disponibile su questo dispositivo
 """

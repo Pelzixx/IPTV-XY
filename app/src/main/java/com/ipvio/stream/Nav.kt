@@ -103,3 +103,26 @@ fun Modifier.restoreFocus(id: String): Modifier {
     }
     return this.focusRequester(fr)
 }
+
+/** Bild-in-Bild (TiviMate): beim Druck auf Home läuft der Player im kleinen Fenster weiter. */
+object Pip {
+    var active by androidx.compose.runtime.mutableStateOf(false)
+    @Volatile var entering = false
+    /** Automatisches Bild-in-Bild ist gerade erlaubt (Android 12+, Video läuft). */
+    @Volatile var autoOn = false
+
+    /**
+     * Android 12+: Bild-in-Bild automatisch beim Verlassen (Home), solange ein Video läuft.
+     * Ältere Geräte nutzen onUserLeaveHint (siehe MainActivity).
+     */
+    fun allow(a: android.app.Activity, on: Boolean) {
+        if (android.os.Build.VERSION.SDK_INT < 26) return
+        if (!a.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)) return
+        runCatching {
+            val b = android.app.PictureInPictureParams.Builder().setAspectRatio(android.util.Rational(16, 9))
+            autoOn = android.os.Build.VERSION.SDK_INT >= 31 && on && Tm.b(Tm.PB_PIP, true)
+            if (android.os.Build.VERSION.SDK_INT >= 31) b.setAutoEnterEnabled(autoOn).setSeamlessResizeEnabled(true)
+            a.setPictureInPictureParams(b.build())
+        }
+    }
+}

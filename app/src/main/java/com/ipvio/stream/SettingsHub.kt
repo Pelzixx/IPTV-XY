@@ -1283,7 +1283,7 @@ private fun PlaylistPage(ctx: Context, onAdd: () -> Unit, reload: () -> Unit, on
         val active = i == PlaylistStore.active
         // TiviMate: bei jeder Liste ihre eigene Senderzahl (bzw. warum eine zugeschaltete Liste nicht geladen ist)
         val info = if (PlaylistStore.updating?.trim() == pl.url.trim()) updatingText()
-            else if (active && PlaylistStore.primaryLiveCount > 0) Lang.tr("Kanäle") + ": " + PlaylistStore.primaryLiveCount + updatedSuffix(pl.url)
+            else if (active && PlaylistStore.primaryLiveCount > 0) primaryCounts() + updatedSuffix(pl.url)
             else if (!active && pl.on) PlaylistStore.extraStatus[pl.name]?.let { s -> if (s.startsWith("Kanäle: ")) Lang.tr("Kanäle") + ": " + s.removePrefix("Kanäle: ") else s }
                 ?: Lang.tr("Wird geladen …")
             else if (LoadLogic.xtreamParts(pl.url) != null) "Xtream Codes" else "M3U"
@@ -1300,6 +1300,25 @@ private fun PlaylistPage(ctx: Context, onAdd: () -> Unit, reload: () -> Unit, on
     }
     SettingRow("Hinzufügen", Lang.tr("Xtream Codes, M3U-Link oder vom Handy"), onClick = { onAdd() })
     SettingRow("Aktualisiere alle Wiedergabelisten", if (PlaylistStore.updating != null) updatingText() else null, rawValue = true, onClick = { PlaylistStore.manualUpdate = true; reload() })
+    // TiviMate: Playlist Sortierung (Manuell / Name) und Playlisten neu anordnen
+    val sorts = listOf(Lang.tr("Manuell"), Lang.tr("Name"))
+    val sm = Tm.i(Tm.PL_SORT, 0).coerceIn(0, 1)
+    SelectRow("Playlist Sortierung", sorts[sm], sorts, sm) { Tm.set(ctx, Tm.PL_SORT, it); if (it == 1) PlaylistStore.sortByName(ctx) }
+    var reorder by remember { mutableStateOf(false) }
+    var moveIdx by remember { mutableIntStateOf(-1) }
+    if (PlaylistStore.lists.size > 1) SettingRow("Playlisten neu anordnen", null, onClick = { reorder = true })
+    if (reorder) SideMenu(listOf(SideSection(Lang.tr("Playlisten neu anordnen"), PlaylistStore.lists.mapIndexed { i, p ->
+        SideEntry((i + 1).toString() + ".  " + p.name, raw = true) { moveIdx = i }
+    })), { reorder = false })
+    PlaylistStore.lists.getOrNull(moveIdx)?.let { p ->
+        val i = moveIdx
+        val last = PlaylistStore.lists.lastIndex
+        fun mv(to: Int) { Tm.set(ctx, Tm.PL_SORT, 0); PlaylistStore.move(ctx, i, to); moveIdx = -1; reorder = true }
+        val e = ArrayList<SideEntry>()
+        if (i > 0) { e.add(SideEntry("Nach oben", AIcon.Up) { mv(i - 1) }); e.add(SideEntry("Ganz nach oben", AIcon.Up) { mv(0) }) }
+        if (i < last) { e.add(SideEntry("Nach unten", AIcon.Down) { mv(i + 1) }); e.add(SideEntry("Ganz nach unten", AIcon.Down) { mv(last) }) }
+        SideMenu(listOf(SideSection(p.name, e)), { if (moveIdx == i) moveIdx = -1 })
+    }
     // Eigene Funktionen von XY (Sprachfilter, Zeitplan) als eigene Einträge mit Unterseite
     SettingRow("Sprachen der Inhalte", Lang.tr("Ausgeblendete Sprachen werden gar nicht erst geladen"), onClick = onLang)
     val modes = listOf("Bei jedem Start", "Alle paar Stunden", "Täglich", "Wöchentlich", "Nur von Hand")
@@ -2027,10 +2046,14 @@ private fun TmPlayback(ctx: Context, open: (String, String) -> Unit) {
         AppSettings.setAutoFps(ctx, it == 1)
     }
     ToggleRow("Wähle standardmäßig die Surround-Audiospur aus", null, Tm.b(Tm.PB_SURROUND, false)) { Tm.set(ctx, Tm.PB_SURROUND, it) }
+    val offs = (-1000..1000 step 50).toList()
+    SelectRow("Audioversatz (ms)", (if (AudioOffset.ms > 0) "+" else "") + AudioOffset.ms, offs.map { (if (it > 0) "+" else "") + it }, offs.indexOf(AudioOffset.ms).coerceAtLeast(0)) { AudioOffset.set(ctx, offs[it]) }
     ToggleRow("Audio-Passthrough", null, Tm.b(Tm.PB_PASSTHROUGH, false)) { Tm.set(ctx, Tm.PB_PASSTHROUGH, it) }
     ToggleRow("Getunnelte Wiedergabe", null, Tm.b(Tm.PB_TUNNEL, false)) { Tm.set(ctx, Tm.PB_TUNNEL, it) }
     val ext = listOf(Lang.tr("Nein"), Lang.tr("Ja"), Lang.tr("Nur für Filme und Serien"))
     SelectRow("Externen Player nutzen", ext[Tm.i(Tm.PB_EXTERNAL, 0)], ext, Tm.i(Tm.PB_EXTERNAL, 0)) { Tm.set(ctx, Tm.PB_EXTERNAL, it) }
+    val pipOk = android.os.Build.VERSION.SDK_INT >= 26 && ctx.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)
+    ToggleRow("Bild im Bild beim Drücken der Home-Taste", Lang.tr(if (pipOk) "Funktioniert nicht auf allen Geräten" else "Auf diesem Gerät nicht verfügbar"), Tm.b(Tm.PB_PIP, true)) { Tm.set(ctx, Tm.PB_PIP, it) }
     SettingRow("Schritte überspringen", null, onClick = { open("play_steps", "Schritte überspringen") })
     SelectRow("Bildformat", General.ASPECT_NAMES[General.defaultAspect], General.ASPECT_NAMES, General.defaultAspect) { General.setAspect(ctx, it) }
     SettingRow("Audio & Untertitel", Lang.tr("Sprachen, Untertitel-Stil"), onClick = { open("play_audio", "Audio & Untertitel") })
@@ -2257,4 +2280,13 @@ private fun TmRecording(ctx: Context) {
         if (ask == null) SideMenu(listOf(SideSection(c.name, e)), { editClosing = true })
     }
     ask?.let { q -> TextAskDialog(Lang.tr(q.title), q.initial, q.hint, q.password, onDismiss = { ask = null }) { ask = null; q.onSave(it) } }
+}
+
+/** „Kanäle: N, Filme: N, Serien: N“ der Haupt-Wiedergabeliste (wie TiviMate). */
+private fun primaryCounts(): String {
+    val parts = ArrayList<String>()
+    parts.add(Lang.tr("Kanäle") + ": " + PlaylistStore.primaryLiveCount)
+    PlaylistStore.primaryMovieCount.takeIf { it > 0 }?.let { parts.add(Lang.tr("Filme") + ": " + it) }
+    PlaylistStore.primarySeriesCount.takeIf { it > 0 }?.let { parts.add(Lang.tr("Serien") + ": " + it) }
+    return parts.joinToString(", ")
 }
