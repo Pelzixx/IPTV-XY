@@ -16,10 +16,10 @@ object MenuLogic {
     /** Runde 15 (Nachtrag 17): Verlauf – zuletzt Angesehenes, Filme und Serien getrennt. */
     const val VERLAUF = 9
     /**
-     * Runde 20 (TV-Aufbau wie bei großen IPTV-Playern): Suchen, TV, Filme, Serien, Meine Liste; dahinter die eigenen
-     * Bereiche (Favoriten, Verlauf, EPG, Home mit Zugang und Mitteilungen), zuletzt Einstellungen.
+     * Runde 20 (TV-Aufbau, Wunsch des Nutzers: Home ganz oben): Home, Suchen, TV, Filme, Serien, Meine Liste; dahinter die eigenen
+     * Bereiche (Favoriten, Verlauf, EPG), zuletzt Einstellungen.
      */
-    val DEFAULT_ORDER = listOf(SEARCH, 3, 1, 2, MYLIST, FAVS, VERLAUF, EPG, 0, 5)
+    val DEFAULT_ORDER = listOf(0, SEARCH, 3, 1, 2, MYLIST, FAVS, VERLAUF, EPG, 5)
     /**
      * Standardmäßig ausgeblendet: EPG (der Guide steckt in TV), Favoriten (stehen in TV links in den Gruppen) und Verlauf.
      * Alles lässt sich unter Einstellungen > Menü wieder einblenden.

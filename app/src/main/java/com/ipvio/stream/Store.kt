@@ -133,10 +133,10 @@ object AppSettings {
             p.edit().putInt("menu_ver", 2).putString("menu_hidden", menuHidden.joinToString(",")).apply()
         }
         // Einmalig (Runde 20): Menü im TV-Aufbau (Suchen, TV, Filme, Serien, Meine Liste … Einstellungen)
-        if (p.getInt("menu_ver", 1) < 3) {
+        if (p.getInt("menu_ver", 1) < 4) {
             menuOrder.clear(); menuOrder.addAll(MenuLogic.DEFAULT_ORDER)
             menuHidden.clear(); menuHidden.addAll(MenuLogic.parseHidden(MenuLogic.DEFAULT_HIDDEN))
-            p.edit().putInt("menu_ver", 3).putString("menu_order", menuOrder.joinToString(","))
+            p.edit().putInt("menu_ver", 4).putString("menu_order", menuOrder.joinToString(","))
                 .putString("menu_hidden", menuHidden.joinToString(",")).apply()
         }
         searchHistory.clear()

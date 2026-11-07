@@ -104,12 +104,14 @@ object General {
         autoStart = p.getBoolean("auto_start", false)
         // Runde 20: Die App startet im TV (Live TV), wie man es von IPTV-Playern kennt. Einmalig auch für bestehende Installationen,
         // die noch auf „Start“ standen; eine bewusst andere Wahl (Filme, Serien, Suche) bleibt.
-        if (p.getInt("start_ver", 1) < 2) {
-            val e = p.edit().putInt("start_ver", 2)
-            if (p.getInt("start_tab", 0) == 0) e.putInt("start_tab", 3)
+        // Wunsch des Nutzers: Die App startet auf Home. Eine frühere Test-Umstellung (start_ver 2) hatte den Start auf TV gelegt –
+        // die wird zurückgenommen; eine bewusst gewählte andere Startseite bleibt.
+        if (p.getInt("start_ver", 1) < 3) {
+            val e = p.edit().putInt("start_ver", 3)
+            if (p.getInt("start_ver", 1) == 2 && p.getInt("start_tab", 0) == 3) e.putInt("start_tab", 0)
             e.apply()
         }
-        startTab = p.getInt("start_tab", 3).coerceIn(0, 4)
+        startTab = p.getInt("start_tab", 0).coerceIn(0, 4)
         resumeLive = p.getBoolean("resume_live", false)
         resumeVod = p.getBoolean("resume_vod", false)
         confirmExit = p.getBoolean("confirm_exit", true)
