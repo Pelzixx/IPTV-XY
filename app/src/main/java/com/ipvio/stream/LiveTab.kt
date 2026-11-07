@@ -126,10 +126,17 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     // fokussieren, bis ein Sender den Fokus hat (dann klappen die Gruppen zu)
     val chanScope = rememberCoroutineScope()
     // Gruppe erst nach kurzem Verweilen anzeigen: beim schnellen Blättern durch die Gruppen wird nicht jede Senderliste geladen
-    var pendingSel by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(pendingSel) { val p = pendingSel ?: return@LaunchedEffect; kotlinx.coroutines.delay(280); sel = p }
+    // Kein Compose-Zustand (sonst baute jeder Schritt die ganze Seite neu auf): nur ein Hintergrund-Timer
+    val selTimer = remember { arrayOfNulls<kotlinx.coroutines.Job>(1) }
+    val pendingSel = remember { arrayOfNulls<String>(1) }
+    fun hoverCat(n: String) {
+        pendingSel[0] = n
+        selTimer[0]?.cancel()
+        selTimer[0] = chanScope.launch { kotlinx.coroutines.delay(280); sel = n; pendingSel[0] = null }
+    }
     fun toChannels() {
-        pendingSel?.let { sel = it }
+        selTimer[0]?.cancel()
+        pendingSel[0]?.let { sel = it; pendingSel[0] = null }
         chanScope.launch {
             runCatching { chanState.scrollToItem(0) }
             repeat(15) {
@@ -219,7 +226,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                         CatRow(
                             label, count, n == sel,
                             if (n == sel) Modifier.focusRequester(catSelReq).then(if (list.isEmpty()) Modifier.focusRequester(ContentFocus.req) else Modifier) else Modifier,
-                            onFocus = { pendingSel = n }, onRight = { toChannels() },
+                            onFocus = { hoverCat(n) }, onRight = { toChannels() },
                             onFav = { if (ml != null) listMenu = true else if (n != FAV_CAT && n != "ALL" && n != HIDDEN_CAT) CatFavs.toggle(ctx, n) },
                             icon = icon, raw = ml != null
                         ) { toChannels() }
