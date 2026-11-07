@@ -358,10 +358,26 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
         bannerTick++
     }
 
+    // Vorschau auf einen anderen Sender (Infofeld ohne Umschalten)
+    var peekItem by remember { mutableStateOf<Item?>(null) }
+    var peekDir by remember { mutableIntStateOf(0) }
+    var peekTick by remember { mutableIntStateOf(0) }
+    LaunchedEffect(peekTick) { if (peekTick > 0) { delay(AppSettings.hideSec * 1000L + 2000); peekItem = null } }
     fun zap(d: Int) {
         if (zapSrc.size < 2) return
         val i = if (curIdx < 0) 0 else curIdx
         switchTo(zapSrc[(i + d + zapSrc.size) % zapSrc.size], zapSrc)
+    }
+
+    /** Infofeld des nächsten/vorigen Senders zeigen, ohne umzuschalten; gleiche Richtung erneut = weiter, OK = umschalten. */
+    fun peek(d: Int) {
+        if (zapSrc.size < 2) return
+        val base = peekItem?.let { p -> zapSrc.indexOfFirst { it.id == p.id } }?.takeIf { it >= 0 } ?: (if (curIdx < 0) 0 else curIdx)
+        val again = Tm.b(Tm.RC_PRESS_AGAIN, false) && peekItem != null && peekDir == d
+        if (again) { val p = peekItem!!; peekItem = null; switchTo(p, zapSrc); return }
+        peekItem = zapSrc[(base + d + zapSrc.size) % zapSrc.size]
+        peekDir = d
+        peekTick++
     }
 
     fun lastChannel() {
@@ -398,15 +414,18 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     fun runAct(a: PAct) {
         when (a) {
             PAct.NONE -> {}
-            PAct.INFO -> { liveMenu = false; controls = true }
+            PAct.INFO -> { val p = peekItem; if (p != null) { peekItem = null; switchTo(p, zapSrc) } else { liveMenu = false; controls = true } }
             PAct.MENU -> { liveMenu = true; controls = true }
             PAct.STOP -> onBack()
             PAct.LIST_OV -> openChannels()
             PAct.GUIDE -> { AppNav.toGuide = true; onBack() }
             PAct.LAST -> lastChannel()
             PAct.DESC -> { controls = false; bannerTick++ }
-            PAct.NEXT -> zap(1)
-            PAct.PREV -> zap(-1)
+            // „Zum Umschalten erneut drücken“ (TiviMate): erst das Infofeld des Ziels, das zweite Drücken schaltet um
+            PAct.NEXT -> if (Tm.b(Tm.RC_PRESS_AGAIN, false)) peek(1) else zap(1)
+            PAct.PREV -> if (Tm.b(Tm.RC_PRESS_AGAIN, false)) peek(-1) else zap(-1)
+            PAct.PEEK_NEXT -> peek(1)
+            PAct.PEEK_PREV -> peek(-1)
             PAct.HISTORY -> openLog()
             PAct.PLAYPAUSE -> { val was = player.isPlaying; togglePlay(); if (was) { liveMenu = false; controls = true } }
             PAct.LIVE -> {
@@ -1042,6 +1061,11 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                 interact = System.currentTimeMillis()
                 // Zurück selbst behandeln: sonst nimmt Compose zuerst nur den Fokus weg und das Menü bleibt offen
                 val liveIdle = cur.live && !controls && panel == Panel.NONE && !showChannels && !showGuide && digitBuf.isEmpty() && !showNextCard
+                // Infofeld eines anderen Senders offen (ohne Umschalten): OK schaltet um, Zurück schließt
+                if (peekItem != null && (e.key == Key.DirectionCenter || e.key == Key.Enter || e.key == Key.Back)) {
+                    if (e.type == KeyEventType.KeyUp) { val p = peekItem; peekItem = null; if (e.key != Key.Back && p != null) switchTo(p, zapSrc) }
+                    return@onPreviewKeyEvent true
+                }
                 if (e.key == Key.Back) {
                     // Fernbedienung (TiviMate): lang Zurück hat eine eigene Aktion (Standard: Wiedergabe stoppen)
                     if (e.type == KeyEventType.KeyDown && e.nativeKeyEvent.repeatCount == 1 && liveIdle && PlayerKeys.action(PKey.BACK_LONG) != PAct.NONE) {
@@ -1270,6 +1294,18 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                 modifier = Modifier.align(Alignment.TopEnd).padding(top = PT.MarginY, end = PT.MarginX)
                     .clip(RoundedCornerShape(DS.RadiusM)).background(Color(0xCC000000)).padding(horizontal = 28.dp, vertical = 12.dp)
             )
+        }
+
+        // Infofeld des nächsten/vorigen Senders ohne Umschalten (TiviMate)
+        peekItem?.let { pk ->
+            val pkNow = System.currentTimeMillis() / 1000
+            val pkEpg = remember(pk.id, Xmltv.channelCount) { Xmltv.forItem(pk).filter { it.end > pkNow } }
+            Box(Modifier.fillMaxWidth().height(360.dp).align(Alignment.BottomCenter)
+                .background(Brush.verticalGradient(0f to Color.Transparent, 0.35f to Color(0xB3000000), 1f to Color(0xF2000000))))
+            Column(Modifier.align(Alignment.BottomStart).padding(start = PT.MarginX, end = PT.MarginX, bottom = PT.MarginY)) {
+                LiveInfoBlock(pk, ChannelEdit.title(pk), zapSrc.indexOfFirst { it.id == pk.id } + 1, pkEpg, switching = true)
+                Text(Lang.tr("OK = umschalten"), color = Muted, fontSize = 15.sp, modifier = Modifier.padding(top = 6.dp))
+            }
         }
 
         // Kurzer Sender-Banner beim Umschalten

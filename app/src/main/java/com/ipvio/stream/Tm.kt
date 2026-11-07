@@ -89,6 +89,7 @@ object Tm {
     const val RC_COUNT = "rc_count"
     const val RC_DELAY = "rc_delay"
     const val RC_NAMES = "rc_names"
+    const val RC_PRESS_AGAIN = "rc_press_again"   // Umschalten erst beim zweiten Drücken (vorher Infofeld des Ziels)
     // Menü (Knöpfe der Leiste: Reihenfolge und ausgeblendete)
     const val MENU_ORDER = "menu_order"
     const val MENU_HIDDEN = "menu_hidden"

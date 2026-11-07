@@ -2037,6 +2037,7 @@ private fun TmLookPlayer(ctx: Context, open: (String, String) -> Unit) {
         AppSettings.setPlayerExtra(ctx, AppSettings.autoNext, hides[it], AppSettings.showEndTime, AppSettings.autoSkipIntro)
     }
     ToggleRow("Zeige schwarzes Bild beim Senderwechsel", null, Tm.b(Tm.PL_BLACK_SWITCH, false)) { Tm.set(ctx, Tm.PL_BLACK_SWITCH, it) }
+    ToggleRow("Zum Umschalten erneut drücken", Lang.tr("Erst das Infofeld des nächsten Senders, beim zweiten Drücken umschalten"), Tm.b(Tm.RC_PRESS_AGAIN, false)) { Tm.set(ctx, Tm.RC_PRESS_AGAIN, it) }
     PanelSection(Lang.tr("Filme & Serien"))
     ToggleRow("Stream-Info am Start", null, AppSettings.showInfo) { AppSettings.setPlayer(ctx, AppSettings.skipIntro, it, AppSettings.seekStep) }
     ToggleRow("Endzeit anzeigen", null, AppSettings.showEndTime) { AppSettings.setPlayerExtra(ctx, AppSettings.autoNext, AppSettings.hideSec, it, AppSettings.autoSkipIntro) }

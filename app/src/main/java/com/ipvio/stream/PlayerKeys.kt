@@ -28,7 +28,9 @@ enum class PAct(val label: String) {
     SETTINGS("Einstellungen"),
     RECORD("Aufnehmen"),
     MULTIVIEW("Multiview"),
-    RESTART("Sendung neu starten")
+    RESTART("Sendung neu starten"),
+    PEEK_NEXT("Infofeld des nächsten Senders"),
+    PEEK_PREV("Infofeld des vorherigen Senders")
 }
 
 /** Tasten des Live-Players mit TiviMate-Standardbelegung. [long] = langer Druck. */

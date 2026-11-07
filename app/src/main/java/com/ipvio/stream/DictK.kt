@@ -406,6 +406,11 @@ Ziffernfeld¦Number pad¦Sayı tuş takımı¦Numerička tipkovnica¦Numerička 
 Zahlenschloss¦Combination lock¦Şifreli kilit¦Brava s brojevima¦Brava s brojevima¦Brava sa brojevima¦Candado de combinación¦Cadenas à chiffres¦Lucchetto a combinazione
 Sehdauer¦Watch time¦İzleme süresi¦Vrijeme gledanja¦Vrijeme gledanja¦Vreme gledanja¦Tiempo visto¦Durée de visionnage¦Tempo di visione
 Sehdauer zurücksetzen¦Reset watch time¦İzleme süresini sıfırla¦Resetuj vrijeme gledanja¦Poništi vrijeme gledanja¦Resetuj vreme gledanja¦Restablecer tiempo visto¦Réinitialiser la durée de visionnage¦Azzera tempo di visione
+Zum Umschalten erneut drücken¦Press again to switch¦Değiştirmek için tekrar basın¦Pritisni ponovo za promjenu¦Pritisni ponovno za promjenu¦Pritisni ponovo za promenu¦Pulsa de nuevo para cambiar¦Appuyer à nouveau pour changer¦Premi di nuovo per cambiare
+Erst das Infofeld des nächsten Senders, beim zweiten Drücken umschalten¦First show the next channel’s info, switch on the second press¦Önce sonraki kanalın bilgisi, ikinci basışta geçiş¦Prvo info sljedećeg kanala, drugim pritiskom promjena¦Prvo info sljedećeg programa, drugim pritiskom promjena¦Prvo info sledećeg kanala, drugim pritiskom promena¦Primero la info del siguiente canal, cambia al pulsar de nuevo¦D’abord l’info de la chaîne suivante, changement au second appui¦Prima le info del canale successivo, cambio alla seconda pressione
+OK = umschalten¦OK = switch¦OK = geç¦OK = promijeni¦OK = promijeni¦OK = promeni¦OK = cambiar¦OK = changer¦OK = cambia
+Infofeld des nächsten Senders¦Info of next channel¦Sonraki kanal bilgisi¦Info sljedećeg kanala¦Info sljedećeg programa¦Info sledećeg kanala¦Info del siguiente canal¦Info de la chaîne suivante¦Info canale successivo
+Infofeld des vorherigen Senders¦Info of previous channel¦Önceki kanal bilgisi¦Info prethodnog kanala¦Info prethodnog programa¦Info prethodnog kanala¦Info del canal anterior¦Info de la chaîne précédente¦Info canale precedente
 Info¦Info¦Bilgi¦Info¦Info¦Info¦Info¦Info¦Info
 Guide¦Guide¦Rehber¦Vodič¦Vodič¦Vodič¦Guía¦Guide¦Guida
 """
