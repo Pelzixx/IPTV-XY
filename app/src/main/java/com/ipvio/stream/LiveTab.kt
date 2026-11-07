@@ -211,6 +211,8 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
     val preview = remember { LivePreviewPlayer(ctx) }
     DisposableEffect(Unit) { onDispose { preview.release() } }
     fun open(ch: Item) { preview.stop(); ZapContext.list = list; ZapContext.key = sel; LiveMemory.setSel(ctx, sel); onOpen(ch) }
+    // Sender, der gerade läuft (zuletzt gesehen) – für Vorschau und ▶
+    val playingCh = History.ids.firstOrNull()?.let { id -> list.firstOrNull { it.id == id } ?: PlaylistStore.channels.firstOrNull { it.id == id && it.kind == Kind.LIVE } }
     // Fernbedienung > EPG: Aktionen, die die ganze Liste betreffen
     val fmGuide = androidx.compose.ui.platform.LocalFocusManager.current
     fun guideAct(a: EAct): Boolean = when (a) {
@@ -330,7 +332,7 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
             // Rechts: oben Vorschau und Sendung, darunter Zeitleiste und Sender
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 Row(Modifier.fillMaxWidth().height(220.dp), horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-                    GuideTop(focus, list.firstOrNull(), preview)
+                    GuideTop(focus, list.firstOrNull(), preview, playingCh)
                 }
                 Spacer(Modifier.height(14.dp))
                 if (list.isNotEmpty()) TimelineHeader(ws, nowSec)
@@ -375,6 +377,9 @@ fun LiveTab(live: List<Item>, groups: Map<String, List<Item>>, favs: List<Item>,
                                 val has = ch.id in addList.ids
                                 if (has) ChannelLists.remove(ctx, addList.id, ch.id) else ChannelLists.add(ctx, addList.id, ch.id)
                                 Toast.makeText(ctx, (if (has) Lang.tr("Entfernt: ") else Lang.tr("Hinzugefügt: ")) + ch.title, Toast.LENGTH_SHORT).show()
+                            } else if (Tm.b(Tm.CV_STAY, true) && AppSettings.livePreview && !Tm.b(Tm.CV_AUTOPLAY, false) && playingCh?.id != ch.id) {
+                                // Vorschaumodus > „Bleib in der Liste beim Sender wechseln“: erst in der Vorschau, das zweite OK im Vollbild
+                                History.add(ctx, ch.id)
                             } else open(ch)
                         }
                     }
@@ -805,11 +810,14 @@ class GuideFocusState {
 
 /** Kopf des TV-Guides: Vorschau und Sendung des markierten Senders (wechselt erst nach kurzem Verweilen). */
 @Composable
-private fun RowScope.GuideTop(focus: GuideFocusState, first: Item?, preview: LivePreviewPlayer) {
+private fun RowScope.GuideTop(focus: GuideFocusState, first: Item?, preview: LivePreviewPlayer, playingCh: Item? = null) {
     LaunchedEffect(focus.target) { if (focus.shown != null) kotlinx.coroutines.delay(300); focus.shown = focus.target }
     val shown = focus.shown ?: first
     // Optik > EPG > Vorschau: aus = kein Vorschaubild, die Sendung nutzt die ganze Breite
-    if (AppSettings.livePreview) LivePreview(preview, focus.shown, Modifier.fillMaxHeight().aspectRatio(16f / 9f), fallback = shown)
+    // Optik > Player > Senderliste > Vorschaumodus (TiviMate): ohne „Kanäle automatisch abspielen“ zeigt die Vorschau
+    // den laufenden Sender, nicht jeden markierten
+    val auto = Tm.b(Tm.CV_AUTOPLAY, false)
+    if (AppSettings.livePreview) LivePreview(preview, if (auto) focus.shown else (playingCh ?: focus.shown), Modifier.fillMaxHeight().aspectRatio(16f / 9f), fallback = if (auto) shown else (playingCh ?: shown))
     LiveInfo(shown, Modifier.weight(1f).fillMaxHeight(), prog = if (shown != null && shown.id == focus.target?.id) focus.prog else null)
 }
 

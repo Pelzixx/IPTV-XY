@@ -375,6 +375,8 @@ Sender nach unten scrollen¦Scroll channels down¦Kanalları aşağı kaydır¦K
 Aktion für jede Taste im TV-Guide¦Action for each key in the TV guide¦TV rehberinde her tuş için eylem¦Radnja za svaku tipku u TV vodiču¦Radnja za svaku tipku u TV vodiču¦Radnja za svaki taster u TV vodiču¦Acción para cada tecla en la guía de TV¦Action pour chaque touche dans le guide TV¦Azione per ogni tasto nella guida TV
 Links¦Left¦Sol¦Lijevo¦Lijevo¦Levo¦Izquierda¦Gauche¦Sinistra
 Rücktaste¦Backspace¦Geri tuşu¦Tipka za brisanje¦Tipka za brisanje¦Taster za brisanje¦Retroceso¦Retour arrière¦Backspace
+Vorschaumodus¦Preview mode¦Önizleme modu¦Način pregleda¦Način pregleda¦Režim pregleda¦Modo vista previa¦Mode aperçu¦Modalità anteprima
+Animierter Übergang¦Animated transition¦Animasyonlu geçiş¦Animirani prijelaz¦Animirani prijelaz¦Animirani prelaz¦Transición animada¦Transition animée¦Transizione animata
 Info¦Info¦Bilgi¦Info¦Info¦Info¦Info¦Info¦Info
 Guide¦Guide¦Rehber¦Vodič¦Vodič¦Vodič¦Guía¦Guide¦Guida
 """

@@ -407,6 +407,8 @@ private fun AppContent() {
                 }
                 // Neuer Start von außen (z. B. Erinnerung „Umschalten“) während der Wiedergabe: Player neu aufbauen
                 key(p) {
+                    // Optik > Player > Senderliste > Vorschaumodus > „Animierter Übergang“ (TiviMate): Live-Player blendet weich ein
+                    Box(if (p.live && Tm.b(Tm.CV_ANIM, true)) Modifier.fillMaxSize().screenEnter() else Modifier.fillMaxSize()) {
                     PlayerScreen(p, zap, liveAll, seriesItem) {
                         // Live: zurück in Live TV auf den zuletzt gesehenen Sender (auch nach Umschalten im Player)
                         if (p.live || p.archive != null) LastFocus.pending = History.ids.firstOrNull { id -> liveAll.any { it.id == id } }
@@ -415,6 +417,7 @@ private fun AppContent() {
                         if (AppNav.toTab >= 0) { val t = AppNav.toTab; AppNav.toTab = -1; tab = t; AppNav.focusTab = t }
                         if (AppNav.toSettings) { AppNav.toSettings = false; SettingsOpen.value = true }
                         playing = null
+                    }
                     }
                 }
             }

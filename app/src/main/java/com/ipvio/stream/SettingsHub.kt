@@ -2013,6 +2013,11 @@ private fun TmLpList(ctx: Context) {
     ToggleRow("Zeige Programmbeschreibung", null, Tm.b(Tm.CL_OV_DESC, true)) { Tm.set(ctx, Tm.CL_OV_DESC, it) }
     ToggleRow("Kanäle automatisch abspielen", null, Tm.b(Tm.CL_OV_AUTOPLAY, false)) { Tm.set(ctx, Tm.CL_OV_AUTOPLAY, it) }
     ToggleRow("Bleib in der Liste beim Sender wechseln", null, Tm.b(Tm.CL_OV_STAY, false)) { Tm.set(ctx, Tm.CL_OV_STAY, it) }
+    // TiviMate: Vorschaumodus = TV-Guide mit Vorschaubild
+    PanelSection(Lang.tr("Vorschaumodus"))
+    ToggleRow("Animierter Übergang", null, Tm.b(Tm.CV_ANIM, true)) { Tm.set(ctx, Tm.CV_ANIM, it) }
+    ToggleRow("Kanäle automatisch abspielen", null, Tm.b(Tm.CV_AUTOPLAY, false)) { Tm.set(ctx, Tm.CV_AUTOPLAY, it) }
+    ToggleRow("Bleib in der Liste beim Sender wechseln", null, Tm.b(Tm.CV_STAY, true)) { Tm.set(ctx, Tm.CV_STAY, it) }
 }
 
 /** Optik > Player > Infofeld (TiviMate). */

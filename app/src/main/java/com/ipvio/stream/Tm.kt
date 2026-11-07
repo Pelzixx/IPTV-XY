@@ -65,6 +65,10 @@ object Tm {
     const val CL_OV_DESC = "cl_ov_desc"
     const val CL_OV_AUTOPLAY = "cl_ov_autoplay"
     const val CL_OV_STAY = "cl_ov_stay"
+    // Senderliste > Vorschaumodus (TV-Guide mit Vorschaubild)
+    const val CV_ANIM = "cv_anim"
+    const val CV_AUTOPLAY = "cv_autoplay"
+    const val CV_STAY = "cv_stay"
     // Infofeld
     const val IF_CARD = "if_card"
     const val IF_CLOCK = "if_clock"
