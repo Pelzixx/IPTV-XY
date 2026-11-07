@@ -304,4 +304,11 @@ bis¦until¦kadar¦do¦do¦do¦hasta¦jusqu’à¦fino alle
 Dieser Kanal ist gesperrt.¦This channel is locked.¦Bu kanal kilitli.¦Ovaj kanal je zaključan.¦Ovaj program je zaključan.¦Ovaj kanal je zaključan.¦Este canal está bloqueado.¦Cette chaîne est verrouillée.¦Questo canale è bloccato.
 Wiedergabeliste erfolgreich aktualisiert¦Playlist updated successfully¦Oynatma listesi başarıyla güncellendi¦Lista uspješno ažurirana¦Popis uspješno ažuriran¦Lista uspešno ažurirana¦Lista actualizada correctamente¦Playlist mise à jour¦Playlist aggiornata correttamente
 Fehler beim Aktualisieren der Wiedergabeliste¦Error updating playlist¦Oynatma listesi güncellenirken hata¦Greška pri ažuriranju liste¦Pogreška pri ažuriranju popisa¦Greška pri ažuriranju liste¦Error al actualizar la lista¦Erreur lors de la mise à jour de la playlist¦Errore durante l’aggiornamento della playlist
+SMB-Verbindungen¦SMB connections¦SMB bağlantıları¦SMB veze¦SMB veze¦SMB veze¦Conexiones SMB¦Connexions SMB¦Connessioni SMB
+SMB-Verbindung hinzufügen¦Add SMB connection¦SMB bağlantısı ekle¦Dodaj SMB vezu¦Dodaj SMB vezu¦Dodaj SMB vezu¦Añadir conexión SMB¦Ajouter une connexion SMB¦Aggiungi connessione SMB
+z. B. smb://192.168.2.9/Freigabe/Aufnahmen¦e.g. smb://192.168.2.9/Share/Recordings¦ör. smb://192.168.2.9/Paylasim/Kayitlar¦npr. smb://192.168.2.9/Dijeljenje/Snimke¦npr. smb://192.168.2.9/Dijeljenje/Snimke¦npr. smb://192.168.2.9/Deljenje/Snimci¦p. ej. smb://192.168.2.9/Recurso/Grabaciones¦p. ex. smb://192.168.2.9/Partage/Enregistrements¦es. smb://192.168.2.9/Condivisione/Registrazioni
+Adresse der Freigabe¦Share address¦Paylaşım adresi¦Adresa dijeljenja¦Adresa dijeljenja¦Adresa deljenja¦Dirección del recurso¦Adresse du partage¦Indirizzo della condivisione
+Als Aufnahmeverzeichnis verwenden¦Use as recording folder¦Kayıt klasörü olarak kullan¦Koristi kao mapu za snimke¦Koristi kao mapu za snimke¦Koristi kao fasciklu za snimke¦Usar como carpeta de grabaciones¦Utiliser comme dossier d’enregistrement¦Usa come cartella registrazioni
+Adresse¦Address¦Adres¦Adresa¦Adresa¦Adresa¦Dirección¦Adresse¦Indirizzo
+Verbindung löschen¦Delete connection¦Bağlantıyı sil¦Obriši vezu¦Obriši vezu¦Obriši vezu¦Eliminar conexión¦Supprimer la connexion¦Elimina connessione
 """

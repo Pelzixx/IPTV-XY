@@ -2171,47 +2171,90 @@ private fun updTime(ms: Long): String {
 private fun updatedSuffix(url: String): String =
     PlaylistStore.lastUpdate(url).takeIf { it > 0 }?.let { " · " + Lang.tr("Aktualisiert") + " " + updTime(it) } ?: ""
 
-/** Sonstiges > Aufnahme (TiviMate): Aufnahmeverzeichnis (Gerät, USB, SMB), Beginn vorher, Stopp nach. */
+/**
+ * Sonstiges > Aufnahme (TiviMate): Aufnahmeverzeichnis (Gerät, USB oder eine von mehreren SMB-Verbindungen),
+ * Beginn vorher, Stopp nach. Jede SMB-Verbindung hat eigene Adresse und Anmeldung.
+ */
 @Composable
 private fun TmRecording(ctx: Context) {
     val scope = rememberCoroutineScope()
+    LaunchedEffect(Unit) { SmbConns.migrate(ctx) }
     var ask by remember { mutableStateOf<Ask?>(null) }
     var pick by remember { mutableStateOf(false) }
+    var edit by remember { mutableStateOf<SmbConn?>(null) }
+    var editClosing by remember { mutableStateOf(false) }
+    // Menü einer Verbindung: nach „Name“, „Adresse“ … (Eingabe) wieder öffnen, sonst schließen
+    LaunchedEffect(editClosing) { if (editClosing) { editClosing = false; if (ask == null) edit = null } }
+    val conns = SmbConns.list()
     val dir = RecStore.dir(ctx)
-    SettingRow("Aufnahmeverzeichnis", dir, rawValue = true, onClick = { pick = true })
-    if (RecStore.isSmb(dir)) {
-        SettingRow("SMB Benutzername", Tm.s(Tm.REC_SMB_USER).ifEmpty { Lang.tr("Gast") }, rawValue = true, onClick = {
-            ask = Ask("SMB Benutzername", Tm.s(Tm.REC_SMB_USER), "Benutzer oder DOMÄNE/Benutzer") { Tm.set(ctx, Tm.REC_SMB_USER, it) }
-        })
-        SettingRow("SMB Passwort", if (Tm.s(Tm.REC_SMB_PASS).isEmpty()) Lang.tr("Nicht festgelegt") else "••••••", rawValue = true, onClick = {
-            ask = Ask("SMB Passwort", Tm.s(Tm.REC_SMB_PASS), "Passwort", password = true) { Tm.set(ctx, Tm.REC_SMB_PASS, it) }
-        })
-        SettingRow("Verbindung testen", null, onClick = {
-            scope.launch {
-                val err = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Smb.test(dir) }
-                android.widget.Toast.makeText(ctx, if (err == null) Lang.tr("Verbindung erfolgreich") else Lang.tr("Verbindung fehlgeschlagen") + ": " + err, android.widget.Toast.LENGTH_LONG).show()
-            }
-        })
-    }
+    val cur = conns.firstOrNull { it.url.trim().trimEnd('/').equals(dir.trimEnd('/'), true) }
+    SettingRow("Aufnahmeverzeichnis", cur?.let { it.name + " · " + it.url } ?: dir, rawValue = true, onClick = { pick = true })
     val mins = listOf(0, 1, 2, 3, 5, 10, 15, 20, 30)
     val b = Tm.i(Tm.REC_BEFORE, 0)
     SelectRow("Beginn der Aufnahme vorher (Minuten)", b.toString(), mins.map { it.toString() }, mins.indexOf(b).coerceAtLeast(0)) { Tm.set(ctx, Tm.REC_BEFORE, mins[it]) }
     val a = Tm.i(Tm.REC_AFTER, 0)
     SelectRow("Aufnahme stoppen nach (Minuten)", a.toString(), mins.map { it.toString() }, mins.indexOf(a).coerceAtLeast(0)) { Tm.set(ctx, Tm.REC_AFTER, mins[it]) }
+
+    PanelSection(Lang.tr("SMB-Verbindungen"))
+    conns.forEach { c ->
+        val active = c.id == cur?.id
+        SettingRow(c.name, c.url + (if (active) "  ·  " + Lang.tr("Aufnahmeverzeichnis") else ""), rawTitle = true, rawValue = true, onClick = { edit = c })
+    }
+    SettingRow("SMB-Verbindung hinzufügen", Lang.tr("z. B. smb://192.168.2.9/Freigabe/Aufnahmen"), onClick = {
+        ask = Ask("Adresse der Freigabe", "smb://", "smb://192.168.2.9/Freigabe/Aufnahmen") { u ->
+            val nu = SmbConns.norm(u)
+            if (nu.length > 6) {
+                val n = SmbConn(SmbConns.newId(), SmbConns.hostOf(nu), nu, "", "")
+                SmbConns.upsert(ctx, n)
+                edit = n
+            }
+        }
+    })
+
     if (pick) {
-        val locals = RecStore.localDirs(ctx)
         val entries = ArrayList<SideEntry>()
-        locals.forEachIndexed { i, f ->
+        RecStore.localDirs(ctx).forEachIndexed { i, f ->
             entries.add(SideEntry(Lang.tr(if (i == 0) "Gerätespeicher" else "Externer Speicher (USB/SD)") + ": " + f.absolutePath, raw = true) {
                 Tm.set(ctx, Tm.REC_DIR, if (i == 0) "" else f.absolutePath)
             })
         }
-        entries.add(SideEntry(Lang.tr("Netzwerkfreigabe (SMB) …"), raw = true) {
-            ask = Ask("Aufnahmeverzeichnis", dir.takeIf { RecStore.isSmb(it) } ?: "smb://", "smb://192.168.2.9/Freigabe/Aufnahmen") {
-                if (it.startsWith("smb://", true)) Tm.set(ctx, Tm.REC_DIR, it.trim().trimEnd('/'))
+        conns.forEach { c -> entries.add(SideEntry("SMB: " + c.name + " · " + c.url, raw = true) { Tm.set(ctx, Tm.REC_DIR, c.url) }) }
+        SideMenu(listOf(SideSection(Lang.tr("Aufnahmeverzeichnis"), entries)), { pick = false })
+    }
+
+    edit?.let { c0 ->
+        // Immer den aktuellen Stand der Verbindung nehmen (nach Änderungen)
+        val c = SmbConns.list().firstOrNull { it.id == c0.id } ?: c0
+        val e = ArrayList<SideEntry>()
+        e.add(SideEntry("Als Aufnahmeverzeichnis verwenden") { Tm.set(ctx, Tm.REC_DIR, c.url) })
+        e.add(SideEntry(Lang.tr("Name") + ": " + c.name, raw = true) {
+            ask = Ask("Name", c.name, "NAS, PC …") { if (it.isNotBlank()) SmbConns.upsert(ctx, c.copy(name = it.trim())) }
+        })
+        e.add(SideEntry(Lang.tr("Adresse") + ": " + c.url, raw = true) {
+            ask = Ask("Adresse der Freigabe", c.url, "smb://192.168.2.9/Freigabe/Aufnahmen") { u ->
+                val nu = SmbConns.norm(u)
+                if (nu.length > 6) {
+                    val wasDir = Tm.s(Tm.REC_DIR).trim().equals(c.url, true)
+                    SmbConns.upsert(ctx, c.copy(url = nu))
+                    if (wasDir) Tm.set(ctx, Tm.REC_DIR, nu)
+                }
             }
         })
-        SideMenu(listOf(SideSection(Lang.tr("Aufnahmeverzeichnis"), entries)), { pick = false })
+        e.add(SideEntry(Lang.tr("SMB Benutzername") + ": " + c.user.ifEmpty { Lang.tr("Gast") }, raw = true) {
+            ask = Ask("SMB Benutzername", c.user, "Benutzer oder DOMÄNE/Benutzer") { SmbConns.upsert(ctx, c.copy(user = it.trim())) }
+        })
+        e.add(SideEntry(Lang.tr("SMB Passwort") + ": " + (if (c.pass.isEmpty()) Lang.tr("Nicht festgelegt") else "••••••"), raw = true) {
+            ask = Ask("SMB Passwort", c.pass, "Passwort", password = true) { SmbConns.upsert(ctx, c.copy(pass = it)) }
+        })
+        e.add(SideEntry("Verbindung testen") {
+            scope.launch {
+                val err = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Smb.test(c.url) }
+                android.widget.Toast.makeText(ctx, if (err == null) Lang.tr("Verbindung erfolgreich") else Lang.tr("Verbindung fehlgeschlagen") + ": " + err, android.widget.Toast.LENGTH_LONG).show()
+            }
+        })
+        e.add(SideEntry("Verbindung löschen", AIcon.Close) { SmbConns.remove(ctx, c.id) })
+        // Nach einer Eingabe (Name, Adresse …) bleibt das Menü dieser Verbindung offen
+        if (ask == null) SideMenu(listOf(SideSection(c.name, e)), { editClosing = true })
     }
     ask?.let { q -> TextAskDialog(Lang.tr(q.title), q.initial, q.hint, q.password, onDismiss = { ask = null }) { ask = null; q.onSave(it) } }
 }
