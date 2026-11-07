@@ -23,7 +23,8 @@ import kotlin.math.sin
 /** Alle Player-Symbole. Sie sind auf einem 24×24-Raster gezeichnet und skalieren sauber auf jede Größe. */
 enum class PIcon {
     Play, Pause, Replay, Forward, PrevEp, NextEp, AudioSubs, Speed, Episodes, Settings,
-    Channels, Guide, StarOn, StarOff, Aspect, External, Check, Chevron, Close
+    Channels, Guide, StarOn, StarOff, Aspect, External, Check, Chevron, Close,
+    Search, Video, Subs, Audio, Sleep
 }
 
 @Composable
@@ -165,6 +166,41 @@ private fun DrawScope.drawPIcon(icon: PIcon, c: Color) {
             starPath(u), c,
             style = Stroke(width = 1.9f * u, cap = StrokeCap.Round, join = StrokeJoin.Round)
         )
+
+        PIcon.Search -> {
+            drawCircle(c, 6.2f * u, Offset(10.5f * u, 10.5f * u), style = Stroke(width = 2f * u))
+            ln(c, u, 15f, 15f, 20f, 20f, 2.2f)
+        }
+
+        PIcon.Video -> {
+            drawRoundRect(c, Offset(3f * u, 6f * u), Size(13f * u, 12f * u), CornerRadius(2.2f * u), style = Stroke(width = 2f * u))
+            fillShape(c, u, 1.4f) { k -> moveTo(16.5f * k, 10.5f * k); lineTo(21f * k, 7.5f * k); lineTo(21f * k, 16.5f * k); lineTo(16.5f * k, 13.5f * k); close() }
+        }
+
+        PIcon.Subs -> {
+            drawRoundRect(c, Offset(3f * u, 5f * u), Size(18f * u, 14f * u), CornerRadius(2.4f * u), style = Stroke(width = 2f * u))
+            ln(c, u, 6.5f, 12.5f, 10f, 12.5f, 1.8f)
+            ln(c, u, 12f, 12.5f, 17.5f, 12.5f, 1.8f)
+            ln(c, u, 6.5f, 15.6f, 13f, 15.6f, 1.8f)
+            ln(c, u, 15f, 15.6f, 17.5f, 15.6f, 1.8f)
+        }
+
+        PIcon.Audio -> {
+            fillShape(c, u, 1.4f) { k -> moveTo(4f * k, 9.5f * k); lineTo(7.5f * k, 9.5f * k); lineTo(12f * k, 5.5f * k); lineTo(12f * k, 18.5f * k); lineTo(7.5f * k, 14.5f * k); lineTo(4f * k, 14.5f * k); close() }
+            strokeShape(c, u, 2f) { k -> moveTo(15f * k, 9f * k); quadraticTo(17.4f * k, 12f * k, 15f * k, 15f * k) }
+            strokeShape(c, u, 2f) { k -> moveTo(17.6f * k, 6.4f * k); quadraticTo(22f * k, 12f * k, 17.6f * k, 17.6f * k) }
+        }
+
+        PIcon.Sleep -> {
+            fillShape(c, u, 1.4f) { k ->
+                moveTo(14.5f * k, 3.5f * k)
+                cubicTo(8f * k, 4f * k, 4f * k, 9f * k, 5f * k, 14.5f * k)
+                cubicTo(6f * k, 19.5f * k, 13f * k, 22f * k, 18f * k, 18.5f * k)
+                cubicTo(19.5f * k, 17.5f * k, 20.5f * k, 16f * k, 20.5f * k, 16f * k)
+                cubicTo(14f * k, 17.5f * k, 9.5f * k, 10f * k, 14.5f * k, 3.5f * k)
+                close()
+            }
+        }
 
         PIcon.Aspect -> {
             strokeShape(c, u, 2f) { k -> moveTo(4f * k, 9f * k); lineTo(4f * k, 4f * k); lineTo(9f * k, 4f * k) }

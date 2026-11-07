@@ -94,21 +94,24 @@ fun PBarButton(
     modifier: Modifier = Modifier,
     label: String,
     onLabel: (String) -> Unit = {},
+    value: String? = null,
     onClick: () -> Unit,
     content: @Composable (Color) -> Unit
 ) {
     var f by remember { mutableStateOf(false) }
+    // TiviMate: schmale Einträge, kleines Symbol, weißer Kreis nur beim Fokus.
+    // Hat der Eintrag einen Wert („720 × 576“, „Deutsch Stereo“, „Aus“), steht nur der Wert darunter.
     androidx.compose.foundation.layout.Column(
-        modifier.width(118.dp)
+        modifier.width(92.dp)
             .onFocusChanged { f = it.isFocused; if (it.isFocused) onLabel(label) }
             .clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
     ) {
-        Box(Modifier.size(58.dp).clip(CircleShape).background(if (f) Color.White else Color.Transparent), contentAlignment = Alignment.Center) {
-            content(if (f) PT.Ink else Color.White)
+        Box(Modifier.size(42.dp).clip(CircleShape).background(if (f) Color.White else Color.Transparent), contentAlignment = Alignment.Center) {
+            Box(Modifier.graphicsLayer(scaleX = 0.8f, scaleY = 0.8f), contentAlignment = Alignment.Center) { content(if (f) PT.Ink else Color(0xDDFFFFFF)) }
         }
-        Text(label, color = if (f) Color.White else Color(0xCCFFFFFF), fontSize = 15.sp, lineHeight = 18.sp, maxLines = 2,
+        Text(if (!value.isNullOrBlank()) value else Lang.tr(label), raw = true, color = if (f) Color.White else Color(0xB3FFFFFF), fontSize = 15.sp, lineHeight = 18.sp, maxLines = 2,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center, overflow = TextOverflow.Ellipsis)
     }
 }

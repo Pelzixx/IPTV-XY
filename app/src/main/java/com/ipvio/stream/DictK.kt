@@ -54,4 +54,8 @@ Optik¦Appearance¦Görünüm¦Izgled¦Izgled¦Izgled¦Apariencia¦Apparence¦As
 Sonstiges¦Other¦Diğer¦Ostalo¦Ostalo¦Ostalo¦Otros¦Autres¦Altro
 Über¦About¦Hakkında¦O aplikaciji¦O aplikaciji¦O aplikaciji¦Acerca de¦À propos¦Informazioni
 Ausgeblendete Sprachen werden gar nicht erst geladen¦Hidden languages are not loaded at all¦Gizlenen diller hiç yüklenmez¦Skriveni jezici se uopće ne učitavaju¦Skriveni jezici se uopće ne učitavaju¦Skriveni jezici se uopšte ne učitavaju¦Los idiomas ocultos no se cargan¦Les langues masquées ne sont pas chargées¦Le lingue nascoste non vengono caricate
+Suchen¦Search¦Ara¦Pretraga¦Pretraživanje¦Pretraga¦Buscar¦Rechercher¦Cerca
+Video¦Video¦Video¦Video¦Video¦Video¦Vídeo¦Vidéo¦Video
+Zu Favoriten¦Add to favorites¦Favorilere ekle¦Dodaj u favorite¦Dodaj u favorite¦Dodaj u omiljene¦Añadir a favoritos¦Ajouter aux favoris¦Aggiungi ai preferiti
+Aus Favoriten¦Remove favorite¦Favorilerden çıkar¦Ukloni iz favorita¦Ukloni iz favorita¦Ukloni iz omiljenih¦Quitar de favoritos¦Retirer des favoris¦Rimuovi dai preferiti
 """
