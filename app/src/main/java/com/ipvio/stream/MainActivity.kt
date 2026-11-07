@@ -322,6 +322,8 @@ private fun AppContent() {
         }
     }
     fun goTab(id: Int) {
+        // Einstellungen immer als Leiste rechts (TiviMate); Suche und Aufnahmen haben sie nicht: über die Startseite öffnen
+        if (id == MenuLogic.SETTINGS) { if (tab == MenuLogic.SEARCH || tab == MenuLogic.REC) tab = 0; SettingsOpen.value = true; return }
         if (id == MenuLogic.EPG) { openEpg(); return }
         tab = id; CatMemory.reset()
         jumpTick++

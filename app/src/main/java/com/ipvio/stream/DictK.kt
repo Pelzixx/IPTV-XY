@@ -395,6 +395,9 @@ Aus Link (Dropbox, Google Drive, URL) …¦From link (Dropbox, Google Drive, URL
 Link zur Sicherung¦Backup link¦Yedek bağlantısı¦Link do sigurnosne kopije¦Poveznica na sigurnosnu kopiju¦Link do rezervne kopije¦Enlace de la copia¦Lien de la sauvegarde¦Link del backup
 Daten sichern¦Back up data¦Verileri yedekle¦Sačuvaj podatke¦Spremi podatke¦Sačuvaj podatke¦Copia de seguridad¦Sauvegarder les données¦Backup dei dati
 Daten wiederherstellen¦Restore data¦Verileri geri yükle¦Vrati podatke¦Vrati podatke¦Vrati podatke¦Restaurar datos¦Restaurer les données¦Ripristina dati
+Auf diesem Gerät gibt es keine Dateiauswahl.¦There is no file picker on this device.¦Bu cihazda dosya seçici yok.¦Na ovom uređaju nema birača datoteka.¦Na ovom uređaju nema birača datoteka.¦Na ovom uređaju nema birača datoteka.¦No hay selector de archivos en este dispositivo.¦Aucun sélecteur de fichiers sur cet appareil.¦Nessun selettore di file su questo dispositivo.
+Datei¦File¦Dosya¦Datoteka¦Datoteka¦Datoteka¦Archivo¦Fichier¦File
+Datei wird gelesen …¦Reading file …¦Dosya okunuyor …¦Čita se datoteka …¦Čita se datoteka …¦Čita se datoteka …¦Leyendo archivo …¦Lecture du fichier …¦Lettura del file …
 Info¦Info¦Bilgi¦Info¦Info¦Info¦Info¦Info¦Info
 Guide¦Guide¦Rehber¦Vodič¦Vodič¦Vodič¦Guía¦Guide¦Guida
 """

@@ -40,6 +40,18 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
     var user by remember { mutableStateOf(pendX?.second ?: "") }
     var pass by remember { mutableStateOf(pendX?.third ?: "") }
     var showPass by remember { mutableStateOf(false) }
+    var localFiles by remember { mutableStateOf<List<java.io.File>?>(null) }
+    // Lokale M3U-Datei wählen; dauerhafte Leseberechtigung, damit „Aktualisieren“ die Datei neu liest
+    val pickFile = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching { ctx.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            val name = runCatching {
+                ctx.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cur -> if (cur.moveToFirst()) cur.getString(0) else null }
+            }.getOrNull()?.substringBeforeLast('.')
+            if (!name.isNullOrBlank()) PlaylistStore.pendingName = name
+            scope.launch { if (PlaylistStore.load(ctx, uri.toString(), true)) onDone() }
+        }
+    }
     // Fest eingebaute Server (Presets.kt): dann reichen Benutzername und Passwort. "Andere Quelle" öffnet die freie Eingabe.
     val servers = Presets.servers
     val pendIdx = remember { pendX?.let { PresetLogic.indexOf(it.first, servers) } ?: -1 }
@@ -82,6 +94,16 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
     }
 
     if (PlaylistStore.loading) { PlaylistLoadingOverlay(); return }
+    localFiles?.let { fl ->
+        val dirs = LocalM3u.dirs(ctx)
+        val sys = SideEntry(Lang.tr("System-Dateiauswahl öffnen …"), raw = true) { runCatching { pickFile.launch(arrayOf("*/*")) } }
+        val entries = listOf(sys) + if (fl.isEmpty()) listOf(SideEntry(Lang.tr("Keine M3U-Datei gefunden. Kopiere sie in:") + " " + dirs.joinToString("  ·  ") { it.absolutePath }, raw = true) {})
+            else fl.map { f -> SideEntry(f.name + "  ·  " + f.parentFile?.absolutePath.orEmpty(), raw = true) {
+                PlaylistStore.pendingName = f.nameWithoutExtension
+                scope.launch { if (PlaylistStore.load(ctx, android.net.Uri.fromFile(f).toString(), true)) onDone() }
+            } }
+        SideMenu(listOf(SideSection(Lang.tr("M3U-Datei wählen"), entries)), { localFiles = null })
+    }
 
     // Start-Fokus auf die Auswahl M3U/Xtream (nicht auf ein Eingabefeld: das würde sofort die Bildschirmtastatur öffnen)
     val startFocus = remember { FocusRequester() }
@@ -119,6 +141,11 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 FocusButton("M3U-Link", Modifier.focusRequester(startFocus), primary = !xtream) { xtream = false }
                 FocusButton("Xtream-Login", primary = xtream) { xtream = true }
+                // TiviMate: Playlist aus einer lokalen Datei (USB, Download-Ordner …)
+                FocusButton("Datei") {
+                    // Viele TV-Geräte haben keine Dateiauswahl: eigene Liste (App-Ordner auf Gerät und USB), dazu die System-Auswahl
+                    localFiles = LocalM3u.find(ctx)
+                }
             }
             if (!xtream) {
                 Field(url, { url = it }, "http://…/playlist.m3u")
@@ -233,4 +260,13 @@ private fun PresetLogin(
         FocusButton("Andere Quelle") { onOther() }
         if (canCancel) FocusButton("Abbrechen") { onCancel() }
     }
+}
+
+/** M3U-Dateien ohne System-Dateiauswahl: App-Ordner auf dem Gerät und auf USB-Sticks/SD-Karten (ohne Zusatzrechte lesbar). */
+object LocalM3u {
+    fun dirs(c: Context): List<java.io.File> = c.getExternalFilesDirs(null).filterNotNull().map { java.io.File(it, "Playlists").also { d -> d.mkdirs() } }
+
+    fun find(c: Context): List<java.io.File> = dirs(c).flatMap { d ->
+        (d.listFiles()?.toList() ?: emptyList()) + (d.parentFile?.listFiles()?.toList() ?: emptyList())
+    }.filter { it.isFile && (it.name.endsWith(".m3u", true) || it.name.endsWith(".m3u8", true)) }.distinctBy { it.absolutePath }
 }

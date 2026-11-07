@@ -567,6 +567,13 @@ object PlaylistStore {
      */
     private fun download(c: Context, u: String): Pair<File, Charset> {
         val raw = rawFile(c, u)
+        // Lokale Datei: bei jedem Laden frisch aus der Quelle lesen (Dateiauswahl mit dauerhafter Berechtigung)
+        if (u.startsWith("content://", true) || u.startsWith("file:///", true)) {
+            phase = "Datei wird gelesen …"
+            val ins = if (u.startsWith("content://", true)) c.contentResolver.openInputStream(android.net.Uri.parse(u)) else java.io.FileInputStream(u.removePrefix("file://"))
+            ins?.use { i -> FileOutputStream(raw).use { o -> i.copyTo(o) } } ?: throw java.io.IOException("Datei nicht lesbar")
+            return raw to Charsets.UTF_8
+        }
         val info = infoFile(c, u)
         val part = partFile(c, u)
         val pi = LoadLogic.PartInfo.decode(runCatching { info.readText() }.getOrNull())?.takeIf { it.urlHash == key(u) }
