@@ -363,6 +363,8 @@ private fun AppContent() {
     // Menü im TV-Guide: „Suchen“ u. a. – sofort den Bereich wechseln
     LaunchedEffect(AppNav.tabNow) { val t = AppNav.tabNow; if (t >= 0) { AppNav.tabNow = -1; goTab(t); AppNav.focusTab = t } }
     LaunchedEffect(Unit) { Recorder.init(ctx); Recorder.schedule(ctx) }
+    // Neue Version: beim Start und danach regelmäßig prüfen, Hinweis-Karte siehe unten
+    LaunchedEffect(Unit) { UpdateNotice.watch(ctx) }
     // Wiedergabeliste von Hand aktualisiert: Meldung, sobald sie fertig ist (TiviMate)
     LaunchedEffect(Xmltv.doneSignal) {
         if (Xmltv.doneSignal > 0) android.widget.Toast.makeText(ctx, Xmltv.doneMsg, android.widget.Toast.LENGTH_LONG).show()
@@ -507,6 +509,10 @@ private fun AppContent() {
             PinPad("PIN eingeben", Lang.tr("Dieser Kanal ist gesperrt."), pinErr, onSubmit = { pin ->
                 if (Parental.verify(ctx, pin)) { pinAsk = null; go() } else pinErr = Parental.pinError()
             }, onCancel = { pinAsk = null })
+        }
+        // Neue Version: nicht mitten im Film/Sender und nicht beim Hinzufügen, sondern sobald man wieder in der App ist
+        UpdateNotice.pending?.let { u ->
+            if (p == null && !adding && remindNow == null && pinAsk == null) UpdateCard(u, Modifier.align(Alignment.TopCenter).padding(top = 24.dp))
         }
         remindNow?.let { r ->
             ReminderCard(r, Modifier.align(Alignment.TopCenter).padding(top = 24.dp), onClose = { remindNow = null }) {
