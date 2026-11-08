@@ -1,5 +1,6 @@
 package com.ipvio.stream
 
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 import android.os.Bundle
@@ -257,6 +258,13 @@ private fun AppContent() {
     // Filme/Serien vorberechnen, damit die Reiter sofort öffnen
     LaunchedEffect(all) { if (all.isNotEmpty()) withContext(Dispatchers.Default) { VodMeta.load(ctx); VodCache.build(all, Kind.MOVIE); VodCache.build(all, Kind.SERIES) } }
     val liveAll = remember(all) { all.filter { it.kind == Kind.LIVE } }
+    // Sport Guide vorbereiten, sobald das TV-Programm da ist, damit der Reiter gleich Spiele zeigt
+    LaunchedEffect(liveAll) {
+        if (liveAll.isEmpty()) return@LaunchedEffect
+        androidx.compose.runtime.snapshotFlow { Xmltv.channelCount }.first { it > 0 }
+        kotlinx.coroutines.delay(3_000)
+        SportsRepo.refresh(liveAll)
+    }
     // Beim Herunterladen und Einlesen der Playlist nicht in den Bildschirmschoner fallen
     KeepScreenOn("playlist", PlaylistStore.loading)
     // Genre-Erkennung im Hintergrund; startet bei jeder neuen Liste (Neuladen, Sprachfilter, Jugendschutz) sauber neu

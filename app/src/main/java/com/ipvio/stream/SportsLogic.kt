@@ -29,6 +29,11 @@ object SportsLogic {
 
     /** Liga-Stichwort → (Sportart, Liga). Reihenfolge zählt: genauere zuerst. */
     private val LEAGUES: List<Triple<Regex, String, String>> = listOf(
+        // Andere Sportarten mit „Bundesliga“ im Titel (Tischtennis, Volleyball …) nicht als Fußball werten
+        Triple(Regex("""\b(tischtennis|volleyball|hockey|feldhockey|ringen|turnen|badminton|wasserball|rugby|faustball|kegeln|schach|futsal|american football)\b.*\bbundesliga\b""", RegexOption.IGNORE_CASE), OTHER, "Andere"),
+        Triple(Regex("""\beishockey\b|\bpenny del\b""", RegexOption.IGNORE_CASE), ICE, "Eishockey"),
+        Triple(Regex("""\bhandball\b.*\bbundesliga\b""", RegexOption.IGNORE_CASE), OTHER, "Handball-Bundesliga"),
+        Triple(Regex("""\bbasketball\b.*\bbundesliga\b""", RegexOption.IGNORE_CASE), BASKET, "Basketball-Bundesliga"),
         Triple(Regex("""\b2\.\s*bundesliga\b""", RegexOption.IGNORE_CASE), FOOTBALL, "2. Bundesliga"),
         Triple(Regex("""\b3\.\s*liga\b""", RegexOption.IGNORE_CASE), FOOTBALL, "3. Liga"),
         Triple(Regex("""\bfrauen[- ]?bundesliga\b""", RegexOption.IGNORE_CASE), FOOTBALL, "Frauen-Bundesliga"),
@@ -53,7 +58,7 @@ object SportsLogic {
         Triple(Regex("""\beuroleague\b""", RegexOption.IGNORE_CASE), BASKET, "EuroLeague"),
         Triple(Regex("""\bnfl\b""", RegexOption.IGNORE_CASE), US, "NFL"),
         Triple(Regex("""\bnhl\b""", RegexOption.IGNORE_CASE), ICE, "NHL"),
-        Triple(Regex("""\bdel\b|\bpenny del\b|\beishockey\b""", RegexOption.IGNORE_CASE), ICE, "Eishockey"),
+        Triple(Regex("""\bdel\b""", RegexOption.IGNORE_CASE), ICE, "Eishockey"),
         Triple(Regex("""\bmlb\b""", RegexOption.IGNORE_CASE), US, "MLB"),
         Triple(Regex("""\batp\b|\bwta\b|\bwimbledon\b|\bfrench open\b|\bus open\b|\baustralian open\b|\btennis\b""", RegexOption.IGNORE_CASE), TENNIS, "Tennis"),
         Triple(Regex("""\bufc\b|\bboxen\b|\bboxing\b|\bmma\b""", RegexOption.IGNORE_CASE), FIGHT, "Kampfsport"),
@@ -79,17 +84,64 @@ object SportsLogic {
     private val TRAILING = Regex("""\s*[(\[].*?[)\]]\s*$""")
     private val TIME = Regex("""\b\d{1,2}[:.]\d{2}\b""")
 
-    fun league(text: String): Pair<String, String>? = LEAGUES.firstOrNull { it.first.containsMatchIn(text) }?.let { it.second to it.third }
+    /** Alle Liga-Stichwörter in einem Ausdruck: schneller Vortest, bevor die einzelnen Ligen geprüft werden. */
+    private val ANY_LEAGUE = Regex(LEAGUES.joinToString("|") { "(?:${it.first.pattern})" }, RegexOption.IGNORE_CASE)
+
+    fun league(text: String): Pair<String, String>? =
+        if (!ANY_LEAGUE.containsMatchIn(text)) null else LEAGUES.firstOrNull { it.first.containsMatchIn(text) }?.let { it.second to it.third }
+
+    /**
+     * Wunsch des Nutzers: deutscher Sport zuerst, nicht zu viel Auswahl. Nur diese Wettbewerbe erscheinen,
+     * in dieser Reihenfolge (Bundesliga ganz oben).
+     */
+    val LEAGUE_PRIO = listOf(
+        "Bundesliga", "2. Bundesliga", "DFB-Pokal", "3. Liga", "Champions League", "Europa League", "Conference League",
+        "Länderspiele", "Frauen-Bundesliga", "Formel 1", "Handball-Bundesliga", "Basketball-Bundesliga", "Eishockey"
+    )
+    fun allowed(league: String) = league in LEAGUE_PRIO
+    fun prio(league: String) = LEAGUE_PRIO.indexOf(league).let { if (it < 0) 99 else it }
+
+    /** Deutschsprachige Sender, die Fußball & Co. zeigen (dort zählt eine Paarung nur mit erkannter Liga). */
+    private val GERMAN_TV = Regex("""\b(sky|dazn|das erste|ard|zdf|sat\.? ?1|rtl|pro ?sieben|kabel ?eins|sport ?1|magenta|sportdigital|servus|orf|srf|puls ?24|one|tagesschau)\b""", RegexOption.IGNORE_CASE)
+
+    /** Sender-Angaben, die für alle Sendungen eines Senders gleich sind (einmal je Sender berechnen). */
+    class Chan(val sport: Boolean, val league: Pair<String, String>?, val relevant: Boolean = true)
+    fun chan(channel: String): Chan {
+        val sport = SPORT_CHANNEL.containsMatchIn(channel)
+        return Chan(sport, league(channel), sport || GERMAN_TV.containsMatchIn(channel))
+    }
+
+    private val PAYTV = Regex("""\b(sky|dazn|magenta|sport ?1|sportdigital)\b""", RegexOption.IGNORE_CASE)
+    fun isPayTvSport(channel: String) = PAYTV.containsMatchIn(channel)
+
+    private val KONFERENZ =Regex("""\bkonferenz\b""", RegexOption.IGNORE_CASE)
+
+    /** Erwähnt [text] das Team (ein Wort ab 4 Buchstaben aus dem Teamnamen)? */
+    fun mentions(text: String, team: String): Boolean {
+        val words = norm(text).split(' ').toHashSet()
+        val tw = norm(team).split(' ').filter { it.length >= 4 }
+        return tw.isNotEmpty() && tw.any { it in words }
+    }
 
     /** Ist die Sendung ein Sportereignis? [channel] = Sendername (+ Gruppe). */
-    fun parse(title: String, desc: String, channel: String): SportHit? {
+    fun parse(title: String, desc: String, channel: String): SportHit? = parse(title, desc, chan(channel))
+
+    fun parse(title: String, desc: String, ch: Chan): SportHit? {
         val t = title.trim()
-        if (t.length < 4 || NOISE.containsMatchIn(t)) return null
-        val sportCh = SPORT_CHANNEL.containsMatchIn(channel)
-        val lg = league(t) ?: league(desc.take(300)) ?: league(channel)
+        if (t.length < 4) return null
+        val lgTitle = league(t)
+        val hasVs = VS.containsMatchIn(t)
+        // Schneller Ausstieg: weder Paarung noch Liga im Titel und kein Sender mit Liga im Namen
+        if (!hasVs && lgTitle == null && ch.league == null) return null
+        if (NOISE.containsMatchIn(t)) return null
+        val sportCh = ch.sport
+        val lg = lgTitle ?: (if (hasVs) league(desc.take(300)) else null) ?: ch.league
         // Paarung aus dem Titel: Liga-Vorsilbe („Bundesliga: …“) und „Live“ entfernen
         var core = PREFIX.replace(t, "")
-        if (LEAGUE_PREFIX.containsMatchIn(core) && league(core.substringBefore(':')) != null) core = core.substringAfter(':').trim()
+        // Sky-Konferenz („2. Bundesliga: Die Konferenz“): ein Ereignis für alle Spiele der Liga
+        if (lg != null && lg.first == FOOTBALL && KONFERENZ.containsMatchIn(t)) return SportHit(lg.first, lg.second, null, null, "${lg.second} – Konferenz")
+        // „Fußball: 2. Bundesliga, 11. Spieltag: A – B“ → alles bis zum letzten Doppelpunkt ist Vorspann
+        if (LEAGUE_PREFIX.containsMatchIn(core) && league(core.substringBeforeLast(':')) != null) core = core.substringAfterLast(':').trim()
         core = TRAILING.replace(core, "").trim()
         val parts = VS.split(core, 2)
         if (parts.size == 2) {

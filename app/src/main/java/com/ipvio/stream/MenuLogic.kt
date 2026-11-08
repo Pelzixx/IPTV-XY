@@ -23,7 +23,7 @@ object MenuLogic {
      * Runde 20 (TV-Aufbau, Wunsch des Nutzers: Home ganz oben): Home, Suchen, TV, Filme, Serien, Meine Liste; dahinter die eigenen
      * Bereiche (Favoriten, Verlauf, EPG), zuletzt Einstellungen.
      */
-    val DEFAULT_ORDER = listOf(0, SEARCH, 3, SPORT, 1, 2, REC, MYLIST, FAVS, VERLAUF, EPG, 5)
+    val DEFAULT_ORDER = listOf(SEARCH, 0, 3, 1, 2, REC, SPORT, MYLIST, FAVS, VERLAUF, EPG, 5)
     /**
      * Standardmäßig ausgeblendet: EPG (der Guide steckt in TV), Favoriten (stehen in TV links in den Gruppen) und Verlauf.
      * Alles lässt sich unter Einstellungen > Menü wieder einblenden.
@@ -38,7 +38,7 @@ object MenuLogic {
             val s = order.indexOf(SETTINGS)
             val ml = order.indexOf(MYLIST)
             val tv = order.indexOf(3)
-            if (id == SPORT && tv >= 0) order.add(tv + 1, id)   // Sport direkt hinter TV
+            if (id == SPORT && ml >= 0) order.add(ml, id)   // Sport vor „Meine Liste“ (hinter Aufnahmen)
             else if (id == REC && ml >= 0) order.add(ml, id)   // TiviMate: Aufnahmen vor „Meine Liste“
             else if (id >= EPG && s >= 0) order.add(s, id) else order.add(id)
         }

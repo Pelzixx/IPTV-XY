@@ -130,17 +130,17 @@ http://h/x
     }
 
     // ---------------------------------------------------------------- Menü
-    @Test fun menue_standard() = assertEquals(listOf(0, 4, 3, 11, 1, 2, 10, 8, 7, 9, 6, 5), MenuLogic.parseOrder(null))
+    @Test fun menue_standard() = assertEquals(listOf(4, 0, 3, 1, 2, 10, 11, 8, 7, 9, 6, 5), MenuLogic.parseOrder(null))
 
     @Test fun menue_alteReihenfolge_neueBereicheVorEinstellungen() {
-        assertEquals(listOf(0, 1, 2, 3, 11, 4, 6, 7, 10, 8, 9, 5), MenuLogic.parseOrder("0,1,2,3,4,5"))
-        assertEquals(listOf(6, 7, 10, 8, 9, 5, 0, 1, 2, 3, 11, 4), MenuLogic.parseOrder("5,0,1,2,3,4"))
-        assertEquals(listOf(0, 4, 1, 2, 3, 11, 6, 7, 10, 8, 9, 5), MenuLogic.parseOrder("0,4,1,2,3,6,5"))
+        assertEquals(listOf(0, 1, 2, 3, 4, 6, 7, 10, 11, 8, 9, 5), MenuLogic.parseOrder("0,1,2,3,4,5"))
+        assertEquals(listOf(6, 7, 10, 11, 8, 9, 5, 0, 1, 2, 3, 4), MenuLogic.parseOrder("5,0,1,2,3,4"))
+        assertEquals(listOf(0, 4, 1, 2, 3, 6, 7, 10, 11, 8, 9, 5), MenuLogic.parseOrder("0,4,1,2,3,6,5"))
     }
 
     @Test fun menue_kaputteWerteWerdenRepariert() {
         val o = MenuLogic.parseOrder("12,3,3,x,-1,2")
-        assertEquals(listOf(3, 11, 2, 0, 1, 4, 6, 7, 10, 8, 9, 5), o)
+        assertEquals(listOf(3, 2, 0, 1, 4, 6, 7, 10, 11, 8, 9, 5), o)
         assertEquals(MenuLogic.COUNT, o.toSet().size)
     }
 
@@ -154,8 +154,8 @@ http://h/x
 
     @Test fun menue_verschiebenUndGrenzen() {
         val o = MenuLogic.DEFAULT_ORDER
-        assertEquals(listOf(4, 0, 3, 11, 1, 2, 10, 8, 7, 9, 6, 5), MenuLogic.move(o, 0, 1))
-        assertEquals(o, MenuLogic.move(o, 0, -1))
+        assertEquals(listOf(4, 3, 0, 1, 2, 10, 11, 8, 7, 9, 6, 5), MenuLogic.move(o, 0, 1))
+        assertEquals(o, MenuLogic.move(o, 4, -1))
         assertEquals(o, MenuLogic.move(o, 5, 1))
         assertEquals(o, MenuLogic.move(o, 99, 1))
     }

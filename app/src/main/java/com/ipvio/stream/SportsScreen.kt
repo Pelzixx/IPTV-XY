@@ -46,18 +46,26 @@ fun SportsScreen(tab: Int, onTab: (Int) -> Unit, onPlay: (Item) -> Unit) {
     val live = remember(all) { all.filter { it.kind == Kind.LIVE } }
     val byId = remember(live) { live.associateBy { it.id } }
     // Beim Öffnen und dann jede Minute neu (Spielstände)
-    LaunchedEffect(live, Xmltv.channelCount) {
-        while (true) { SportsRepo.refresh(live); delay(60_000) }
+    // Nicht bei jedem EPG-Zwischenstand neu starten (das brach die Suche ab): alle 5 s prüfen, ob neues
+    // Programm da ist, sonst jede Minute
+    LaunchedEffect(live) {
+        var lastCount = -1; var lastAt = 0L
+        while (true) {
+            val n = Xmltv.channelCount
+            if (n != lastCount || System.currentTimeMillis() - lastAt >= 60_000) {
+                lastCount = n; lastAt = System.currentTimeMillis()
+                SportsRepo.refresh(live)
+            }
+            delay(5_000)
+        }
     }
     var nowSec by remember { mutableLongStateOf(System.currentTimeMillis() / 1000) }
     LaunchedEffect(Unit) { while (true) { delay(30_000); nowSec = System.currentTimeMillis() / 1000 } }
     val events = SportsRepo.events
-    var sport by remember { mutableStateOf<String?>(null) }
+    // Wenig Auswahl (Wunsch des Nutzers): „Alle“ und die Wettbewerbe in fester Reihenfolge, Bundesliga zuerst
     var league by remember { mutableStateOf<String?>(null) }
-    val sports = remember(events) { events.map { it.sport }.distinct() }
-    val shownBySport = if (sport == null) events else events.filter { it.sport == sport }
-    val leagues = remember(shownBySport) { shownBySport.groupingBy { it.league }.eachCount().entries.sortedByDescending { it.value }.map { it.key } }
-    val shown = if (league == null) shownBySport else shownBySport.filter { it.league == league }
+    val leagues = remember(events) { events.map { it.league }.distinct().sortedBy { SportsLogic.prio(it) } }
+    val shown = if (league == null) events else events.filter { it.league == league }
     var focused by remember { mutableStateOf<SportEvent?>(null) }
     val hero = focused?.takeIf { f -> shown.any { it.key == f.key } }?.let { f -> shown.first { it.key == f.key } } ?: shown.firstOrNull()
     var chanMenu by remember { mutableStateOf<SportEvent?>(null) }
@@ -82,13 +90,8 @@ fun SportsScreen(tab: Int, onTab: (Int) -> Unit, onPlay: (Item) -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item(key = "chips1") {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    item { SportChip(Lang.tr("Alle"), sport == null, Modifier.focusRequester(ContentFocus.req)) { sport = null; league = null } }
-                    items(sports) { s -> SportChip(Lang.tr(s), sport == s) { sport = s; league = null } }
-                }
-            }
-            if (leagues.size > 1) item(key = "chips2") {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(leagues) { l -> SportChip(l, league == l, raw = true, small = true) { league = if (league == l) null else l } }
+                    item { SportChip(Lang.tr("Alle"), league == null, Modifier.focusRequester(ContentFocus.req)) { league = null } }
+                    if (leagues.size > 1) items(leagues) { l -> SportChip(l, league == l, raw = true) { league = if (league == l) null else l } }
                 }
             }
             item(key = "hero") {
@@ -98,7 +101,7 @@ fun SportsScreen(tab: Int, onTab: (Int) -> Unit, onPlay: (Item) -> Unit) {
                         color = Tok.TextMid, fontSize = 17.sp)
                 }
             }
-            val byLeague = shown.groupBy { it.league }
+            val byLeague = shown.groupBy { it.league }.toList().sortedBy { SportsLogic.prio(it.first) }
             byLeague.forEach { (lg, list) ->
                 item(key = "h$lg") { Text(raw = true, text = lg, color = Tok.TextHi, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 6.dp)) }
                 item(key = "r$lg") {

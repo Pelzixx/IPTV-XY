@@ -139,6 +139,11 @@ object AppSettings {
             p.edit().putInt("menu_ver", 4).putString("menu_order", menuOrder.joinToString(","))
                 .putString("menu_hidden", menuHidden.joinToString(",")).apply()
         }
+        // Einmalig (3.37, Wunsch des Nutzers): Suche, Home, TV, Filme, Serien, Aufnahmen, Sport, Meine Liste … Einstellungen
+        if (p.getInt("menu_ver", 1) < 5) {
+            menuOrder.clear(); menuOrder.addAll(MenuLogic.DEFAULT_ORDER)
+            p.edit().putInt("menu_ver", 5).putString("menu_order", menuOrder.joinToString(",")).apply()
+        }
         searchHistory.clear()
         searchHistory.addAll((p.getString("search_hist", "") ?: "").split("\n").filter { it.isNotBlank() })
         if (p.getInt("look_ver", 1) < 2) {

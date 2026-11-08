@@ -39,4 +39,19 @@ class SportsLogicTest {
         assertTrue(SportsLogic.channelRank("Sky Sport FHD") > SportsLogic.channelRank("Sky Sport HD"))
         assertEquals("FB", SportsLogic.initials("FC Bayern"))
     }
+
+    @Test fun deutscherSportUndKonferenz() {
+        // Sky-Format mit Vorspann bis zum letzten Doppelpunkt
+        val h = SportsLogic.parse("Fußball: 2. Bundesliga, 11. Spieltag: 1. FC Heidenheim 1846 - Hannover 96", "", "Sky Sport Bundesliga 3 HD")!!
+        assertEquals("2. Bundesliga", h.league)
+        assertEquals("1. FC Heidenheim 1846", h.home); assertEquals("Hannover 96", h.away)
+        val k = SportsLogic.parse("2. Bundesliga: Die Konferenz", "", "Sky Sport Bundesliga 1")!!
+        assertEquals("2. Bundesliga – Konferenz", k.title)
+        // andere Sportarten mit „Bundesliga“ / „Länderspiel“ sind kein Fußball
+        assertEquals("Andere", SportsLogic.parse("Tischtennis: Bundesliga", "", "ORF Sport+")?.league ?: "Andere")
+        assertEquals("Eishockey", SportsLogic.league("LIVE Eishockey Länderspiel")?.second)
+        assertTrue(SportsLogic.allowed("Bundesliga")); assertTrue(!SportsLogic.allowed("NBA"))
+        assertTrue(SportsLogic.prio("Bundesliga") < SportsLogic.prio("Champions League"))
+        assertTrue(SportsLogic.mentions("Live: Heidenheim gegen Hannover", "1. FC Heidenheim 1846"))
+    }
 }

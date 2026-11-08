@@ -212,6 +212,12 @@ fun Sidebar(tab: Int, onTab: (Int) -> Unit, modifier: Modifier, activeFocus: Foc
                     }
                 }
             }
+            // Ganz unten: App-Version
+            Spacer(Modifier.weight(1f))
+            val ctx = androidx.compose.ui.platform.LocalContext.current
+            val ver = remember { runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull() ?: "" }
+            Text(if (expanded) "Version $ver" else ver, color = SidebarInk, fontSize = spx(13), maxLines = 1,
+                modifier = Modifier.fillMaxWidth().padding(bottom = dpx(18)), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         }
     }
 }
