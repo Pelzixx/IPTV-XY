@@ -1,107 +1,93 @@
 # IPTV-XY
 
-IPTV-XY is based on [IPVIO Stream](https://github.com/Emrodev/IPVIO-Stream) by Emrodev and continues it under the GPL-3.0 with its own name and logo.
+IPTV-Player für **Android TV, Google TV und Amazon Fire TV**, gebaut mit Kotlin, Jetpack Compose und Media3 und ganz auf die Fernbedienung ausgelegt.
 
-A free, open-source IPTV player for **Android TV, Google TV and Amazon Fire TV**, built with Kotlin and Jetpack Compose and designed for the remote control.
+![Startseite](docs/screenshots/startseite.jpg)
 
-![Home screen](docs/screenshots/homescreen.jpg)
+> **IPTV-XY liefert keine Inhalte.** Die App enthält keine Sender, Playlists, Filme oder Serien. Sie spielt nur Playlists ab, die du selbst hinzufügst (Xtream-Codes-Zugang, M3U-Adresse oder Stalker-Portal). Nutze nur Quellen, die du rechtmäßig nutzen darfst.
 
-> **IPTV-XY does not provide any content.** It contains no channels, playlists, films or series. It is only a player for playlists that **you** add yourself (Xtream Codes login or M3U address). Only use sources that you are legally allowed to use.
+## Grundlage
 
-## Installation on Fire TV / Android TV
+IPTV-XY basiert auf **[IPVIO Stream](https://github.com/Emrodev/IPVIO-Stream)** von Emrodev und wird unter der GPL-3.0 mit eigenem Namen und Logo weiterentwickelt. Oberfläche und Funktionen wurden seitdem weitgehend neu gebaut.
 
-**Downloader code: `6420457`** (or http://aftv.news/6420457)
+## Installation auf Fire TV / Android TV
 
-1. Install the free app **Downloader** (by AFTVnews) from the Amazon Appstore or Google Play.
-2. Allow Downloader to install apps: Fire TV *Settings > My Fire TV > Developer options > Install unknown apps > Downloader: On*.
-3. Open Downloader, enter the code above (or the address below) and press *Go*. Install the APK.
+**Downloader-Code: `6420457`** (oder http://aftv.news/6420457)
 
-Direct link to the latest version: https://github.com/Pelzixx/IPTV-XY-Releases/releases/latest/download/iptv-xy.apk
+1. Die kostenlose App **Downloader** (von AFTVnews) aus dem Amazon Appstore oder Google Play installieren.
+2. Downloader das Installieren erlauben: Fire TV *Einstellungen > Mein Fire TV > Entwickleroptionen > Unbekannte Apps installieren > Downloader: An*.
+3. Downloader öffnen, den Code oben (oder die Adresse unten) eingeben, *Go* drücken und die APK installieren.
 
-**Updates:** in the app under *Settings > About > App update > Check for update*. The first time, Android asks once to allow IPTV-XY to install apps.
+Direkter Link zur neuesten Version: https://github.com/Pelzixx/IPTV-XY-Releases/releases/latest/download/iptv-xy.apk
 
-## Features
+**Updates:** in der App unter *Einstellungen > Über*.
+
+## Funktionen
 
 **Playlists**
-- Xtream Codes login (server, user name, password) or an M3U address, several playlists, input from your phone over Wi-Fi
-- Handles very large playlists: language filter while loading, resumable downloads, compact storage
-- Automatic background refresh (interval or fixed time, waits during playback)
+- Xtream Codes, M3U-Adresse, lokale M3U-Datei oder Stalker-Portal; mehrere Playlists; Eingabe bequem über das Handy im WLAN
+- Sehr große Listen: Sprachfilter beim Laden, fortsetzbarer Download, Aktualisierung im Hintergrund
+- Gruppen und Kategorien in der Reihenfolge des Anbieters, eigene Gruppen, Sender und Gruppen ausblenden oder sperren
 
-**Home screen**
-- Home, Movies and Series with a large rotating header image
-- The background follows the selected title and shows its title, ratings and description
-- Rows: Continue watching, Live now, Top 10 today, Because you watched …, My list, New, Top rated, genres
+**TV**
+- Gruppenliste, Senderliste und TV-Guide auf einer Seite, oben läuft die Vorschau mit Ton
+- Nahtloser Übergang von der Vorschau ins Vollbild, ohne Neuladen
+- Beim Umschalten eine kleine Info mit Sendung, Auflösung (HD/FHD/4K), Bildrate und Tonformat
+- Archiv/Catch-up bei Sendern, die es anbieten: im Guide zurückgehen und alte Sendungen mit Spulen abspielen
+- Favoriten, Erinnerungen, Aufnahmen (auch auf ein NAS per SMB), Multi-View, Bild-in-Bild
 
-**Browse and details**
-- Grid or cinema view, filters by sort order, rating, year, genre and country
-- "Top rated" and sorting by rating use IMDb first, then Rotten Tomatoes, TMDB and finally the provider's rating
-- Provider categories or automatic genres, search with typo tolerance
-- Detail page with resume, trailer, my list, favourites, choice of source/quality
-- Series: seasons on the left, episodes on the right with picture, rating and description; sections and "go to episode" for very long series
+**Sport Guide**
+- Spiele aus dem TV-Programm: Bundesliga, 2. und 3. Liga, DFB-Pokal, Europapokal, Länderspiele, Formel 1 u. a.
+- Live-Spielstände und Spielminute, Sender zum Spiel (beste Qualität zuerst), Erinnerung für kommende Spiele
 
-**Live TV**
-- Categories, favourites and your own channel lists
-- TV guide, catch-up/archive ("from the beginning"), reminders with notification
+**Filme und Serien**
+- Kategorien in der Reihenfolge des Anbieters, Sortierung nach Name, Bewertung, Jahr oder „zuletzt hinzugefügt“
+- Detailseite mit Fortsetzen, Trailer, Meine Liste; Staffeln und Folgen übersichtlich
+- Meine Liste und Verlauf
 
 **Player** (Media3 / ExoPlayer)
-- Audio and subtitle selection (remembered per title), preferred languages, subtitle style
-- FFmpeg audio decoder for AC3/E-AC3/DTS (also over Bluetooth headphones)
-- Skip intro and credits (TheIntroDB), next episode automatically
-- Quality selection with 4K check, fallback to another source on errors or stuttering
-- Buffer levels, connection watchdog, reconnect after network change and standby
-- Aspect ratio/zoom, frame-rate matching, technical info, clock overlay, sleep timer
+- Ton- und Untertitelwahl, FFmpeg-Tondecoder für AC3/E-AC3/DTS
+- Bildratenanpassung (AFR), Seitenverhältnis/Zoom, Audioversatz, Schlummertimer
+- Der Stream stoppt immer, wenn die App verlassen wird
 
-**Personal**
-- Profiles ("Who's watching?"), parental controls with PIN
-- History, my list, favourites, backup and restore of settings
-
-**Look and feel**
-- Green on navy plus 12 colour themes, 5 backgrounds, custom colours
-- Fonts Outfit, Inter or system; adjustable text and display size; animations off/subtle/normal
-- 9 languages: German, English, Turkish, Bosnian, Croatian, Serbian, Spanish, French, Italian
+**Einstellungen**
+- Aufbau wie bei bekannten TV-Playern: Allgemein, Wiedergabelisten, EPG, Optik, Wiedergabe, Fernbedienung, Kindersicherung, Sonstiges, Über
+- Menü frei sortierbar, Farbthemen, Schriftgröße, Kindersicherung mit PIN, Sicherung und Wiederherstellung
 
 ## Screenshots
 
+Alle Bilder stammen aus einer Test-Installation mit frei verfügbaren Test-Sendern.
+
 | | |
 |---|---|
-| ![Home screen](docs/screenshots/homescreen.jpg)<br>**Home** – rotating header, quick tiles, live TV now | ![Series details](docs/screenshots/details_series.jpg)<br>**Series details** – seasons, episodes with ratings, director |
-| ![Categories](docs/screenshots/categories_list.jpg)<br>**Automatic genres** – detected in the background | ![Director page](docs/screenshots/producer.jpg)<br>**Cast and crew pages** – with the titles from your playlist |
-| ![Player](docs/screenshots/player.jpg)<br>**Player** – skip intro, audio/subtitles, quality | ![TV guide](docs/screenshots/tvguide.jpg)<br>**TV guide** – timeline with preview |
-| ![Live TV](docs/screenshots/channel_list.jpg)<br>**Live TV** – now and next at a glance | ![Settings](docs/screenshots/settings.jpg)<br>**Settings** – grouped, remote-friendly |
+| ![Startseite](docs/screenshots/startseite.jpg)<br>**Startseite** | ![TV](docs/screenshots/tv-gruppen.jpg)<br>**TV** – Gruppen, Sender, Guide und Vorschau |
+| ![TV-Guide](docs/screenshots/tv-guide.jpg)<br>**TV-Guide** – Zeitleiste mit Vorschau | ![Sport Guide](docs/screenshots/sport-guide.jpg)<br>**Sport Guide** – Spiele, Spielstände, Sender |
+| ![Einstellungen](docs/screenshots/einstellungen.jpg)<br>**Einstellungen** | |
 
-<sub>Screenshots taken on a TV with the original IPVIO Stream branding. Film artwork, channel logos and programme data belong to their respective owners; provider categories are blurred.</sub>
+## Eigene API-Schlüssel (optional)
 
-## Your own API keys (optional)
+Die App kommt **ohne API-Schlüssel**. Eigene kostenlose Schlüssel lassen sich in den **Einstellungen** eintragen:
 
-The app ships **without any API keys**. You can enter your own free keys in the app under **Settings > API keys**:
-
-| Service | Used for | Key |
+| Dienst | Wofür | Schlüssel |
 |---|---|---|
-| TMDB | posters, descriptions in your language, cast, trailers, automatic genres, episode info, similar titles | free, see below |
-| OMDb | IMDb and Rotten Tomatoes ratings | free, see below |
-| TheIntroDB | intro/recap/credits times | no key needed |
+| TMDB | Poster, Beschreibungen, Besetzung, Trailer, Genres | kostenlos |
+| OMDb | IMDb- und Rotten-Tomatoes-Bewertungen | kostenlos |
+| TheIntroDB | Intro-, Rückblick- und Abspannzeiten | nicht nötig |
 
-**Without keys** the app still works. With an Xtream Codes playlist it takes description, cover, rating, genres, running time and trailer **directly from your provider** (`player_api.php`). With a TMDB key it uses TMDB first and falls back to the provider when a title is not found. Keys are stored only on the device.
+Ohne Schlüssel funktioniert die App trotzdem; bei Xtream-Playlists kommen Beschreibung, Cover und Bewertung direkt vom Anbieter. Schlüssel werden nur auf dem Gerät gespeichert.
 
-### Get a free TMDB key
-1. Create an account at https://www.themoviedb.org/signup and confirm the e-mail address.
-2. **Log in.** The API page shows "restricted" as long as you are not logged in.
-3. Open https://www.themoviedb.org/settings/api (or: profile picture > Settings > API) and click **Request an API key**.
-4. Choose **Developer**, accept the terms and fill in the form (application name e.g. "IPTV-XY", type "Personal use", a short description; the URL can be your GitHub page).
-5. Copy the **API Key** (the 32-character one, not the "API Read Access Token").
+## Quellen und Danksagungen
 
-### Get a free OMDb key
-1. Open https://www.omdbapi.com/apikey.aspx, choose **FREE** (1,000 requests per day), enter your e-mail address and a short reason (e.g. "personal media player").
-2. You receive an e-mail with an 8-character key and an **activation link**. Click the link, otherwise the key does not work.
+- **[IPVIO Stream](https://github.com/Emrodev/IPVIO-Stream)** (Emrodev, GPL-3.0): Ausgangsbasis des Quellcodes.
+- **[OpenLigaDB](https://www.openligadb.de/)**: Spielstände im Sport Guide. Die Daten stehen unter der [Open Database License (ODbL 1.0)](https://opendatacommons.org/licenses/odbl/1-0/); in der App wird die Quelle genannt.
+- **[StreamVault IPTV](https://github.com/Davidona/StreamVault-IPTV)**: Vorbild für die Idee des Sport Guides. Es wurde kein Code übernommen.
+- **TiviMate**: Vorbild für Bedienung und Aufbau mancher Bildschirme. Es wurde kein Code, keine Grafik und kein Logo übernommen; IPTV-XY steht in keiner Verbindung zu TiviMate.
+- **TMDB, OMDb, TheIntroDB**: optionale Online-Dienste, siehe oben. *Dieses Produkt nutzt die TMDB-API, ist aber nicht von TMDB unterstützt oder zertifiziert.*
+- Bibliotheken und Schriften: siehe [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-### Enter the keys in the app
-Settings > **API keys**: paste the key into the field, press **Save and check** (a green "Key valid" confirms it) and restart the app once. Tip: type long keys with the phone import or an USB keyboard instead of the remote.
+## Selbst bauen
 
-*This product uses the TMDB API but is not endorsed or certified by TMDB.*
-
-## Building
-
-Requirements: Android Studio (current version) with the Android SDK; the Gradle wrapper downloads everything else.
+Voraussetzung: Android Studio mit Android SDK; alles Weitere lädt der Gradle-Wrapper.
 
 ```
 git clone https://github.com/Pelzixx/IPTV-XY.git
@@ -109,32 +95,19 @@ cd IPTV-XY
 ./gradlew assembleDebug        # Windows: gradlew.bat assembleDebug
 ```
 
-The APK is then in `app/build/outputs/apk/debug/`. For a release build, sign it with your own key (Android Studio: *Build > Generate Signed App Bundle / APK*).
+Die APK liegt danach in `app/build/outputs/apk/debug/`. Tests der reinen Logik: `./gradlew testDebugUnitTest`
 
-Developers can optionally copy `secrets.properties.example` to `secrets.properties` (ignored by Git) and put their keys there; they are only used when no key was entered in the app.
-
-Unit tests for the pure logic: `./gradlew test`
-
-## Project layout
-
-```
-app/src/main/java/com/ipvio/stream/   all Kotlin sources (one package)
-  *Logic.kt                           pure, Android-free logic (covered by unit tests)
-  Dict*.kt                            translations (one row per text: de¦en¦tr¦bs¦hr¦sr¦es¦fr¦it)
-app/src/test/java/com/ipvio/stream/   JUnit tests
-app/src/main/res/font/                Outfit and Inter (SIL Open Font License)
-licenses/                             font licences
-```
-
-## License
+## Lizenz
 
 Copyright (C) 2026 IPVIO Stream contributors
 Copyright (C) 2026 IPTV-XY contributors
 
-IPTV-XY is free software: you can redistribute it and/or modify it under the terms of the **GNU General Public License version 3** (see [LICENSE](LICENSE)). The GPL is required because the app includes the GPL-3.0 licensed FFmpeg audio decoder. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the libraries, fonts and services used.
+IPTV-XY ist freie Software unter der **GNU General Public License Version 3** (siehe [LICENSE](LICENSE)). Die GPL ist auch deshalb nötig, weil die App den GPL-3.0-lizenzierten FFmpeg-Tondecoder enthält. Verwendete Bibliotheken, Schriften und Dienste stehen in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-The name "IPVIO" and the IPVIO logo identify the original project, IPTV-XY therefore uses its own name and logo. If you publish a modified version of IPTV-XY, please do the same.
+Der Name „IPVIO“ und das IPVIO-Logo kennzeichnen das Originalprojekt; IPTV-XY verwendet deshalb einen eigenen Namen und ein eigenes Logo. Wer eine veränderte Fassung veröffentlicht, sollte es ebenso halten.
 
-## Disclaimer
+IMDb, Rotten Tomatoes, TMDB, TiviMate, Android TV, Google TV und Fire TV sind Marken ihrer jeweiligen Inhaber. IPTV-XY steht mit ihnen in keiner Verbindung.
 
-This software is provided "as is", without warranty of any kind. The authors do not provide, host, sell or link to any streams or playlists and are not responsible for how the app is used. Using playlists without the rights holders' permission may be illegal in your country.
+## Haftungsausschluss
+
+Die Software wird ohne jede Gewährleistung bereitgestellt. Die Autoren stellen keine Streams oder Playlists bereit, hosten oder verkaufen sie nicht und sind nicht verantwortlich dafür, wie die App genutzt wird. Playlists ohne Erlaubnis der Rechteinhaber zu nutzen kann in deinem Land verboten sein.
