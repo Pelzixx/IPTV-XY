@@ -1,25 +1,25 @@
-# FAQ
+# Häufige Fragen
 
-**Does the app include channels, films or series?**
-No. It is only a player. You add your own legal playlist (Xtream Codes or M3U).
+**Enthält die App Sender, Filme oder Serien?**
+Nein. IPTV-XY ist nur ein Player. Du fügst deine eigene, rechtmäßige Playlist hinzu (Xtream Codes, M3U oder Stalker-Portal).
 
-**Where do descriptions and ratings come from without keys?**
-With an Xtream Codes login the app reads them from your provider (description, cover, rating, genres, running time, trailer). A plain M3U address has no such data, so you only see what the list contains.
+**Woher kommen Beschreibungen und Bewertungen?**
+Bei einem Xtream-Codes-Zugang liest die App sie vom Anbieter (Beschreibung, Cover, Bewertung, Genres, Laufzeit, Trailer). Eine reine M3U-Adresse liefert solche Daten nicht, dann siehst du nur, was in der Liste steht.
 
-**Why are there no posters or ratings?**
-Add your own free TMDB key (posters, descriptions, cast) and OMDb key (IMDb / Rotten Tomatoes) in *Settings > API keys*.
+**Woher kommen die Spielstände im Sport Guide?**
+Von [OpenLigaDB](https://www.openligadb.de/) (Daten unter ODbL 1.0). Die Spiele selbst stammen aus dem TV-Programm deiner Playlist.
 
-**Why is the app GPL-3.0?**
-It includes the Jellyfin FFmpeg audio decoder (GPL-3.0), which is needed for AC3/E-AC3/DTS sound. Derived works must stay open source under the same license.
+**Warum steht die App unter der GPL-3.0?**
+Sie basiert auf IPVIO Stream (GPL-3.0) und enthält den FFmpeg-Tondecoder von Jellyfin (GPL-3.0) für AC3/E-AC3/DTS. Veränderte Fassungen müssen unter derselben Lizenz bleiben.
 
-**Is there a phone version?**
-The app is designed for TV and the remote. It installs on tablets and phones but is not optimised for touch.
+**Gibt es eine Handy-Version?**
+Die App ist für Fernseher und Fernbedienung gebaut. Sie lässt sich auf Tablets und Handys installieren, ist aber nicht für Touch optimiert.
 
-**Where are my logins stored?**
-Only on your device, in app-private storage. They are never sent anywhere except to the playlist server you entered.
+**Wo liegen meine Zugangsdaten?**
+Verschlüsselt nur auf deinem Gerät. Sie gehen nur an den Playlist-Server, den du eingetragen hast.
 
-**Can I use the name and logo?**
-For your own modified version, please choose another name and logo.
+**Darf ich Name und Logo verwenden?**
+Für eine eigene, veränderte Fassung bitte einen anderen Namen und ein anderes Logo wählen.
 
-**How do I install the APK on Fire TV / Android TV?**
-Enable "Install unknown apps" for a file manager or the Downloader app, download the APK from the Releases page and open it.
+**Wie installiere ich die APK auf Fire TV / Android TV?**
+Mit der App *Downloader* und dem Code `6420457`, Schritt für Schritt im [README](../README.md#installation-auf-fire-tv--android-tv).

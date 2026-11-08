@@ -66,15 +66,15 @@ Alle Bilder stammen aus einer Test-Installation mit frei verfügbaren Test-Sende
 
 ## Eigene API-Schlüssel (optional)
 
-Die App kommt **ohne API-Schlüssel**. Eigene kostenlose Schlüssel lassen sich in den **Einstellungen** eintragen:
+Die App enthält **keine API-Schlüssel**. Bei Xtream-Playlists kommen Beschreibung, Cover und Bewertung direkt vom Anbieter. Der Code kann zusätzlich diese Dienste nutzen:
 
 | Dienst | Wofür | Schlüssel |
 |---|---|---|
-| TMDB | Poster, Beschreibungen, Besetzung, Trailer, Genres | kostenlos |
-| OMDb | IMDb- und Rotten-Tomatoes-Bewertungen | kostenlos |
+| TMDB | Poster, Beschreibungen, Besetzung, Trailer, Genres | eigener, kostenlos |
+| OMDb | IMDb- und Rotten-Tomatoes-Bewertungen | eigener, kostenlos |
 | TheIntroDB | Intro-, Rückblick- und Abspannzeiten | nicht nötig |
 
-Ohne Schlüssel funktioniert die App trotzdem; bei Xtream-Playlists kommen Beschreibung, Cover und Bewertung direkt vom Anbieter. Schlüssel werden nur auf dem Gerät gespeichert.
+Die Eingabeseite für eigene TMDB- und OMDb-Schlüssel ist in der aktuellen Version ausgeblendet. Eingetragene Schlüssel bleiben nur auf dem Gerät.
 
 ## Quellen und Danksagungen
 

@@ -1,28 +1,19 @@
-# Settings overview
+# Einstellungen im Überblick
 
-All settings are on the **Settings** tab of the sidebar. They are grouped into tiles.
+Die Einstellungen öffnen sich über **Einstellungen** in der Seitenleiste als Leiste am rechten Rand.
 
-| Tile | What it does |
+| Bereich | Inhalt |
 |---|---|
-| General | Start screen, exit behaviour, autostart |
-| Language & region | App language (9 languages), clock format, time zone |
-| View | Card size, grid, default cinema view |
-| Design | Colour theme, background, fonts (Outfit, Inter, system), text and display size, animations |
-| Menu | Order and visibility of sidebar entries |
-| Player | Seek steps, skip intro/credits, quality, 4K check, source fallback on broken links, frame-rate matching, aspect ratio |
-| Audio & subtitles | Preferred audio and subtitle languages, subtitle style, remember per title |
-| Genres & categories | Automatic genres or provider categories, hide categories |
-| Live TV & guide | TV guide source, channel lists, reminders |
-| Playlists | Add, edit, remove playlists, language filter, refresh interval or fixed time |
-| Profiles | Per-person history, favourites and parental controls |
-| API keys | Your own TMDB and OMDb keys, with a connection test |
-| Parental controls | PIN, hide adult content |
-| Storage | Cache, history, resume points |
-| Diagnostics | Status and troubleshooting information |
-| About | Version, sources, reset |
+| Allgemein | Autostart nach dem Booten und aus dem Ruhezustand, letzten Sender beim Start zeigen, Verlassen mit Zurück bestätigen, User-Agent, UDP-Proxy, Daten sichern und wiederherstellen, Startseite, Zeitformat, Zeitzone |
+| Wiedergabelisten | Hinzufügen, alle aktualisieren, Reihenfolge, Sprachen der Inhalte, automatische Aktualisierung; je Playlist Zugang, EPG und Gruppen |
+| EPG | EPG-Quellen, wie viele vergangene Tage behalten werden, Aktualisierungsintervall, Aktualisieren beim Start, EPG löschen, nicht zugewiesene Sender |
+| Optik | Darstellung von EPG, Player, Gruppen und Logos, Sprache, Schriftgröße, Farbthema, Transparenz, Filme & Serien, Menü |
+| Wiedergabe | Puffergröße, Audio- und Video-Decoder, Bildratenanpassung (AFR), Surround-Tonspur, Audioversatz, Passthrough, externer Player, Bild im Bild, Sprungweiten, Bildformat, Ton und Untertitel, nächste Folge, Intro und Abspann überspringen |
+| Fernbedienung | Tastenbelegung im EPG und im Player (RW/FF/Pause, Spulen im Catch-up) |
+| Kindersicherung | PIN, Inhalte ab 18 |
+| Sonstiges | Suchen, Erinnerungen, Aufnahme, VOD, Senderlisten, Speicher, Diagnose |
+| Über | Version, Nach Updates suchen, rechtliche Hinweise und Lizenzen, Zurücksetzen |
 
-## API keys
-Step-by-step instructions for the free TMDB and OMDb keys are in the [README](../README.md#your-own-api-keys-optional). Enter them under *Settings > API keys* and press **Save and check**. Without keys the app uses the information of your Xtream provider.
+## Text auf dem Fernseher eingeben
 
-## Typing on a TV
-Use the phone import: *Playlists > Enter from phone* shows an address; open it on a phone in the same Wi-Fi and type the login there.
+Zugangsdaten lassen sich bequem über das Handy eintragen: Beim Hinzufügen einer Playlist zeigt die App eine Adresse. Diese im selben WLAN auf dem Handy öffnen und die Daten dort eingeben.
