@@ -25,7 +25,7 @@ jobs:
           PRESET_SERVERS: ${{ secrets.PRESET_SERVERS }}
           PRESET_EPG: ${{ secrets.PRESET_EPG }}
           PRESET_CONFIG_URL: ${{ secrets.PRESET_CONFIG_URL }}
-        run: ./gradlew --no-daemon assembleXyDebug assembleStandardDebug
+        run: ./gradlew --no-daemon assembleXyDebug assembleStandardDebug assembleTownshipDebug
       - uses: actions/upload-artifact@v4
         with:
           name: iptv-xy-debug

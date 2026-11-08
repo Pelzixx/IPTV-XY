@@ -66,7 +66,7 @@ private val CATS = listOf(
     Cat(AIcon.Lock, "Kindersicherung", "PIN, Inhalte ab 18"),
     Cat(AIcon.Storage, "Speicher", "Cache, Verlauf, Fortsetzen"),
     Cat(AIcon.Pulse, "Diagnose", "Status und Fehlersuche"),
-    Cat(AIcon.Info, "Über IPTV-XY", "Version, Quellen, Zurücksetzen")
+    Cat(AIcon.Info, "Über ${BuildConfig.APP_NAME}", "Version, Quellen, Zurücksetzen")
 )
 
 /**
@@ -468,7 +468,7 @@ private fun GeneralPage(ctx: Context) {
     SectionTitle("Start")
     ToggleRow(
         "Beim Einschalten des Geräts öffnen",
-        "IPTV-XY startet automatisch, sobald der Fernseher oder die Box hochgefahren ist.",
+        "${BuildConfig.APP_NAME} startet automatisch, sobald der Fernseher oder die Box hochgefahren ist.",
         General.autoStart
     ) { on ->
         General.setAutoStart(ctx, on)
@@ -1590,13 +1590,13 @@ private fun InfoRow(title: String, value: String) {
 private fun AboutLegal() {
     // Jede Zeile ist wählbar: so lässt sich die lange Seite mit Hoch/Runter durchblättern (nicht wählbarer Text wäre nicht erreichbar)
     PanelSection(Lang.tr("Rechtlicher Hinweis"))
-    LegalText("IPTV-XY ist ein Player und liefert selbst keine Inhalte. Nutze nur Quellen, für die du eine Berechtigung hast.")
-    LegalText("IPTV-XY ist nicht mit den Anbietern von Wiedergabelisten, Sendern oder Programmdaten verbunden. Für Inhalte und deren Rechte sind die jeweiligen Anbieter verantwortlich.")
+    LegalText("${BuildConfig.APP_NAME} ist ein Player und liefert selbst keine Inhalte. Nutze nur Quellen, für die du eine Berechtigung hast.")
+    LegalText("${BuildConfig.APP_NAME} ist nicht mit den Anbietern von Wiedergabelisten, Sendern oder Programmdaten verbunden. Für Inhalte und deren Rechte sind die jeweiligen Anbieter verantwortlich.")
     PanelSection(Lang.tr("Datenschutz"))
     LegalText("Zugangsdaten von Wiedergabelisten werden verschlüsselt nur auf diesem Gerät gespeichert.")
     LegalText("Die App ruft nur die Adressen ab, die du einträgst (Wiedergabelisten, EPG), sowie die Dienste für Film- und Serieninfos, Wertungen und Updates.")
     PanelSection(Lang.tr("Lizenz"))
-    LegalText("IPTV-XY ist freie Software unter der GNU General Public License v3 (GPL-3.0) und basiert auf IPVIO Stream. Es gibt keine Gewährleistung.")
+    LegalText("${BuildConfig.APP_NAME} ist freie Software unter der GNU General Public License v3 (GPL-3.0) und basiert auf IPVIO Stream. Es gibt keine Gewährleistung.")
     PanelSection(Lang.tr("Bibliotheken"))
     listOf(
         "AndroidX (Activity, Compose, Work)" to "Apache License 2.0",
@@ -1616,7 +1616,7 @@ private fun AboutLegal() {
     SettingRow("OMDb API", Lang.tr("Wertungen von IMDb und Rotten Tomatoes"), rawTitle = true, rawValue = true, onClick = {})
     SettingRow("TheIntroDB", Lang.tr("Zeiten für Intro, Rückblick und Abspann"), rawTitle = true, rawValue = true, onClick = {})
     PanelSection(Lang.tr("Marken"))
-    LegalText("IMDb, Rotten Tomatoes, TMDB, Android TV, Google TV und Fire TV sind Marken ihrer jeweiligen Inhaber. IPTV-XY ist mit ihnen nicht verbunden.")
+    LegalText("IMDb, Rotten Tomatoes, TMDB, Android TV, Google TV und Fire TV sind Marken ihrer jeweiligen Inhaber. ${BuildConfig.APP_NAME} ist mit ihnen nicht verbunden.")
 }
 
 /** Wählbarer Textabsatz (für lange Hinweise im Einstellungs-Panel). */
@@ -2007,7 +2007,7 @@ private fun TmLook(ctx: Context, open: (String, String) -> Unit) {
     val alphas = listOf(0, 10, 20, 30, 40, 50, 60, 70)
     SelectRow("Transparenz der Benutzeroberfläche (%)", Tm.i(Tm.UI_ALPHA, 20).toString(), alphas.map { "$it" }, alphas.indexOf(Tm.i(Tm.UI_ALPHA, 20)).coerceAtLeast(0)) { Tm.set(ctx, Tm.UI_ALPHA, alphas[it]) }
     // XY-eigene Bereiche
-    PanelSection("IPTV-XY")
+    PanelSection("${BuildConfig.APP_NAME}")
     SettingRow("Filme & Serien", null, onClick = { open("look_vod", "Filme & Serien") })
     SettingRow("Menü", null, onClick = { open("look_menu", "Menü") })
 }

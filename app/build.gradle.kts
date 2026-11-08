@@ -50,6 +50,7 @@ android {
         create("xy") {
             dimension = "edition"
             buildConfigField("String", "EDITION", "\"xy\"")
+            buildConfigField("String", "APP_NAME", "\"IPTV-XY\"")
             applicationIdSuffix = ".xy"
             buildConfigField("String", "UPDATE_FILE", "\"update-xy.json\"")
             buildConfigField("boolean", "NEWS", "true")
@@ -61,11 +62,26 @@ android {
             dimension = "edition"
             manifestPlaceholders["appLabel"] = "IPTV-XY Player"
             buildConfigField("String", "EDITION", "\"standard\"")
+            buildConfigField("String", "APP_NAME", "\"IPTV-XY\"")
             buildConfigField("String", "UPDATE_FILE", "\"update.json\"")
             buildConfigField("boolean", "NEWS", "false")
             buildConfigField("String", "PRESET_SERVERS", "\"\"")
             buildConfigField("String", "PRESET_EPG", "\"\"")
             buildConfigField("String", "PRESET_CONFIG_URL", "\"\"")
+        }
+        // Township TV (Betreiber-Ausgabe, 2026-11-08): eigenes Logo, eigenes Panel. Server/EPG/Panel-Adresse aus den
+        // Secrets TOWNSHIP_SERVERS / TOWNSHIP_EPG / TOWNSHIP_CONFIG_URL; Link township-tv.apk
+        create("township") {
+            dimension = "edition"
+            applicationIdSuffix = ".township"
+            manifestPlaceholders["appLabel"] = "Township TV"
+            buildConfigField("String", "EDITION", "\"township\"")
+            buildConfigField("String", "APP_NAME", "\"Township TV\"")
+            buildConfigField("String", "UPDATE_FILE", "\"update-township.json\"")
+            buildConfigField("boolean", "NEWS", "false")
+            buildConfigField("String", "PRESET_SERVERS", "\"${presetText("TOWNSHIP_SERVERS")}\"")
+            buildConfigField("String", "PRESET_EPG", "\"${presetText("TOWNSHIP_EPG")}\"")
+            buildConfigField("String", "PRESET_CONFIG_URL", "\"${presetText("TOWNSHIP_CONFIG_URL")}\"")
         }
     }
 
