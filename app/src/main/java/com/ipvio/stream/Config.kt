@@ -16,8 +16,11 @@ import androidx.compose.runtime.setValue
  * Without keys the app works normally and only hides the extra information.
  */
 object Config {
-    /** Film-Extras (TMDB/OMDb: Bewertungen, Trailer, Darsteller, Top 10 …) aus: schlanke App, nur Angaben des Anbieters. */
-    const val EXTRAS = false
+    /** Film-Extras (TMDB/OMDb: Bewertungen, Trailer, Darsteller, Top 10 …). Am 2026-11-06 aus („schlanke App“). */
+    // Wieder an (Wunsch des Nutzers, 2026-11-08): fester TMDB-Schlüssel aus dem GitHub-Secret TMDB_KEY (OMDb optional: OMDB_KEY)
+    const val EXTRAS = true
+    /** Massenabgleich aller Filme/Serien mit TMDB im Hintergrund (automatische Genres/Länder): aus, bremst bei großen Listen. */
+    const val BULK = false
     @Volatile var TMDB_KEY: String = if (EXTRAS) clean(BuildConfig.TMDB_KEY) else ""
         private set
     @Volatile var OMDB_KEY: String = if (EXTRAS) clean(BuildConfig.OMDB_KEY) else ""

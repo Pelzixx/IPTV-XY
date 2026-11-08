@@ -37,6 +37,9 @@ jobs:
       PRESET_SERVERS: ${{ secrets.PRESET_SERVERS }}
       PRESET_EPG: ${{ secrets.PRESET_EPG }}
       PRESET_CONFIG_URL: ${{ secrets.PRESET_CONFIG_URL }}
+      # Fester TMDB-Schlüssel (Film-Infos, Poster, Trailer) und optional OMDb (Bewertungen), siehe Config.kt
+      TMDB_KEY: ${{ secrets.TMDB_KEY }}
+      OMDB_KEY: ${{ secrets.OMDB_KEY }}
       # Township TV (eigene Ausgabe, siehe app/build.gradle.kts)
       TOWNSHIP_SERVERS: ${{ secrets.TOWNSHIP_SERVERS }}
       TOWNSHIP_EPG: ${{ secrets.TOWNSHIP_EPG }}

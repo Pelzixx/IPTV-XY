@@ -616,7 +616,7 @@ object Classifier {
         val old = job
         job = scope.launch {
             old?.cancelAndJoin()
-            if (!MetaRepo.enabled() || all.isEmpty()) return@launch
+            if (!Config.BULK || !MetaRepo.enabled() || all.isEmpty()) return@launch
             run(app, all.filter { it.kind == Kind.SERIES } + all.filter { it.kind == Kind.MOVIE })
         }
     }
