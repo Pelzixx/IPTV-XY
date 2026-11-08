@@ -211,6 +211,20 @@ object PlaylistStore {
         private set
     var epgUrls: List<String> = emptyList()
     var catOrder by mutableStateOf<Map<String, Int>>(emptyMap())
+    /** Kategorien-Reihenfolge der weiteren Wiedergabelisten (Anbieter-Reihenfolge, wie TiviMate). */
+    @Volatile var extraOrder: Map<String, Int> = emptyMap()
+        private set
+    /** Reihenfolge der Ordner: Haupt-Playlist zuerst, dann die weiteren. */
+    fun groupOrder(): Map<String, Int> {
+        val c = catOrder; val e = extraOrder
+        if (e.isEmpty()) return c
+        val m = goCache
+        if (m != null && goCat === c && goExtra === e) return m
+        return (e + c).also { goCache = it; goCat = c; goExtra = e }
+    }
+    @Volatile private var goCache: Map<String, Int>? = null
+    @Volatile private var goCat: Map<String, Int>? = null
+    @Volatile private var goExtra: Map<String, Int>? = null
     val lists = mutableStateListOf<PL>()
     var active by mutableIntStateOf(0)
     private var inited = false
@@ -971,6 +985,7 @@ object PlaylistStore {
             val items = ArrayList<Item>()
             val epg = ArrayList<String>()
             val per = ArrayList<Pair<String, List<Item>>>()
+            val ord = HashMap<String, Int>()
             val st = HashMap<String, String>()
             for (l in others) {
                 val u = PlaylistLogic.normalizeUrl(l.url) ?: continue
@@ -985,10 +1000,12 @@ object PlaylistStore {
                 if (cached != null) {
                     val its = if (PlOpts.vod(l.name)) cached.items.filter { it.kind != Kind.LIVE } else cached.items
                     items.addAll(its); epg.addAll(cached.epg); per.add(l.name to its)
+                    cached.order.forEach { (k, v) -> ord.putIfAbsent(k, v) }
                     st[l.name] = "Kanäle: " + cached.items.count { it.kind == Kind.LIVE } + if (cached.items.isEmpty()) " (" + cached.counts.values.sum() + " ausgeblendet)" else ""
                 } else st[l.name] = "Nicht geladen: " + (lastBgError ?: "unbekannt")
                 extraStatus = st.toMap()
             }
+            extraOrder = ord
             Triple(items, epg, per)
         }
         extraLists = res.third

@@ -33,7 +33,9 @@ object PlGroups {
         val names = order.filter { it in byPl } + byPl.keys.filter { it !in order }
         return names.map { pl ->
             val l = byPl[pl].orEmpty()
-            Section(pl, l.size, l.groupBy { it.group }.map { (g, items) -> g to items.size })
+            // Gruppen in der Reihenfolge des Anbieters (wie TiviMate), unbekannte dahinter
+            val order = PlaylistStore.groupOrder()
+            Section(pl, l.size, l.groupBy { it.group }.map { (g, items) -> g to items.size }.sortedBy { order[it.first] ?: Int.MAX_VALUE })
         }
     }
 

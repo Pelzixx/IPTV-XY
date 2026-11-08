@@ -82,7 +82,7 @@ fun VodTab(tab: Int, onTab: (Int) -> Unit, onOpen: (Item) -> Unit, onPlay: (Item
 
     val sort = VodPrefs.sort(kind)
     // Daten je Art einmal berechnen und über Reiterwechsel hinweg behalten (sonst bei jedem Öffnen alles neu, sichtbar als Ruckeln)
-    val data by produceState(VodCache.get(all, kind) ?: VodData.EMPTY, all, kind) {
+    val data by produceState(VodCache.get(all, kind) ?: VodData.EMPTY, all, kind, PlaylistStore.catOrder) {
         value = VodCache.get(all, kind) ?: withContext(Dispatchers.Default) { VodCache.build(all, kind) }
     }
     val byKind = data.items
@@ -378,15 +378,20 @@ object VodCache {
     private var src: List<Item>? = null
     private val byKind = HashMap<Kind, VodData>()
 
-    @Synchronized fun get(all: List<Item>, kind: Kind): VodData? = if (src === all) byKind[kind] else null
+    private var ord: Map<String, Int>? = null
+
+    @Synchronized fun get(all: List<Item>, kind: Kind): VodData? = if (src === all && ord === PlaylistStore.groupOrder()) byKind[kind] else null
 
     fun build(all: List<Item>, kind: Kind): VodData {
+        val order = PlaylistStore.groupOrder()
         val items = all.filter { it.kind == kind }
         val g = LinkedHashMap<String, MutableList<Item>>()
         items.forEach { g.getOrPut(it.group) { ArrayList() }.add(it) }
-        val d = VodData(items, g.entries.map { it.key to it.value.toList() }, items.associateBy { it.id })
+        // Ordner in der Reihenfolge des Anbieters (TiviMate); unbekannte dahinter in der Reihenfolge der Liste
+        val groups = g.entries.map { it.key to it.value.toList() }.sortedBy { order[it.first] ?: Int.MAX_VALUE }
+        val d = VodData(items, groups, items.associateBy { it.id })
         synchronized(this) {
-            if (src !== all) { src = all; byKind.clear() }
+            if (src !== all || ord !== order) { src = all; ord = order; byKind.clear() }
             byKind[kind] = d
         }
         return d
