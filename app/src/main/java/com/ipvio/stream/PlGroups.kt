@@ -63,3 +63,11 @@ object PlGroups {
         else -> null
     }
 }
+
+/** Ordner-Schlüssel eines Senders für die Senderübersicht: mit mehreren Playlists „G:<Liste>…<Gruppe>“, sonst die Gruppe. */
+fun groupKeyOf(item: Item?): String? {
+    if (item == null) return null
+    if (!PlaylistStore.multiPlaylist) return item.group
+    val pl = PlaylistStore.playlistOf(item.id) ?: return item.group
+    return PlGroups.keyG(pl, item.group)
+}

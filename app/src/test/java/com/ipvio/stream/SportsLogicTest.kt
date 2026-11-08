@@ -53,6 +53,14 @@ class SportsLogicTest {
         assertTrue(SportsLogic.allowed("Bundesliga")); assertTrue(!SportsLogic.allowed("NBA"))
         assertTrue(SportsLogic.prio("Bundesliga") < SportsLogic.prio("Champions League"))
         assertTrue(SportsLogic.mentions("Live: Heidenheim gegen Hannover", "1. FC Heidenheim 1846"))
+        // echte Sky-Titel aus dem Anbieter-Programm
+        val s = SportsLogic.parse("Live 2. BL: 1. FC Magdeburg - FC St. Pauli, 11. Spieltag", "", "Sky Bundesliga 2 ᶠʰᵈ")!!
+        assertEquals("2. Bundesliga", s.league); assertEquals("1. FC Magdeburg", s.home); assertEquals("FC St. Pauli", s.away)
+        assertEquals("Bundesliga", SportsLogic.parse("BL: 1. FC Köln - Bayer Leverkusen, 9. Spieltag", "", "Sky Bundesliga 2")!!.league)
+        assertEquals("2. Bundesliga – Konferenz", SportsLogic.parse("Live 2. BL: Sonntags-Konferenz, 11. Spieltag", "", "Sky Konferenz")!!.title)
+        assertNull(SportsLogic.parse("Bundesliga der Frauen - 2026/27", "", "DAZN 2"))
+        assertNull(SportsLogic.parse("Live 2. BL Alle Spiele, alle Tore: Die Vodafone Highlight-Show, 11. Spieltag", "", "Sky Konferenz"))
+        assertTrue(SportsLogic.foreign("UK: Sky Sports Main Event")); assertTrue(!SportsLogic.foreign("Sky Bundesliga 2 ᶠʰᵈ"))
         assertEquals("sky sport bundesliga 1", SportsLogic.baseName("DE: Sky Sport Bundesliga 1 FHD"))
         assertEquals("sky sport bundesliga 1", SportsLogic.baseName("Sky Sport Bundesliga 1 HD (1080p)"))
     }

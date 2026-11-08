@@ -78,10 +78,10 @@ object SportsRepo {
         }
         // Sportsender ohne XMLTV: Programm beim Anbieter holen (wie der TV-Guide), je Sender nur einmal für alle
         // Qualitäten, höchstens 8 Abfragen gleichzeitig
-        val missing = cands.filter { it.xml.isEmpty() && it.c.sport && Epg.xtreamApi(it.ch, "get_short_epg") != null }
+        val missing = cands.filter { it.xml.isEmpty() && it.c.sport && !SportsLogic.foreign(it.name) && Epg.xtreamApi(it.ch, "get_short_epg") != null }
             .sortedByDescending { SportsLogic.isPayTvSport(it.name) }
-            .groupBy { SportsLogic.baseName(ChannelEdit.title(it.ch)) }.entries.take(200)
-        val sem = kotlinx.coroutines.sync.Semaphore(8)
+            .groupBy { SportsLogic.baseName(ChannelEdit.title(it.ch)) }.entries.take(80)
+        val sem = kotlinx.coroutines.sync.Semaphore(12)
         val fetched: Map<String, List<EpgEntry>> = kotlinx.coroutines.coroutineScope {
             missing.map { (base, l) ->
                 async(Dispatchers.IO) {

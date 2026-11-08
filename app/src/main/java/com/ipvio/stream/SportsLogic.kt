@@ -34,12 +34,13 @@ object SportsLogic {
         Triple(Regex("""\beishockey\b|\bpenny del\b""", RegexOption.IGNORE_CASE), ICE, "Eishockey"),
         Triple(Regex("""\bhandball\b.*\bbundesliga\b""", RegexOption.IGNORE_CASE), OTHER, "Handball-Bundesliga"),
         Triple(Regex("""\bbasketball\b.*\bbundesliga\b""", RegexOption.IGNORE_CASE), BASKET, "Basketball-Bundesliga"),
-        Triple(Regex("""\b2\.\s*bundesliga\b""", RegexOption.IGNORE_CASE), FOOTBALL, "2. Bundesliga"),
+        Triple(Regex("""\b2\.\s*bundesliga\b|\b2\.\s*bl\b|\bzweiten? bundesliga\b""", RegexOption.IGNORE_CASE), FOOTBALL, "2. Bundesliga"),
+        Triple(Regex("""\bbundesliga der frauen\b""", RegexOption.IGNORE_CASE), FOOTBALL, "Frauen-Bundesliga"),
         Triple(Regex("""\b3\.\s*liga\b""", RegexOption.IGNORE_CASE), FOOTBALL, "3. Liga"),
         Triple(Regex("""\bfrauen[- ]?bundesliga\b""", RegexOption.IGNORE_CASE), FOOTBALL, "Frauen-Bundesliga"),
         Triple(Regex("""\bbasketball[- ]?bundesliga\b|\bbbl\b|\beasycredit\b""", RegexOption.IGNORE_CASE), BASKET, "Basketball-Bundesliga"),
         Triple(Regex("""\bhandball[- ]?bundesliga\b|\bhbl\b""", RegexOption.IGNORE_CASE), OTHER, "Handball-Bundesliga"),
-        Triple(Regex("""\bbundesliga\b""", RegexOption.IGNORE_CASE), FOOTBALL, "Bundesliga"),
+        Triple(Regex("""\bbundesliga\b|\b1\.\s*bl\b|\bbl\b""", RegexOption.IGNORE_CASE), FOOTBALL, "Bundesliga"),
         Triple(Regex("""\bdfb[- ]?pokal\b""", RegexOption.IGNORE_CASE), FOOTBALL, "DFB-Pokal"),
         Triple(Regex("""\bchampions league\b|\buefa cl\b""", RegexOption.IGNORE_CASE), FOOTBALL, "Champions League"),
         Triple(Regex("""\beuropa league\b""", RegexOption.IGNORE_CASE), FOOTBALL, "Europa League"),
@@ -118,7 +119,11 @@ object SportsLogic {
         .replace(Regex("""\b(uhd|fhd|hd|sd|4k|hevc|h265|raw|\d{3,4}p|50 ?fps|60 ?fps|backup|\+)\b"""), " ")
         .replace(Regex("""[^a-z0-9äöüß ]"""), " ").replace(Regex("""\s+"""), " ").trim()
 
-    private val PAYTV =Regex("""\b(sky|dazn|magenta|sport ?1|sportdigital)\b""", RegexOption.IGNORE_CASE)
+    /** Sender eines anderen Landes (Kürzel im Namen oder in der Gruppe): für den deutschen Sport Guide überspringen. */
+    private val FOREIGN = Regex("""(^|[\s|:\[(])(uk|us|usa|ca|au|ar|arab|tr|nl|fr|it|pt|pl|ro|hu|cz|sk|gr|ex-?yu|rs|hr|ba|ru|ua|pk|br|mx|latino|bein|sky sports|espn|tsn|supersport)(?=$|[\s|:\])])""", RegexOption.IGNORE_CASE)
+    fun foreign(channel: String) = FOREIGN.containsMatchIn(channel)
+
+    private val PAYTV = Regex("""\b(sky|dazn|magenta|sport ?1|sportdigital)\b""", RegexOption.IGNORE_CASE)
     fun isPayTvSport(channel: String) = PAYTV.containsMatchIn(channel)
 
     private val KONFERENZ =Regex("""\bkonferenz\b""", RegexOption.IGNORE_CASE)
@@ -152,8 +157,10 @@ object SportsLogic {
         core = TRAILING.replace(core, "").trim()
         val parts = VS.split(core, 2)
         if (parts.size == 2) {
-            val home = clean(parts[0]); val away = clean(parts[1])
-            val ok = home.length in 2..40 && away.length in 2..40 && !TIME.containsMatchIn(home) && home.count { it == ' ' } <= 4 && away.count { it == ' ' } <= 4
+            // „… - FC St. Pauli, 11. Spieltag“: Zusatz nach dem Komma gehört nicht zum Teamnamen
+            val home = clean(parts[0].substringBefore(',')); val away = clean(parts[1].substringBefore(','))
+            val ok = home.length in 2..40 && away.length in 2..40 && !TIME.containsMatchIn(home) && home.count { it == ' ' } <= 4 && away.count { it == ' ' } <= 4 &&
+                teamLike(home) && teamLike(away)
             if (ok && (sportCh || lg != null)) {
                 val (sport, league) = lg ?: (FOOTBALL to "Fußball")
                 return SportHit(sport, league, home, away, "$home – $away")
@@ -165,6 +172,9 @@ object SportsLogic {
         ) return SportHit(lg.first, lg.second, null, null, t)
         return null
     }
+
+    /** Sieht wie ein Teamname aus? (Buchstaben, kein „2026/27“, kein Liganame wie „Bundesliga der Frauen“) */
+    private fun teamLike(s: String): Boolean = Regex("""\p{L}{3,}""").containsMatchIn(s) && '/' !in s && league(s) == null
 
     private fun clean(s: String): String = s.replace(Regex("""\s{2,}"""), " ").trim().trim('-', '–', ':', ',').trim()
 

@@ -223,3 +223,42 @@ private fun SportCard(e: SportEvent, now: Long, onFocus: () -> Unit, onClick: ()
         Text(raw = true, text = sportTimeText(e), color = Tok.TextLow, fontSize = 12.sp, maxLines = 1)
     }
 }
+
+/**
+ * Startseite unten (Wunsch des Nutzers): aktuelle Begegnungen mit Ergebnis, klein gehalten. Laufende zuerst, dann die
+ * heute beendeten. OK öffnet den Sport Guide.
+ */
+@Composable
+fun HomeSportRow(onOpenSport: () -> Unit) {
+    var nowSec by remember { mutableLongStateOf(System.currentTimeMillis() / 1000) }
+    LaunchedEffect(Unit) { while (true) { delay(30_000); nowSec = System.currentTimeMillis() / 1000 } }
+    val list = SportsRepo.events.filter { it.scoreHome != null && it.home != null && it.away != null && (it.live(nowSec) || (it.finished && it.end > nowSec - 8 * 3600)) }
+        .sortedWith(compareBy<SportEvent> { if (it.live(nowSec)) 0 else 1 }.thenBy { SportsLogic.prio(it.league) }).take(10)
+    if (list.isEmpty()) return
+    Column(Modifier.padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Sport", color = Tok.TextHi, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 2.dp))
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            items(list, key = { it.key }) { e -> HomeSportCard(e, nowSec, onOpenSport) }
+        }
+    }
+}
+
+@Composable
+private fun HomeSportCard(e: SportEvent, now: Long, onClick: () -> Unit) {
+    var f by remember { mutableStateOf(false) }
+    Column(
+        Modifier.width(230.dp).clip(RoundedCornerShape(10.dp)).background(if (f) CardFocus else CardBg)
+            .border(2.dp, if (f) Color.White else Color.Transparent, RoundedCornerShape(10.dp))
+            .onFocusChanged { f = it.isFocused }.clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 9.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(raw = true, text = e.league, color = Tok.TextMid, fontSize = 11.sp, modifier = Modifier.weight(1f), maxLines = 1)
+            if (e.live(now)) SportLiveBadge() else Text("Beendet", color = Tok.TextLow, fontSize = 11.sp)
+        }
+        for ((team, score) in listOf(e.home!! to e.scoreHome, e.away!! to e.scoreAway)) Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(raw = true, text = team, color = Color.White, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            Text(raw = true, text = score?.toString() ?: "", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}

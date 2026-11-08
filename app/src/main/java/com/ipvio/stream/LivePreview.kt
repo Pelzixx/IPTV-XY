@@ -50,10 +50,11 @@ import kotlinx.coroutines.delay
  * Viele Anbieter erlauben nur eine Verbindung gleichzeitig: OK auf den laufenden Sender übergibt diesen Player an den
  * Vollbild-Player ([handover]) – kein Neuladen, keine zweite Verbindung. Sonst wird vor dem Vollbild [stop] gerufen.
  */
-class LivePreviewPlayer(ctx: Context) {
-    private val built = XyPlayer.build(ctx, null)
+/** [startUrl] ≠ null: vom Vollbild zurückgegebener Player, der diesen Sender schon spielt (kein Neuladen). */
+class LivePreviewPlayer internal constructor(private val built: XyPlayer.Built, startUrl: String?) {
+    constructor(ctx: Context) : this(XyPlayer.build(ctx, null), null)
     val player: ExoPlayer = built.player
-    private var url: String? = null
+    private var url: String? = startUrl
     private var released = false
     /** An den Vollbild-Player übergeben: gehört dann nicht mehr der Vorschau (stop/release wirken nicht mehr). */
     private var handedOver = false
@@ -101,7 +102,9 @@ object PreviewHolder {
     fun player(ctx: Context): LivePreviewPlayer = p?.takeIf { !it.isReleased } ?: LivePreviewPlayer(ctx.applicationContext).also { p = it }
 
     fun view(c: Context, pl: LivePreviewPlayer): PlayerView {
-        v?.let { cur -> if (cur.context === c) { (cur.parent as? android.view.ViewGroup)?.removeView(cur); cur.player = pl.player; return cur } }
+        // Erst lösen, dann neu setzen: kam der Player aus dem Vollbild zurück, ist es dasselbe Objekt, und die Videofläche
+        // muss trotzdem neu angemeldet werden (sonst bleibt die Vorschau schwarz)
+        v?.let { cur -> if (cur.context === c) { (cur.parent as? android.view.ViewGroup)?.removeView(cur); cur.player = null; cur.player = pl.player; return cur } }
         return PlayerView(c).apply {
             useController = false
             setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
@@ -115,6 +118,16 @@ object PreviewHolder {
     fun stopAll() { p?.stop() }
     /** Lage der Vorschau im Fenster: das Vollbild wächst von hier aus auf (TiviMate). */
     var rect: androidx.compose.ui.geometry.Rect? = null
+
+    /**
+     * Zurück aus dem Vollbild in TV (Wunsch des Nutzers, wie TiviMate): der laufende Player wird wieder zur Vorschau,
+     * das Bild läuft ohne Unterbrechung weiter.
+     */
+    fun giveBack(b: XyPlayer.Built, url: String) {
+        p?.release()
+        b.player.volume = if (Tm.b(Tm.CV_SOUND, true)) 1f else 0f
+        p = LivePreviewPlayer(b, url)
+    }
 
     /** Vollbild-Player: laufenden Vorschau-Player übernehmen, wenn er gerade diesen Sender spielt; sonst Vorschau stoppen. */
     fun takeFor(url: String): XyPlayer.Built? {
@@ -150,7 +163,8 @@ fun LivePreview(p: LivePreviewPlayer, ch: Item?, modifier: Modifier = Modifier, 
         onDispose { lifecycle.removeObserver(obs) }
     }
     LaunchedEffect(ch?.id, started) {
-        showVideo = false
+        // Läuft der Sender schon (aus dem Vollbild zurückgegeben): Bild sofort zeigen statt erst das Logo
+        showVideo = ch != null && started && p.isOn(ch.url) && p.player.playbackState == Player.STATE_READY
         if (!started) return@LaunchedEffect
         if (ch == null || !AppSettings.livePreview) { p.stop(); return@LaunchedEffect }
         // Beim Durchblättern nicht jeden Sender anspielen

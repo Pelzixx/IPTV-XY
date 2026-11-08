@@ -138,7 +138,11 @@ fun Guide(
     var showSettings by remember { mutableStateOf(false) }
     // Kategorien links (wie im Entwurf): aktuelle Liste, alle Sender, Favoriten, eigene Listen, Gruppen des Anbieters
     val cats = remember(list, all, Library.favs.size, ChannelLists.lists.size) { guideCategories(list, all) }
-    var catIdx by remember { mutableIntStateOf(0) }
+    // Wunsch des Nutzers: beim Öffnen im Ordner (Gruppe) des laufenden Senders stehen
+    var catIdx by remember {
+        val g = all.firstOrNull { it.id == curId }?.group ?: list.firstOrNull { it.id == curId }?.group
+        mutableIntStateOf(cats.indexOfFirst { it.icon == null && it.name == g && it.items.any { i -> i.id == curId } }.takeIf { it >= 0 } ?: 0)
+    }
     val shown = cats.getOrNull(catIdx)?.items ?: list
     val catReq = remember { FocusRequester() }
     val idx = shown.indexOfFirst { it.id == curId }.coerceAtLeast(0)

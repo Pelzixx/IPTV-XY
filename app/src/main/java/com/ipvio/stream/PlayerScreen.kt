@@ -87,6 +87,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
 import androidx.media3.ui.SubtitleView
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 
@@ -157,6 +158,12 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
         b.http.setUserAgent(TmNet.userAgentFor(req.itemId))
         b.player.also { it.volume = 1f }
     }
+    // TiviMate: aus der Vorschau übernommen – das Bild wächst von der Vorschau auf Vollbild (statt Schnitt und Neuladen);
+    // Zurück nach TV schrumpft es wieder in die Vorschau, und der Player läuft dort weiter ([toPreview])
+    val growFrom = remember { if (handedOver != null && Look.motion != 0) PreviewHolder.rect else null }
+    val grow = remember { androidx.compose.animation.core.Animatable(if (growFrom != null) 0f else 1f) }
+    var shrinkTo by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    val toPreview = remember { booleanArrayOf(false) }
     val h = remember { Handler(Looper.getMainLooper()) }
     // Zustand für die Bildschirm-Wachhaltung: Sie gilt nur, solange wirklich abgespielt oder nachgeladen wird
     // (nicht bei Pause, Ende, Fehler oder im Hintergrund). Sonst startet nach ca. 5 Minuten der Bildschirmschoner.
@@ -255,7 +262,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     // Aus einer eigenen Senderliste/Favoriten gestartet: diese Auswahl im Senderwechsel zeigen, sonst die Kategorie des Senders
     var chanCat by remember {
         mutableStateOf(ZapContext.key?.takeIf { k -> (k == FAV_CAT || ChannelLists.byKey(k) != null) && zapList.any { it.id == req.itemId } }
-            ?: liveAll.firstOrNull { it.id == req.itemId }?.group ?: "ALL")
+            ?: groupKeyOf(liveAll.firstOrNull { it.id == req.itemId }) ?: "ALL")
     }
     var playCat by remember { mutableStateOf(chanCat) }
     val rootFocus = remember { FocusRequester() }
@@ -306,7 +313,14 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
 
     fun ping() { miniBar = true; miniTick++ }
 
-    fun openChannels() { controls = false; focusedCh = curItem; showCats = false; chanCat = playCat; showChannels = true }
+    // Wunsch des Nutzers: Links öffnet die Übersicht im Ordner, in dem der laufende Sender liegt
+    // (eigene Listen/Favoriten bleiben, wenn der Sender darin vorkommt)
+    fun openChannels() {
+        controls = false; focusedCh = curItem; showCats = false
+        val keep = playCat == FAV_CAT || ChannelLists.byKey(playCat) != null
+        chanCat = if (keep && zapSrc.any { it.id == curItem?.id }) playCat else groupKeyOf(curItem) ?: playCat
+        showChannels = true
+    }
     fun openRecent() { controls = false; focusedCh = curItem; showCats = false; chanCat = "RECENT"; showChannels = true }
     // Verlauf der gesehenen Sendungen (TiviMate)
     var showLog by remember { mutableStateOf(false) }
@@ -718,6 +732,21 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
             controls -> controls = false
             showNextCard -> nextDismissed = true
             cur.archive != null && curItem != null -> backToLive()
+            shrinkTo != null -> {}
+            // Zurück nach TV: Bild schrumpft in die Vorschau, der Stream läuft dort ohne Neuladen weiter
+            cur.live && cur.archive == null && NavState.tab == 3 && AppSettings.livePreview &&
+                player.playbackState == Player.STATE_READY && player.playerError == null -> {
+                toPreview[0] = true
+                val r = PreviewHolder.rect
+                if (r != null && Look.motion != 0) {
+                    shrinkTo = r
+                    scope.launch {
+                        grow.snapTo(1f)
+                        grow.animateTo(0f, androidx.compose.animation.core.tween(260, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+                        onBack()
+                    }
+                } else onBack()
+            }
             else -> onBack()
         }
     }
@@ -847,7 +876,10 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
             saveProgress()
             h.removeCallbacksAndMessages(null)
             player.removeListener(l)
-            player.release()
+            val http = httpRef[0]
+            if (toPreview[0] && http != null && player.playbackState != Player.STATE_IDLE && player.playerError == null)
+                PreviewHolder.giveBack(XyPlayer.Built(player, http), cur.url)
+            else player.release()
         }
     }
 
@@ -1233,13 +1265,10 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
             5 -> Modifier.align(Alignment.Center).fillMaxHeight().aspectRatio(4f / 3f)
             else -> Modifier.fillMaxSize()
         }
-        // TiviMate: aus der Vorschau übernommen – das Bild wächst von der Vorschau auf Vollbild (statt Schnitt und Neuladen)
-        val growFrom = remember { if (handedOver != null && Look.motion != 0) PreviewHolder.rect else null }
-        val grow = remember { androidx.compose.animation.core.Animatable(if (growFrom != null) 0f else 1f) }
         LaunchedEffect(Unit) { if (growFrom != null) grow.animateTo(1f, androidx.compose.animation.core.tween(320, easing = androidx.compose.animation.core.FastOutSlowInEasing)) }
         Box(Modifier.fillMaxSize().layout { m, c ->
             val t = grow.value
-            val r = growFrom
+            val r = shrinkTo ?: growFrom
             if (r == null || t >= 1f) {
                 val pl = m.measure(c)
                 layout(c.maxWidth, c.maxHeight) { pl.place(0, 0) }

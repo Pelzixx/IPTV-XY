@@ -182,7 +182,19 @@ fun ChannelOverlay(
                             else e.key == Key.DirectionLeft
                         }
                 ) {
-                    LazyColumn {
+                    // Gleiche Reihenfolge wie die Einträge unten: zum aktuellen Ordner scrollen, damit er sichtbar ist und den Fokus bekommt
+                    val catKeys = remember(chanCat, liveAll, myLists.size, catNames) {
+                        buildList {
+                            add(FAV_CAT); add("RECENT"); myLists.forEach { add(ChannelListLogic.key(it)) }; add("ALL")
+                            if (PlaylistStore.multiPlaylist) PlGroups.sections(liveAll).forEach { s ->
+                                add(PlGroups.keyP(s.playlist))
+                                if (!PlGroups.collapsed(s.playlist)) Tm.sorted(s.groups, Tm.i(Tm.GRP_SORT, 0)) { it.first }.forEach { add(PlGroups.keyG(s.playlist, it.first)) }
+                            } else addAll(catNames)
+                        }
+                    }
+                    val catLs = rememberLazyListState()
+                    LaunchedEffect(Unit) { val i = catKeys.indexOf(chanCat); if (i > 3) catLs.scrollToItem(i - 3) }
+                    LazyColumn(state = catLs) {
                         item { PCatRow("Favoriten", favItems.size, chanCat == FAV_CAT, true, if (chanCat == FAV_CAT) Modifier.focusRequester(catsFocus) else Modifier, null, { onChanCat(FAV_CAT) }) { onShowCats(false) } }
                         item { PCatRow("Verlauf", History.ids.count { it in byId }, chanCat == "RECENT", false, if (chanCat == "RECENT") Modifier.focusRequester(catsFocus) else Modifier, null, { onChanCat("RECENT") }, icon = AIcon.History) { onShowCats(false) } }
                         items(myLists) { l ->

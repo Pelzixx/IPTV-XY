@@ -181,6 +181,9 @@ fun HomeScreen(
     val live = data.live
     val movies = data.movies
     val series = data.series
+    // Die 5 neuesten Titel: nach Anbieter-Datum („hinzugefügt“), sonst die letzten der Playlist
+    val newestM = remember(movies) { if (VodMeta.hasAdded()) movies.sortedByDescending { VodMeta.added(it) }.take(5) else movies.takeLast(5).reversed() }
+    val newestS = remember(series) { if (VodMeta.hasAdded()) series.sortedByDescending { VodMeta.added(it) }.take(5) else series.takeLast(5).reversed() }
     val movieP = data.movieP
     val seriesP = data.seriesP
     val liveP = data.liveP
@@ -476,6 +479,10 @@ fun HomeScreen(
                             if (nowChannels.isNotEmpty()) item(key = "chnow") {
                                 ChannelNowRow(if (favLive.isNotEmpty()) "Favoriten" else "Live TV", nowChannels, onOpen) { onTab(3) }
                             }
+                            // Wunsch des Nutzers: unten klein aktuelle Sport-Ergebnisse, die 5 neuesten Filme und Serien
+                            if (SportsRepo.events.isNotEmpty()) item(key = "hsport") { HomeSportRow { onTab(MenuLogic.SPORT) } }
+                            if (newestM.isNotEmpty()) item(key = "hnewm") { ItemsRow("Neue Filme", newestM, cardW, onOpen) { onTab(1) } }
+                            if (newestS.isNotEmpty()) item(key = "hnews") { ItemsRow("Neue Serien", newestS, cardW, onOpen) { onTab(2) } }
                         }
                         1, 2 -> {
                             val isM = tab == 1
