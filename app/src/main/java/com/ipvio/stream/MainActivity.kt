@@ -258,10 +258,10 @@ private fun AppContent() {
     // Filme/Serien vorberechnen, damit die Reiter sofort öffnen
     LaunchedEffect(all) { if (all.isNotEmpty()) withContext(Dispatchers.Default) { VodMeta.load(ctx); VodCache.build(all, Kind.MOVIE); VodCache.build(all, Kind.SERIES) } }
     val liveAll = remember(all) { all.filter { it.kind == Kind.LIVE } }
-    // Sport Guide vorbereiten, sobald das TV-Programm da ist, damit der Reiter gleich Spiele zeigt
+    // Sport Guide vorbereiten, sobald das TV-Programm da ist (spätestens nach 15 s, Anbieter-Programm geht auch ohne XMLTV)
     LaunchedEffect(liveAll) {
         if (liveAll.isEmpty()) return@LaunchedEffect
-        androidx.compose.runtime.snapshotFlow { Xmltv.channelCount }.first { it > 0 }
+        kotlinx.coroutines.withTimeoutOrNull(15_000) { androidx.compose.runtime.snapshotFlow { Xmltv.channelCount }.first { it > 0 } }
         kotlinx.coroutines.delay(3_000)
         SportsRepo.refresh(liveAll)
     }

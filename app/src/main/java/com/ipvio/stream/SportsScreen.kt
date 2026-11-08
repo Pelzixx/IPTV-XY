@@ -164,7 +164,7 @@ private fun SportHero(e: SportEvent, now: Long, byId: Map<String, Item>, onWatch
         Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(raw = true, text = e.league, color = Tok.TextMid, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                if (e.live(now)) { SportLiveBadge(); Text(raw = true, text = "  " + ((now - e.start) / 60).coerceAtMost(130) + "'", color = Tok.TextMid, fontSize = 14.sp) }
+                if (e.live(now)) { SportLiveBadge(); SportsLogic.gameMinute(e, now)?.let { Text(raw = true, text = "  " + it, color = Tok.TextMid, fontSize = 14.sp) } }
                 else if (e.finished) Text("Beendet", color = Tok.TextLow, fontSize = 13.sp)
             }
             if (e.home != null && e.away != null) {

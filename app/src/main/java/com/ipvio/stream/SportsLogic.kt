@@ -112,6 +112,21 @@ object SportsLogic {
         return Chan(sport, league(channel), sport || GERMAN_TV.containsMatchIn(channel))
     }
 
+    /**
+     * Spielminute eines laufenden Fußballspiels (nur mit Spielstand, also echte Spiele, keine Konferenz/Sendung):
+     * 1.–45. Minute, dann 15 Minuten Halbzeit („HZ“), dann 46.–90., danach „90+“.
+     */
+    fun gameMinute(e: SportEvent, now: Long): String? {
+        if (e.scoreHome == null || e.home == null || e.sport != FOOTBALL || now < e.start) return null
+        val m = ((now - e.start) / 60).toInt() + 1
+        return when {
+            m <= 45 -> "$m'"
+            m <= 60 -> "HZ"
+            m - 15 <= 90 -> "${m - 15}'"
+            else -> "90+'"
+        }
+    }
+
     /** Sendername ohne Länderkürzel und Qualitätsangabe („DE: Sky Sport Bundesliga 1 FHD“ → „sky sport bundesliga 1“). */
     fun baseName(title: String): String = title.lowercase()
         .replace(Regex("""^\s*[a-z]{2,3}\s*[:|]\s*"""), "")
