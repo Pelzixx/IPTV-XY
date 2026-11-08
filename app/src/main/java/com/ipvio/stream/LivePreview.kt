@@ -111,6 +111,8 @@ object PreviewHolder {
     }
 
     fun releaseAll() { p?.release(); p = null; v = null }
+    /** App verlassen: Vorschau sofort stoppen. */
+    fun stopAll() { p?.stop() }
     /** Lage der Vorschau im Fenster: das Vollbild wächst von hier aus auf (TiviMate). */
     var rect: androidx.compose.ui.geometry.Rect? = null
 
@@ -135,8 +137,21 @@ fun LivePreview(p: LivePreviewPlayer, ch: Item?, modifier: Modifier = Modifier, 
         p.player.addListener(l)
         onDispose { p.player.removeListener(l) }
     }
-    LaunchedEffect(ch?.id) {
+    // App im Hintergrund (Home-Taste, App geschlossen): Vorschau anhalten, sonst läuft der Ton weiter und die Verbindung bleibt belegt;
+    // beim Zurückkommen den markierten Sender wieder starten
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    var started by remember { mutableStateOf(lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) }
+    DisposableEffect(lifecycle) {
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, ev ->
+            if (ev == androidx.lifecycle.Lifecycle.Event.ON_STOP) { started = false; p.stop() }
+            if (ev == androidx.lifecycle.Lifecycle.Event.ON_START) started = true
+        }
+        lifecycle.addObserver(obs)
+        onDispose { lifecycle.removeObserver(obs) }
+    }
+    LaunchedEffect(ch?.id, started) {
         showVideo = false
+        if (!started) return@LaunchedEffect
         if (ch == null || !AppSettings.livePreview) { p.stop(); return@LaunchedEffect }
         // Beim Durchblättern nicht jeden Sender anspielen
         delay(700)

@@ -190,6 +190,23 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     val headerFocus = remember { FocusRequester() }
     var focusedCh by remember { mutableStateOf<Item?>(null) }
     var tracksVer by remember { mutableIntStateOf(0) }
+    // Gemessene Bildrate (angezeigte Bilder je Sekunde), gerundet auf 24/25/30/50/60
+    var measuredFps by remember { mutableIntStateOf(0) }
+    LaunchedEffect(req.url) {
+        while (true) {
+            delay(1500)
+            if (player.videoFormat?.frameRate?.let { it > 0f } == true || !player.isPlaying) continue
+            val c0 = player.videoDecoderCounters ?: continue
+            c0.ensureUpdated(); val n0 = c0.renderedOutputBufferCount; val t0 = android.os.SystemClock.elapsedRealtime()
+            delay(2000)
+            val c1 = player.videoDecoderCounters ?: continue
+            c1.ensureUpdated()
+            val dt = (android.os.SystemClock.elapsedRealtime() - t0) / 1000f
+            if (c1 !== c0 || dt <= 0f || !player.isPlaying) continue
+            val f = (c1.renderedOutputBufferCount - n0) / dt
+            if (f >= 10f) measuredFps = listOf(24, 25, 30, 50, 60).minByOrNull { kotlin.math.abs(it - f) } ?: 0
+        }
+    }
     var pos by remember { mutableLongStateOf(0L) }
     var dur by remember { mutableLongStateOf(0L) }
     var buffered by remember { mutableLongStateOf(0L) }
@@ -846,7 +863,8 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                     // App nicht mehr sichtbar (auch Bild-in-Bild geschlossen): anhalten
                     val inPip = android.os.Build.VERSION.SDK_INT >= 24 && findActivity(ctx)?.isInPictureInPictureMode == true
                     Pip.entering = false
-                    if (!inPip && player.playWhenReady) { resumeAfter = true; player.pause(); saveProgress() }
+                    // Stream wirklich beenden (nicht nur pausieren): kein Ton im Hintergrund, Verbindung zum Anbieter frei
+                    if (!inPip) { if (player.playWhenReady) resumeAfter = true; saveProgress(); player.stop() }
                 }
                 Lifecycle.Event.ON_PAUSE -> if (!Pip.entering && !Pip.active && !Pip.autoOn) {
                     resumeAfter = player.playWhenReady
@@ -858,6 +876,8 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                     if (player.playerError != null && resumeAfter) { retries = 0; player.prepare() }
                     if (resumeAfter) {
                         resumeAfter = false
+                        // nach dem Stoppen neu verbinden (Filme/Serien an derselben Stelle, Live am aktuellen Punkt)
+                        if (player.playbackState == Player.STATE_IDLE) player.prepare()
                         if (cur.live) player.seekToDefaultPosition()
                         player.play()
                     }
@@ -896,6 +916,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
 
     LaunchedEffect(cur.url) {
         AppNav.playingId = cur.itemId
+        measuredFps = 0
         readyOnce = false; stalls = emptyList()
         retries = 0; msg = null; buffering = true; segs = emptyList(); pos = 0; dur = 0; buffered = 0
         infoFor = ""; info = null; badges = emptyList(); nextDismissed = false
@@ -1359,7 +1380,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                 // Kartenstil ohne „unten beim Kanalwechsel“: Karte oben unter der Kopfzeile (TiviMate)
                 if (Tm.b(Tm.IF_CARD, false) && !Tm.b(Tm.IF_BOTTOM, false)) Modifier.align(Alignment.TopStart).padding(start = PT.MarginX, end = PT.MarginX, top = PT.MarginY + 56.dp)
                 else Modifier.align(Alignment.BottomStart).padding(start = PT.MarginX, end = PT.MarginX, bottom = PT.MarginY),
-                switching = true, media = mediaLabel(player, tracksVer)
+                switching = true, media = mediaLabel(player, tracksVer, measuredFps)
             )
         }
 
@@ -1469,7 +1490,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                             collectTracks(player, C.TRACK_TYPE_TEXT).firstOrNull { it.selected }?.label ?: Lang.tr("Aus")
                         }
                         if (!liveMenu) {
-                            LiveInfoBlock(curItem, cur.title, if (curIdx >= 0) curIdx + 1 else 0, epg, media = mediaLabel(player, tracksVer))
+                            LiveInfoBlock(curItem, cur.title, if (curIdx >= 0) curIdx + 1 else 0, epg, media = mediaLabel(player, tracksVer, measuredFps))
                             Spacer(Modifier.height(14.dp))
                             // TiviMate: Fortschritt der Sendung; OK = Pause/Weiter, Links/Rechts = spulen im Zeitversatz
                             LiveSeekBar(
@@ -1989,13 +2010,15 @@ private fun NextPill(remain: () -> Long, auto: Boolean, showOk: Boolean, onClick
 
 /** Medieneigenschaften fürs Infofeld wie TiviMate: Auflösung („FHD“ bzw. – wenn eingestellt – „1920x1080“), Bilder pro Sekunde, Ton. */
 @Suppress("UNUSED_PARAMETER")
-private fun mediaLabel(player: androidx.media3.exoplayer.ExoPlayer, ver: Int): List<String> {
+private fun mediaLabel(player: androidx.media3.exoplayer.ExoPlayer, ver: Int, measured: Int = 0): List<String> {
     val out = ArrayList<String>()
     val vs = player.videoSize
     val w = if (vs.width > 0) vs.width else player.videoFormat?.width ?: 0
     val h = if (vs.height > 0) vs.height else player.videoFormat?.height ?: 0
     if (w > 0 && h > 0) out.add(if (Tm.b(Tm.IF_RES_NUM, false)) "${w}x$h" else when { h >= 2000 -> "4K"; h >= 1000 -> "FHD"; h >= 700 -> "HD"; else -> "SD" })
-    player.videoFormat?.frameRate?.takeIf { it > 0f }?.let { out.add(Math.round(it).toString() + " FPS") }
+    // Bildrate aus dem Stream, sonst selbst gemessen (TS/HLS liefern sie oft nicht)
+    val fr = player.videoFormat?.frameRate?.takeIf { it > 0f }?.let { Math.round(it) } ?: measured
+    if (fr > 0) out.add("$fr FPS")
     player.audioFormat?.channelCount?.takeIf { it > 0 }?.let { n -> out.add(when (n) { 1 -> "MONO"; 2 -> "STEREO"; 6 -> "5.1"; 8 -> "7.1"; else -> "$n CH" }) }
     return out
 }

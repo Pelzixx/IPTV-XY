@@ -95,6 +95,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         Reminders.foreground = false
+        // App verlassen: Vorschau-Stream sofort beenden (kein Ton im Hintergrund)
+        PreviewHolder.stopAll()
         super.onStop()
     }
 
