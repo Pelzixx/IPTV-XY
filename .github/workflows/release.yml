@@ -83,7 +83,11 @@ jobs:
       # xy = App des Nutzers mit Logo und Panel (iptv-xy-tv.apk, update-xy.json, eigener Link)
       # township = Township TV (township-tv.apk, update-township.json)
       - name: Release-APKs bauen
-        run: ./gradlew --no-daemon assembleXyRelease assembleStandardRelease assembleTownshipRelease
+        # Nacheinander: alle drei gleichzeitig sprengen den Speicher des GitHub-Rechners (3.43, Kotlin "Not enough memory")
+        run: |
+          ./gradlew --no-daemon --max-workers=2 -Pkotlin.daemon.jvmargs=-Xmx4g assembleStandardRelease
+          ./gradlew --no-daemon --max-workers=2 -Pkotlin.daemon.jvmargs=-Xmx4g assembleXyRelease
+          ./gradlew --no-daemon --max-workers=2 -Pkotlin.daemon.jvmargs=-Xmx4g assembleTownshipRelease
 
       - name: Signatur prüfen und Dateien vorbereiten
         env:

@@ -10,6 +10,8 @@ Benutzername¦Username¦Kullanıcı adı¦Korisničko ime¦Korisničko ime¦Kori
 Passwort¦Password¦Parola¦Lozinka¦Lozinka¦Lozinka¦Contraseña¦Mot de passe¦Password
 Passwort verbergen¦Hide password¦Parolayı gizle¦Sakrij lozinku¦Sakrij lozinku¦Sakrij lozinku¦Ocultar contraseña¦Masquer le mot de passe¦Nascondi password
 Passwort anzeigen¦Show password¦Parolayı göster¦Prikaži lozinku¦Prikaži lozinku¦Prikaži lozinku¦Mostrar contraseña¦Afficher le mot de passe¦Mostra password
+Anzeigen¦Show¦Göster¦Prikaži¦Prikaži¦Prikaži¦Mostrar¦Afficher¦Mostra
+Verbergen¦Hide¦Gizle¦Sakrij¦Sakrij¦Sakrij¦Ocultar¦Masquer¦Nascondi
 Hinzufügen¦Add¦Ekle¦Dodaj¦Dodaj¦Dodaj¦Añadir¦Ajouter¦Aggiungi
 Abbrechen¦Cancel¦İptal¦Otkaži¦Otkaži¦Otkaži¦Cancelar¦Annuler¦Annulla
 Alle¦All¦Tümü¦Sve¦Sve¦Sve¦Todos¦Tous¦Tutti

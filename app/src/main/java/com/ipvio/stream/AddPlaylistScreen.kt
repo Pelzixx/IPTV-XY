@@ -114,21 +114,36 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
     val startFocus = remember { FocusRequester() }
     LaunchedEffect(manual) { delay(120); runCatching { startFocus.requestFocus() } }
 
+    // Aufbau (Wunsch des Nutzers, 2026-11-08): zwei gleich gestaltete Karten, OBEN ausgerichtet. Vorher stand das Formular
+    // senkrecht mittig – öffnete sich die Bildschirmtastatur, wurde neu zentriert und die ganze Seite sprang nach oben.
+    val cardShape = RoundedCornerShape(DS.RadiusXl)
+    // Die Bildschirmtastatur soll die Seite nicht hochschieben (die Felder liegen oben und bleiben sichtbar)
+    DisposableEffect(Unit) {
+        val w = (ctx as? android.app.Activity)?.window
+        val old = w?.attributes?.softInputMode
+        w?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
+        onDispose { if (w != null && old != null) w.setSoftInputMode(old) }
+    }
     Row(
         Modifier.fillMaxSize()
             .background(Brush.radialGradient(listOf(lerp(Bg, Accent1, 0.14f), Bg), radius = 1400f))
-            .padding(horizontal = 46.dp, vertical = 18.dp),
-        horizontalArrangement = Arrangement.spacedBy(40.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 56.dp, vertical = 28.dp),
+        horizontalArrangement = Arrangement.spacedBy(32.dp),
+        verticalAlignment = Alignment.Top
     ) {
         // Links: das Formular
         Column(
-            // Innenabstand im Scrollbereich: der fokussierte Knopf wird vergrößert und darf nicht abgeschnitten werden
-            Modifier.weight(1.1f).verticalScroll(rememberScrollState()).padding(12.dp),
+            Modifier.weight(1.1f).clip(cardShape).background(Surf).border(2.dp, Surf2, cardShape)
+                // Innenabstand im Scrollbereich: der fokussierte Knopf wird vergrößert und darf nicht abgeschnitten werden
+                .verticalScroll(rememberScrollState()).padding(28.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Das Logo enthält den Namen schon
-            BrandMark(Modifier.size(110.dp))
+            // Kopf: Logo und Überschrift nebeneinander
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                BrandMark(Modifier.height(64.dp).widthIn(max = 160.dp))
+                Text(if (!manual) "Anmelden" else "Playlist hinzufügen", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.height(2.dp))
             if (!manual) {
                 PresetLogin(
                     servers, sel, { sel = it }, user, { user = it }, pass, { pass = it }, showPass, { showPass = !showPass },
@@ -142,7 +157,6 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
                     onCancel = { PlaylistStore.clearPending(ctx); onDone() }
                 )
             } else {
-            Text("Playlist hinzufügen", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
             @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
             androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 FocusButton("M3U-Link", Modifier.focusRequester(startFocus), primary = !xtream && !stalker) { xtream = false; stalker = false }
@@ -167,9 +181,7 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
                 }
             } else {
                 Field(host, { host = it }, "Server (z. B. http://server.tld:8080)")
-                Field(user, { user = it }, "Benutzername")
-                Field(pass, { pass = it }, "Passwort", password = !showPass)
-                FocusButton(if (showPass) "Passwort verbergen" else "Passwort anzeigen") { showPass = !showPass }
+                UserPassFields(user, { user = it }, pass, { pass = it }, showPass, { showPass = !showPass })
             }
             PlaylistStore.error?.let { Text(it, color = DS.Danger, fontSize = 18.sp) }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -252,19 +264,17 @@ private fun PresetLogin(
     startFocus: FocusRequester, canCancel: Boolean,
     onLogin: () -> Unit, onOther: () -> Unit, onCancel: () -> Unit
 ) {
-    Text("Anmelden", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
     // Start-Fokus auf einen Knopf, nicht auf ein Eingabefeld (das würde sofort die Bildschirmtastatur öffnen)
     if (servers.size > 1) {
         Text("Server wählen", color = Muted, fontSize = 18.sp)
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             servers.forEachIndexed { i, s ->
                 FocusButton(s.name, if (i == sel) Modifier.focusRequester(startFocus) else Modifier, primary = i == sel) { onSel(i) }
             }
         }
     }
-    Field(user, onUser, "Benutzername")
-    Field(pass, onPass, "Passwort", password = !showPass)
-    FocusButton(if (showPass) "Passwort verbergen" else "Passwort anzeigen") { onTogglePass() }
+    UserPassFields(user, onUser, pass, onPass, showPass, onTogglePass)
     PlaylistStore.error?.let { Text(it, color = DS.Danger, fontSize = 18.sp) }
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         FocusButton("Anmelden", if (servers.size > 1) Modifier else Modifier.focusRequester(startFocus), primary = true) {
@@ -272,6 +282,23 @@ private fun PresetLogin(
         }
         FocusButton("Andere Quelle") { onOther() }
         if (canCancel) FocusButton("Abbrechen") { onCancel() }
+    }
+}
+
+/**
+ * Benutzername und Passwort untereinander, „Anzeigen“ direkt neben dem Passwort.
+ * „Fertig“ auf der Tastatur beim Benutzernamen springt gleich ins Passwortfeld.
+ */
+@Composable
+private fun UserPassFields(
+    user: String, onUser: (String) -> Unit, pass: String, onPass: (String) -> Unit,
+    showPass: Boolean, onTogglePass: () -> Unit
+) {
+    val passFocus = remember { FocusRequester() }
+    Field(user, onUser, "Benutzername", onDone = { runCatching { passFocus.requestFocus() } })
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Field(pass, onPass, "Passwort", modifier = Modifier.weight(1f), inner = Modifier.focusRequester(passFocus), password = !showPass)
+        FocusButton(if (showPass) "Verbergen" else "Anzeigen") { onTogglePass() }
     }
 }
 
