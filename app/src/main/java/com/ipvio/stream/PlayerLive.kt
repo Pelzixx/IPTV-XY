@@ -59,7 +59,7 @@ import coil.compose.AsyncImage
 
 /** Sender-Infoblock: Logo, Nummer, Name, laufende Sendung mit Fortschritt und "Danach". */
 @Composable
-fun LiveInfoBlock(item: Item?, title: String, number: Int, epg: List<EpgEntry>, modifier: Modifier = Modifier, switching: Boolean = false, media: String? = null) {
+fun LiveInfoBlock(item: Item?, title: String, number: Int, epg: List<EpgEntry>, modifier: Modifier = Modifier, switching: Boolean = false, media: List<String> = emptyList()) {
     // Runde 20 (TV-Stil): Logo frei links, daneben Sendungstitel groß; darunter Zeit, Fortschritt, Restminuten und Sendername,
     // dann Beschreibung und die nächste Sendung
     val nowE = Epg.current(epg)
@@ -71,38 +71,44 @@ fun LiveInfoBlock(item: Item?, title: String, number: Int, epg: List<EpgEntry>, 
     val showDesc = Tm.b(Tm.IF_DESC, true) && (switching || !Tm.b(Tm.IF_DESC_SWITCH, true))
     Row(
         modifier.then(if (card) Modifier.clip(RoundedCornerShape(12.dp)).background(Color(0xFF202328).copy(alpha = uiAlpha(0.95f))).padding(20.dp) else Modifier),
-        verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(28.dp)
+        verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        Box(Modifier.width(140.dp).height(90.dp), contentAlignment = Alignment.Center) {
+        // Größen wie TiviMate: kompakt, Logo links, Titel mittelgroß, Zeilen klein
+        Box(Modifier.width(120.dp).height(66.dp), contentAlignment = Alignment.Center) {
             if (logo != null) AsyncImage(logo, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
-            else Text(raw = true, text = chName.take(3).uppercase(), color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            else Text(raw = true, text = chName.take(3).uppercase(), color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
-        Column(Modifier.widthIn(max = 1100.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(raw = true, text = nowE?.title ?: chName, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Medium,
+        Column(Modifier.widthIn(max = 760.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(raw = true, text = nowE?.title ?: chName, color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Medium,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (nowE != null) {
                     val nowS = System.currentTimeMillis() / 1000
                     val frac = ((nowS - nowE.start).toFloat() / (nowE.end - nowE.start).coerceAtLeast(1)).coerceIn(0f, 1f)
-                    Text(raw = true, text = hhmm(nowE.start) + " — " + hhmm(nowE.end), color = PT.T2, fontSize = 18.sp, style = TNUM, maxLines = 1)
-                    Box(Modifier.width(70.dp).height(4.dp).clip(RoundedCornerShape(2.dp)).background(DS.Overlay3)) {
+                    Text(raw = true, text = hhmm(nowE.start) + " — " + hhmm(nowE.end), color = PT.T2, fontSize = 14.sp, style = TNUM, maxLines = 1)
+                    Box(Modifier.width(40.dp).height(3.dp).clip(RoundedCornerShape(2.dp)).background(DS.Overlay3)) {
                         Box(Modifier.fillMaxWidth(frac).fillMaxHeight().background(Color.White))
                     }
-                    Text(raw = true, text = "${((nowE.end - nowS) / 60).coerceAtLeast(0)} Min", color = PT.T2, fontSize = 18.sp, style = TNUM, maxLines = 1)
+                    Text(raw = true, text = "${((nowE.end - nowS) / 60).coerceAtLeast(0)} Min", color = PT.T2, fontSize = 14.sp, style = TNUM, maxLines = 1)
                 }
-                if (number > 0) Text("$number", color = Accent2, fontSize = 18.sp, fontWeight = FontWeight.Medium, style = TNUM)
-                Text(raw = true, text = chName, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (media != null && Tm.b(Tm.IF_MEDIA, true)) PChip(media, raw = true)
+                if (number > 0) Text("$number", color = Accent2, fontSize = 14.sp, fontWeight = FontWeight.Medium, style = TNUM)
+                Text(raw = true, text = chName, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                // TiviMate: Auflösung, Bilder pro Sekunde und Ton als kleine Felder
+                if (Tm.b(Tm.IF_MEDIA, true)) media.forEach { m ->
+                    Box(Modifier.clip(RoundedCornerShape(3.dp)).background(Color(0x4DFFFFFF)).padding(horizontal = 5.dp, vertical = 1.dp)) {
+                        Text(raw = true, text = m, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    }
+                }
             }
             if (nowE != null) {
-                if (showDesc && nowE.desc.isNotBlank()) Text(raw = true, text = nowE.desc, color = PT.T2, fontSize = 17.sp, lineHeight = 22.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                if (nextE != null) Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text(raw = true, text = hhmm(nextE.start) + " — " + hhmm(nextE.end), color = PT.T2, fontSize = 18.sp, style = TNUM, maxLines = 1)
-                    Text(raw = true, text = nextE.title, color = PT.T2, fontSize = 20.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (showDesc && nowE.desc.isNotBlank()) Text(raw = true, text = nowE.desc, color = PT.T2, fontSize = 13.sp, lineHeight = 17.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                if (nextE != null) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(raw = true, text = hhmm(nextE.start) + " — " + hhmm(nextE.end), color = PT.T2, fontSize = 14.sp, style = TNUM, maxLines = 1)
+                    Text(raw = true, text = nextE.title, color = PT.T2, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             } else {
                 val supported = item != null && Epg.supported(item)
-                Text(if (supported) "Kein Programm für diesen Sender" else "Kein Programm verfügbar", color = PT.T2, fontSize = 17.sp, maxLines = 1)
+                Text(if (supported) "Kein Programm für diesen Sender" else "Kein Programm verfügbar", color = PT.T2, fontSize = 14.sp, maxLines = 1)
             }
         }
     }

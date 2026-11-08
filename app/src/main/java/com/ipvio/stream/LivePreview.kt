@@ -41,45 +41,53 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInWindow
 import kotlinx.coroutines.delay
 
 /**
- * Kleiner Player für die Vorschau in Live TV. Ohne Ton, ein einziger Player für die ganze Seite.
- * Wichtig: Viele Anbieter erlauben nur eine Verbindung gleichzeitig – vor dem Öffnen des großen Players wird [stop] gerufen,
- * beim Verlassen der Seite [release].
+ * Player für die Vorschau in Live TV, ein einziger für die ganze Seite. Wie TiviMate mit Ton (abschaltbar).
+ * Viele Anbieter erlauben nur eine Verbindung gleichzeitig: OK auf den laufenden Sender übergibt diesen Player an den
+ * Vollbild-Player ([handover]) – kein Neuladen, keine zweite Verbindung. Sonst wird vor dem Vollbild [stop] gerufen.
  */
 class LivePreviewPlayer(ctx: Context) {
-    val player: ExoPlayer = run {
-        val http = DefaultHttpDataSource.Factory()
-            .setAllowCrossProtocolRedirects(true)
-            .setConnectTimeoutMs(10_000)
-            .setReadTimeoutMs(15_000)
-        ExoPlayer.Builder(ctx, SoftAudio.factory(ctx))
-            .setMediaSourceFactory(DefaultMediaSourceFactory(ctx).setDataSourceFactory(DefaultDataSource.Factory(ctx, http)))
-            .build()
-            .also { it.volume = 0f }
-    }
+    private val built = XyPlayer.build(ctx, null)
+    val player: ExoPlayer = built.player
     private var url: String? = null
     private var released = false
+    /** An den Vollbild-Player übergeben: gehört dann nicht mehr der Vorschau (stop/release wirken nicht mehr). */
+    private var handedOver = false
 
-    fun play(u: String) {
-        if (u == url || released) return
+    fun play(u: String, itemId: String? = null) {
+        if (u == url || released || handedOver) return
         url = u
         runCatching {
-            player.setMediaItem(MediaItem.fromUri(u))
+            built.http.setUserAgent(TmNet.userAgentFor(itemId))
+            player.volume = if (Tm.b(Tm.CV_SOUND, true)) 1f else 0f
+            player.setMediaItem(MediaItem.fromUri(TmNet.playUrl(u)))
             player.prepare()
             player.playWhenReady = true
         }.onFailure { url = null; Diag.report("Vorschau: " + (it.message ?: it.javaClass.simpleName)) }
     }
 
+    /** Läuft gerade dieser Sender (Adresse wie im Vollbild)? */
+    fun isOn(u: String): Boolean = !released && !handedOver && url == u
+
+    /** Für den Vollbild-Player: Player samt Verbindung übernehmen, wenn er gerade [u] spielt. */
+    fun handover(u: String): XyPlayer.Built? {
+        if (!isOn(u) || player.playbackState == androidx.media3.common.Player.STATE_IDLE) return null
+        handedOver = true
+        return built
+    }
+
     fun stop() {
         url = null
-        if (released) return
+        if (released || handedOver) return
         runCatching { player.stop(); player.clearMediaItems() }
     }
 
-    fun release() { url = null; if (!released) { released = true; player.release() } }
-    val isReleased: Boolean get() = released
+    fun release() { url = null; if (!released && !handedOver) { released = true; player.release() } }
+    val isReleased: Boolean get() = released || handedOver
 }
 
 /**
@@ -103,6 +111,16 @@ object PreviewHolder {
     }
 
     fun releaseAll() { p?.release(); p = null; v = null }
+    /** Lage der Vorschau im Fenster: das Vollbild wächst von hier aus auf (TiviMate). */
+    var rect: androidx.compose.ui.geometry.Rect? = null
+
+    /** Vollbild-Player: laufenden Vorschau-Player übernehmen, wenn er gerade diesen Sender spielt; sonst Vorschau stoppen. */
+    fun takeFor(url: String): XyPlayer.Built? {
+        val cur = p ?: return null
+        val b = cur.handover(url)
+        if (b != null) p = null else cur.stop()
+        return b
+    }
 }
 
 /** Vorschaufenster: spielt den markierten Sender nach kurzer Pause ab; bis dahin (und bei Fehlern) das Senderlogo. */
@@ -122,10 +140,10 @@ fun LivePreview(p: LivePreviewPlayer, ch: Item?, modifier: Modifier = Modifier, 
         if (ch == null || !AppSettings.livePreview) { p.stop(); return@LaunchedEffect }
         // Beim Durchblättern nicht jeden Sender anspielen
         delay(700)
-        p.play(if (Stalker.isPlay(ch.url)) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Stalker.playable(ch.url) } else ch.url)
+        p.play(if (Stalker.isPlay(ch.url)) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Stalker.playable(ch.url) } else ch.url, ch.id)
     }
     val shape = RoundedCornerShape(DS.RadiusS)
-    Box(modifier.clip(shape).background(Color.Black), contentAlignment = Alignment.Center) {
+    Box(modifier.onGloballyPositioned { PreviewHolder.rect = it.boundsInWindow() }.clip(shape).background(Color.Black), contentAlignment = Alignment.Center) {
         AndroidView(
             factory = { c -> PreviewHolder.view(c, p) },
             modifier = Modifier.fillMaxSize()

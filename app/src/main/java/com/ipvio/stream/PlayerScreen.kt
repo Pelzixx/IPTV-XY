@@ -148,29 +148,14 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     // und gibt nach 10 s Verbindungsaufbau bzw. 15 s Lesezeit auf, statt endlos zu warten.
     // User-Agent je Wiedergabeliste (TiviMate): vor jedem neuen Stream passend setzen
     val httpRef = remember { arrayOfNulls<DefaultHttpDataSource.Factory>(1) }
+    // TiviMate: läuft der Sender schon in der Vorschau, wird deren Player übernommen (kein Neuladen, keine zweite Verbindung);
+    // sonst wird die Vorschau gestoppt und ein neuer Player gebaut
+    val handedOver = remember { req.live && req.archive == null }.let { live -> remember { if (live) PreviewHolder.takeFor(req.url) else { PreviewHolder.takeFor(""); null } } }
     val player = remember {
-        val http = DefaultHttpDataSource.Factory()
-            .setUserAgent(TmNet.userAgentFor(req.itemId))
-        httpRef[0] = http
-        http
-            .setAllowCrossProtocolRedirects(true)
-            .setConnectTimeoutMs(10_000)
-            .setReadTimeoutMs(15_000)
-        // Wiedergabe (TiviMate): getunnelte Wiedergabe, Surround-Tonspur bevorzugen (aus = höchstens Stereo, wenn vorhanden)
-        val ts = androidx.media3.exoplayer.trackselection.DefaultTrackSelector(ctx).apply {
-            setParameters(buildUponParameters().setTunnelingEnabled(Tm.b(Tm.PB_TUNNEL, false))
-                .apply { if (!Tm.b(Tm.PB_SURROUND, false)) setMaxAudioChannelCount(2) })
-        }
-        ExoPlayer.Builder(ctx, SoftAudio.factory(ctx))
-            .setTrackSelector(ts)
-            .setLoadControl(Mem.loadControl(ctx))
-            .setWakeMode(C.WAKE_MODE_NETWORK)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(ctx).setDataSourceFactory(SmbAwareFactory(DefaultDataSource.Factory(ctx, http))))
-            .build()
-            .also {
-                // Bildrate: nur wechseln, wenn der Fernseher das nahtlos kann (kein Aufblitzen); abschaltbar unter Einstellungen > Player
-                it.videoChangeFrameRateStrategy = if (AppSettings.autoFps && Tm.i(Tm.PB_AFR_MODE, 0) == 0) C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_ONLY_IF_SEAMLESS else C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_OFF
-            }
+        val b = handedOver ?: XyPlayer.build(ctx, req.itemId)
+        httpRef[0] = b.http
+        b.http.setUserAgent(TmNet.userAgentFor(req.itemId))
+        b.player.also { it.volume = 1f }
     }
     val h = remember { Handler(Looper.getMainLooper()) }
     // Zustand für die Bildschirm-Wachhaltung: Sie gilt nur, solange wirklich abgespielt oder nachgeladen wird
@@ -186,7 +171,8 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     var buffering by remember { mutableStateOf(true) }
     var playing by remember { mutableStateOf(true) }
     // Live (Runde 14): beim Öffnen gleich die Steuerleiste mit Sender und Sendung statt der kurzen Info-Box
-    var controls by remember { mutableStateOf(true) }
+    // TiviMate: Fernsehen startet ohne Einblendung (nur Bild); Filme/Serien mit Steuerleiste
+    var controls by remember { mutableStateOf(!req.live) }
     var focusSeek by remember { mutableStateOf(false) }
     var panel by remember { mutableStateOf(Panel.NONE) }
     // Technik-Info und Untertitel-Suche (OpenSubtitles)
@@ -233,6 +219,8 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     var epg by remember { mutableStateOf<List<EpgEntry>>(emptyList()) }
     var banner by remember { mutableStateOf(false) }
     var bannerTick by remember { mutableIntStateOf(0) }
+    var bannerArmed by remember { mutableStateOf(false) }
+    val okDownSeen = remember { booleanArrayOf(false) }
     var miniBar by remember { mutableStateOf(false) }
     var miniTick by remember { mutableIntStateOf(0) }
     var nextDismissed by remember { mutableStateOf(false) }
@@ -911,15 +899,23 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
         readyOnce = false; stalls = emptyList()
         retries = 0; msg = null; buffering = true; segs = emptyList(); pos = 0; dur = 0; buffered = 0
         infoFor = ""; info = null; badges = emptyList(); nextDismissed = false
-        if (cur.live) bannerTick++
+        // Info erst beim Umschalten (TiviMate), nicht beim Öffnen des Vollbilds
+        if (cur.live) { if (bannerArmed) bannerTick++ else bannerArmed = true }
         scrubTarget = -1L
         val loaded = player.currentMediaItem?.localConfiguration?.uri?.toString()
-        if (loaded != cur.url) {
+        // Aus der Vorschau übernommen und schon bereit: sofort als „läuft“ zeigen (kein Lade-Kreis)
+        if ((loaded == cur.url || loaded == TmNet.playUrl(cur.url)) && player.playbackState == Player.STATE_READY) {
+            buffering = false; readyOnce = true; frameShown = true; pState = Player.STATE_READY
+        }
+        if (loaded != cur.url && loaded != TmNet.playUrl(cur.url)) {
             httpRef[0]?.setUserAgent(TmNet.userAgentFor(cur.itemId))
             // Stalker-Portal: echte Adresse erst jetzt holen (create_link)
             val real = if (Stalker.isPlay(cur.url)) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Stalker.playable(cur.url) } else cur.url
-            player.setMediaItem(MediaItem.fromUri(TmNet.playUrl(real)), if (cur.startMs > 0) cur.startMs else 0L)
-            player.prepare(); player.playWhenReady = true
+            // Unbekanntes Stream-Format o. Ä.: Meldung statt Absturz
+            runCatching {
+                player.setMediaItem(MediaItem.fromUri(TmNet.playUrl(real)), if (cur.startMs > 0) cur.startMs else 0L)
+                player.prepare(); player.playWhenReady = true
+            }.onFailure { buffering = false; msg = Lang.tr("Dieser Stream kann nicht abgespielt werden."); Diag.report("Player: " + (it.message ?: it.javaClass.simpleName)) }
         }
     }
     LaunchedEffect(Unit) {
@@ -1078,6 +1074,11 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
             .focusRequester(rootFocus)
             .onPreviewKeyEvent { e ->
                 interact = System.currentTimeMillis()
+                // OK, mit dem man aus dem Guide ins Vollbild kam: dessen Loslassen kommt hier an – ignorieren (sonst öffnet sich das Menü)
+                if (e.key == Key.DirectionCenter || e.key == Key.Enter || e.key == Key.NumPadEnter) {
+                    if (e.type == KeyEventType.KeyDown) okDownSeen[0] = true
+                    else if (e.type == KeyEventType.KeyUp && !okDownSeen[0]) return@onPreviewKeyEvent true
+                }
                 // Zurück selbst behandeln: sonst nimmt Compose zuerst nur den Fokus weg und das Menü bleibt offen
                 val liveIdle = cur.live && !controls && panel == Panel.NONE && !showChannels && !showGuide && digitBuf.isEmpty() && !showNextCard
                 // Infofeld eines anderen Senders offen (ohne Umschalten): OK schaltet um, Zurück schließt
@@ -1211,6 +1212,24 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
             5 -> Modifier.align(Alignment.Center).fillMaxHeight().aspectRatio(4f / 3f)
             else -> Modifier.fillMaxSize()
         }
+        // TiviMate: aus der Vorschau übernommen – das Bild wächst von der Vorschau auf Vollbild (statt Schnitt und Neuladen)
+        val growFrom = remember { if (handedOver != null && Look.motion != 0) PreviewHolder.rect else null }
+        val grow = remember { androidx.compose.animation.core.Animatable(if (growFrom != null) 0f else 1f) }
+        LaunchedEffect(Unit) { if (growFrom != null) grow.animateTo(1f, androidx.compose.animation.core.tween(320, easing = androidx.compose.animation.core.FastOutSlowInEasing)) }
+        Box(Modifier.fillMaxSize().layout { m, c ->
+            val t = grow.value
+            val r = growFrom
+            if (r == null || t >= 1f) {
+                val pl = m.measure(c)
+                layout(c.maxWidth, c.maxHeight) { pl.place(0, 0) }
+            } else {
+                fun lerp(a: Float, b: Float) = a + (b - a) * t
+                val w = lerp(r.width, c.maxWidth.toFloat()).toInt().coerceAtLeast(1)
+                val hh = lerp(r.height, c.maxHeight.toFloat()).toInt().coerceAtLeast(1)
+                val pl = m.measure(androidx.compose.ui.unit.Constraints.fixed(w, hh))
+                layout(c.maxWidth, c.maxHeight) { pl.place(lerp(r.left, 0f).toInt(), lerp(r.top, 0f).toInt()) }
+            }
+        }) {
         AndroidView(
             factory = { c ->
                 PlayerView(c).apply {
@@ -1234,6 +1253,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
             },
             modifier = videoMod
         )
+        }
         // Optik > Player: „Zeige schwarzes Bild beim Senderwechsel“ – bis das erste Bild des neuen Senders da ist
         if (!frameShown) Box(Modifier.fillMaxSize().background(Color.Black))
 
@@ -1319,7 +1339,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
         peekItem?.let { pk ->
             val pkNow = System.currentTimeMillis() / 1000
             val pkEpg = remember(pk.id, Xmltv.channelCount) { Xmltv.forItem(pk).filter { it.end > pkNow } }
-            Box(Modifier.fillMaxWidth().height(360.dp).align(Alignment.BottomCenter)
+            Box(Modifier.fillMaxWidth().height(250.dp).align(Alignment.BottomCenter)
                 .background(Brush.verticalGradient(0f to Color.Transparent, 0.35f to Color(0xB3000000), 1f to Color(0xF2000000))))
             Column(Modifier.align(Alignment.BottomStart).padding(start = PT.MarginX, end = PT.MarginX, bottom = PT.MarginY)) {
                 LiveInfoBlock(pk, ChannelEdit.title(pk), zapSrc.indexOfFirst { it.id == pk.id } + 1, pkEpg, switching = true)
@@ -1331,7 +1351,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
         if (banner && cur.live && !controls && !showChannels && !showGuide) {
             // TV-Stil: Abdunklung oben und unten über die ganze Breite, oben Wiedergabeliste/Gruppe und Uhrzeit, unten die Infos
             Box(Modifier.fillMaxWidth().height(150.dp).align(Alignment.TopCenter).background(Brush.verticalGradient(listOf(Color(0xCC000000), Color.Transparent))))
-            Box(Modifier.fillMaxWidth().height(360.dp).align(Alignment.BottomCenter)
+            Box(Modifier.fillMaxWidth().height(250.dp).align(Alignment.BottomCenter)
                 .background(Brush.verticalGradient(0f to Color.Transparent, 0.35f to Color(0xB3000000), 1f to Color(0xF2000000))))
             LiveTopBar(Modifier.fillMaxWidth().align(Alignment.TopStart).padding(start = PT.MarginX, end = PT.MarginX, top = PT.MarginY))
             LiveInfoBlock(
@@ -1967,15 +1987,17 @@ private fun NextPill(remain: () -> Long, auto: Boolean, showOk: Boolean, onClick
     PSkipPill(label + (if (showOk) "  (OK)" else ""), onClick = onClick)
 }
 
-/** Medieneigenschaften fürs Infofeld (TiviMate): „FHD“ bzw. – wenn eingestellt – „1920x1080“. */
+/** Medieneigenschaften fürs Infofeld wie TiviMate: Auflösung („FHD“ bzw. – wenn eingestellt – „1920x1080“), Bilder pro Sekunde, Ton. */
 @Suppress("UNUSED_PARAMETER")
-private fun mediaLabel(player: androidx.media3.exoplayer.ExoPlayer, ver: Int): String? {
+private fun mediaLabel(player: androidx.media3.exoplayer.ExoPlayer, ver: Int): List<String> {
+    val out = ArrayList<String>()
     val vs = player.videoSize
     val w = if (vs.width > 0) vs.width else player.videoFormat?.width ?: 0
     val h = if (vs.height > 0) vs.height else player.videoFormat?.height ?: 0
-    if (w <= 0 || h <= 0) return null
-    if (Tm.b(Tm.IF_RES_NUM, false)) return "${w}x$h"
-    return when { h >= 2000 -> "4K"; h >= 1000 -> "FHD"; h >= 700 -> "HD"; else -> "SD" }
+    if (w > 0 && h > 0) out.add(if (Tm.b(Tm.IF_RES_NUM, false)) "${w}x$h" else when { h >= 2000 -> "4K"; h >= 1000 -> "FHD"; h >= 700 -> "HD"; else -> "SD" })
+    player.videoFormat?.frameRate?.takeIf { it > 0f }?.let { out.add(Math.round(it).toString() + " FPS") }
+    player.audioFormat?.channelCount?.takeIf { it > 0 }?.let { n -> out.add(when (n) { 1 -> "MONO"; 2 -> "STEREO"; 6 -> "5.1"; 8 -> "7.1"; else -> "$n CH" }) }
+    return out
 }
 
 /** Compose-Taste -> Taste der Fernbedienungs-Belegung (nur die kurzen; lang ergibt sich aus der Haltedauer). */

@@ -453,6 +453,8 @@ Gruppe erstellen¦Create group¦Grup oluştur¦Kreiraj grupu¦Stvori grupu¦Napr
 Kopieren nach¦Copy to¦Şuraya kopyala¦Kopiraj u¦Kopiraj u¦Kopiraj u¦Copiar a¦Copier vers¦Copia in
 Verschieben nach¦Move to¦Şuraya taşı¦Premjesti u¦Premjesti u¦Premesti u¦Mover a¦Déplacer vers¦Sposta in
 Playlist Typ¦Playlist type¦Oynatma listesi türü¦Vrsta liste¦Vrsta popisa¦Vrsta liste¦Tipo de lista¦Type de playlist¦Tipo di playlist
+Vorschau mit Ton¦Preview with sound¦Sesli önizleme¦Pregled sa zvukom¦Pregled sa zvukom¦Pregled sa zvukom¦Vista previa con sonido¦Aperçu avec son¦Anteprima con audio
+Dieser Stream kann nicht abgespielt werden.¦This stream cannot be played.¦Bu yayın oynatılamıyor.¦Ovaj stream se ne može reproducirati.¦Ovaj stream se ne može reproducirati.¦Ovaj strim ne može da se reprodukuje.¦Esta emisión no se puede reproducir.¦Ce flux ne peut pas être lu.¦Questo stream non può essere riprodotto.
 Gruppenoptionen¦Group options¦Grup seçenekleri¦Opcije grupe¦Opcije grupe¦Opcije grupe¦Opciones de grupo¦Options du groupe¦Opzioni gruppo
 oder Stalker-Portal¦or Stalker portal¦veya Stalker portalı¦ili Stalker portal¦ili Stalker portal¦ili Stalker portal¦o portal Stalker¦ou portail Stalker¦o portale Stalker
 AFR-Methode¦AFR method¦AFR yöntemi¦AFR metoda¦AFR metoda¦AFR metoda¦Método AFR¦Méthode AFR¦Metodo AFR

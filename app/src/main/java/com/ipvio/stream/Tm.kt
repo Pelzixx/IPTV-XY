@@ -71,6 +71,7 @@ object Tm {
     const val CV_ANIM = "cv_anim"
     const val CV_AUTOPLAY = "cv_autoplay"
     const val CV_STAY = "cv_stay"
+    const val CV_SOUND = "cv_sound"   // Vorschau mit Ton (TiviMate)
     const val CV_FS_TIMEOUT = "cv_fs_timeout"   // Sekunden ohne Taste bis Vollbild (0 = aus)
     // Infofeld
     const val IF_CARD = "if_card"

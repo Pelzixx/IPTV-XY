@@ -233,7 +233,8 @@ fun LiveTab(live: List<Item>, groups0: Map<String, List<Item>>, favs: List<Item>
     // Vorschau nur, solange ein Sender in der Liste markiert ist (nicht beim Wechseln der Kategorie)
     val preview = remember { PreviewHolder.player(ctx) }
     DisposableEffect(Unit) { onDispose { preview.stop() } }
-    fun open(ch: Item) { preview.stop(); ZapContext.list = list; ZapContext.key = sel; LiveMemory.setSel(ctx, sel); onOpen(ch) }
+    // Läuft der Sender schon in der Vorschau, bleibt sie an: der Vollbild-Player übernimmt sie (TiviMate)
+    fun open(ch: Item) { if (!preview.isOn(ch.url)) preview.stop(); ZapContext.list = list; ZapContext.key = sel; LiveMemory.setSel(ctx, sel); onOpen(ch) }
     // Sender, der gerade läuft (zuletzt gesehen) – für Vorschau und ▶
     val playingCh = History.ids.firstOrNull()?.let { id -> list.firstOrNull { it.id == id } ?: PlaylistStore.channels.firstOrNull { it.id == id && it.kind == Kind.LIVE } }
     // Fernbedienung > EPG: Aktionen, die die ganze Liste betreffen

@@ -2119,6 +2119,7 @@ private fun TmLpList(ctx: Context) {
     ToggleRow("Animierter Übergang", null, Tm.b(Tm.CV_ANIM, true)) { Tm.set(ctx, Tm.CV_ANIM, it) }
     ToggleRow("Kanäle automatisch abspielen", null, Tm.b(Tm.CV_AUTOPLAY, false)) { Tm.set(ctx, Tm.CV_AUTOPLAY, it) }
     ToggleRow("Bleib in der Liste beim Sender wechseln", null, Tm.b(Tm.CV_STAY, true)) { Tm.set(ctx, Tm.CV_STAY, it) }
+    ToggleRow("Vorschau mit Ton", null, Tm.b(Tm.CV_SOUND, true)) { Tm.set(ctx, Tm.CV_SOUND, it) }
     val fsOpts = listOf(0, 5, 10, 15, 20, 30, 60)
     val fsCur = Tm.i(Tm.CV_FS_TIMEOUT, 0)
     SelectRow("Timeout für Vollbildumschaltung, Sek", if (fsCur == 0) Lang.tr("Aus") else fsCur.toString(), fsOpts.map { if (it == 0) "Aus" else "$it" }, fsOpts.indexOf(fsCur).coerceAtLeast(0)) { Tm.set(ctx, Tm.CV_FS_TIMEOUT, fsOpts[it]) }
