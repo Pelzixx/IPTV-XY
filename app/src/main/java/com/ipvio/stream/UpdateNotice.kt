@@ -56,7 +56,10 @@ fun UpdateCard(info: UpdateInfo, modifier: Modifier) {
     BackHandler { if (!busy) UpdateNotice.later() }
     LaunchedEffect(info.code) { delay(150); runCatching { fr.requestFocus() } }
     fun install(f: java.io.File) {
-        status = Lang.tr(if (AppUpdate.install(ctx, f)) "Installation gestartet" else "Erlaube der App einmal „Apps installieren“ und tippe dann erneut.")
+        if (AppUpdate.install(ctx, f)) { status = Lang.tr("Installation gestartet"); return }
+        // Freigabe „Apps installieren“ ist offen: sobald erteilt, geht es von selbst weiter
+        status = Lang.tr("Erlaube der App einmal „Apps installieren“. Danach startet die Installation von selbst.")
+        scope.launch { if (AppUpdate.installWhenAllowed(ctx, f)) status = Lang.tr("Installation gestartet") }
     }
     val shape = RoundedCornerShape(DS.RadiusL)
     Row(

@@ -80,6 +80,19 @@ object AppUpdate {
     }
 
     /** Öffnet den System-Installer. Fehlt die Erlaubnis „Apps aus unbekannten Quellen“, öffnet sich stattdessen deren Einstellung. */
+    /**
+     * Wie [install], wartet aber nach dem Öffnen der Freigabe „Apps installieren“ bis zu 3 Minuten, bis sie erteilt ist,
+     * und startet die Installation dann von selbst (vorher musste man zurück und erneut tippen).
+     */
+    suspend fun installWhenAllowed(c: Context, apk: File): Boolean {
+        if (android.os.Build.VERSION.SDK_INT < 26) return false
+        repeat(260) {
+            kotlinx.coroutines.delay(700)
+            if (c.packageManager.canRequestPackageInstalls()) return install(c, apk)
+        }
+        return false
+    }
+
     fun install(c: Context, apk: File): Boolean {
         if (android.os.Build.VERSION.SDK_INT >= 26 && !c.packageManager.canRequestPackageInstalls()) {
             runCatching {
