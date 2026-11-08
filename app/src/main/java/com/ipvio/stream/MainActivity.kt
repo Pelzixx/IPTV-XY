@@ -330,7 +330,7 @@ private fun AppContent() {
     }
     fun goTab(id: Int) {
         // Einstellungen immer als Leiste rechts (TiviMate); Suche und Aufnahmen haben sie nicht: über die Startseite öffnen
-        if (id == MenuLogic.SETTINGS) { if (tab == MenuLogic.SEARCH || tab == MenuLogic.REC) tab = 0; SettingsOpen.value = true; return }
+        if (id == MenuLogic.SETTINGS) { if (tab == MenuLogic.SEARCH || tab == MenuLogic.REC || tab == MenuLogic.SPORT) tab = 0; SettingsOpen.value = true; return }
         if (id == MenuLogic.EPG) { openEpg(); return }
         tab = id; CatMemory.reset()
         jumpTick++
@@ -460,6 +460,8 @@ private fun AppContent() {
                 onGoTab = { if (it != MenuLogic.EPG) cats = null; goTab(it) }
             ) }
             adding -> Box(Modifier.fillMaxSize().screenEnter()) { AddPlaylistScreen { adding = false } }
+            // Sport Guide (nach StreamVault)
+            tab == MenuLogic.SPORT -> Box(Modifier.fillMaxSize()) { SportsScreen(tab, onTab = { goTab(it) }) { ch -> start(ch, ch.title, ch.url) } }
             tab == MenuLogic.REC -> Box(Modifier.fillMaxSize().screenEnter()) { RecordingsScreen(tab, onTab = { goTab(it) }) { r ->
                 playing = PlayReq(r.title, RecStore.playUrl(r.file), "rec:" + r.id, false, 0L)
             } }

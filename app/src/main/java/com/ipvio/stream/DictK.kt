@@ -456,6 +456,22 @@ Playlist Typ¦Playlist type¦Oynatma listesi türü¦Vrsta liste¦Vrsta popisa¦
 Vorschau mit Ton¦Preview with sound¦Sesli önizleme¦Pregled sa zvukom¦Pregled sa zvukom¦Pregled sa zvukom¦Vista previa con sonido¦Aperçu avec son¦Anteprima con audio
 Dieser Stream kann nicht abgespielt werden.¦This stream cannot be played.¦Bu yayın oynatılamıyor.¦Ovaj stream se ne može reproducirati.¦Ovaj stream se ne može reproducirati.¦Ovaj strim ne može da se reprodukuje.¦Esta emisión no se puede reproducir.¦Ce flux ne peut pas être lu.¦Questo stream non può essere riprodotto.
 Gruppenoptionen¦Group options¦Grup seçenekleri¦Opcije grupe¦Opcije grupe¦Opcije grupe¦Opciones de grupo¦Options du groupe¦Opzioni gruppo
+Sport¦Sports¦Spor¦Sport¦Sport¦Sport¦Deportes¦Sport¦Sport
+Fußball¦Football¦Futbol¦Fudbal¦Nogomet¦Fudbal¦Fútbol¦Football¦Calcio
+Motorsport¦Motorsport¦Motor sporları¦Moto sport¦Motosport¦Moto sport¦Motor¦Sport automobile¦Motorsport
+Basketball¦Basketball¦Basketbol¦Košarka¦Košarka¦Košarka¦Baloncesto¦Basket-ball¦Basket
+Tennis¦Tennis¦Tenis¦Tenis¦Tenis¦Tenis¦Tenis¦Tennis¦Tennis
+Eishockey¦Ice hockey¦Buz hokeyi¦Hokej na ledu¦Hokej na ledu¦Hokej na ledu¦Hockey sobre hielo¦Hockey sur glace¦Hockey su ghiaccio
+US-Sport¦US sports¦ABD sporları¦US sport¦US sport¦US sport¦Deportes de EE. UU.¦Sports US¦Sport USA
+Kampfsport¦Combat sports¦Dövüş sporları¦Borilački sportovi¦Borilački sportovi¦Borilački sportovi¦Deportes de combate¦Sports de combat¦Sport da combattimento
+Weitere¦More¦Diğer¦Ostalo¦Ostalo¦Ostalo¦Más¦Autres¦Altri
+Kein Sender mit diesem Spiel gefunden¦No channel found for this match¦Bu maç için kanal bulunamadı¦Nije pronađen kanal za ovu utakmicu¦Nije pronađen program za ovu utakmicu¦Nije pronađen kanal za ovu utakmicu¦No se encontró canal para este partido¦Aucune chaîne trouvée pour ce match¦Nessun canale trovato per questa partita
+Sportprogramm wird gesucht …¦Searching sports schedule …¦Spor programı aranıyor …¦Traži se sportski program …¦Traži se sportski program …¦Traži se sportski program …¦Buscando programación deportiva …¦Recherche du programme sportif …¦Ricerca del programma sportivo …
+Gerade keine Sportereignisse im TV-Programm¦No sports events in the TV guide right now¦Şu anda TV rehberinde spor etkinliği yok¦Trenutno nema sportskih događaja u TV programu¦Trenutno nema sportskih događaja u TV programu¦Trenutno nema sportskih događaja u TV programu¦No hay eventos deportivos en la guía ahora¦Aucun événement sportif dans le guide pour le moment¦Nessun evento sportivo nella guida al momento
+Beendet¦Finished¦Bitti¦Završeno¦Završeno¦Završeno¦Finalizado¦Terminé¦Terminata
+Weitere Sender¦More channels¦Diğer kanallar¦Ostali kanali¦Ostali programi¦Ostali kanali¦Más canales¦Autres chaînes¦Altri canali
+Verfügbare Sender¦Available channels¦Mevcut kanallar¦Dostupni kanali¦Dostupni programi¦Dostupni kanali¦Canales disponibles¦Chaînes disponibles¦Canali disponibili
+Spielstände: OpenLigaDB (ODbL 1.0)¦Scores: OpenLigaDB (ODbL 1.0)¦Skorlar: OpenLigaDB (ODbL 1.0)¦Rezultati: OpenLigaDB (ODbL 1.0)¦Rezultati: OpenLigaDB (ODbL 1.0)¦Rezultati: OpenLigaDB (ODbL 1.0)¦Marcadores: OpenLigaDB (ODbL 1.0)¦Scores : OpenLigaDB (ODbL 1.0)¦Punteggi: OpenLigaDB (ODbL 1.0)
 oder Stalker-Portal¦or Stalker portal¦veya Stalker portalı¦ili Stalker portal¦ili Stalker portal¦ili Stalker portal¦o portal Stalker¦ou portail Stalker¦o portale Stalker
 AFR-Methode¦AFR method¦AFR yöntemi¦AFR metoda¦AFR metoda¦AFR metoda¦Método AFR¦Méthode AFR¦Metodo AFR
 Nahtlos (ohne Bildaussetzer)¦Seamless (no blackout)¦Kesintisiz (görüntü kesilmeden)¦Bez prekida slike¦Bez prekida slike¦Bez prekida slike¦Sin cortes (sin pantalla negra)¦Fluide (sans écran noir)¦Senza interruzioni (senza schermo nero)

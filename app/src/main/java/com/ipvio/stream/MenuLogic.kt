@@ -5,7 +5,7 @@ package com.ipvio.stream
  * Garantien: Jeder Bereich kommt genau einmal vor, "Start" (0) und "Einstellungen" (5) können nie ausgeblendet werden.
  */
 object MenuLogic {
-    const val COUNT = 11
+    const val COUNT = 12
     const val HOME = 0
     const val SEARCH = 4
     const val SETTINGS = 5
@@ -17,11 +17,13 @@ object MenuLogic {
     const val VERLAUF = 9
     /** TiviMate: Aufnahmen (laufend, geplant, fertig). */
     const val REC = 10
+    /** Sport Guide (nach StreamVault): Spiele aus dem TV-Programm, Spielstände, Sender zum Spiel. */
+    const val SPORT = 11
     /**
      * Runde 20 (TV-Aufbau, Wunsch des Nutzers: Home ganz oben): Home, Suchen, TV, Filme, Serien, Meine Liste; dahinter die eigenen
      * Bereiche (Favoriten, Verlauf, EPG), zuletzt Einstellungen.
      */
-    val DEFAULT_ORDER = listOf(0, SEARCH, 3, 1, 2, REC, MYLIST, FAVS, VERLAUF, EPG, 5)
+    val DEFAULT_ORDER = listOf(0, SEARCH, 3, SPORT, 1, 2, REC, MYLIST, FAVS, VERLAUF, EPG, 5)
     /**
      * Standardmäßig ausgeblendet: EPG (der Guide steckt in TV), Favoriten (stehen in TV links in den Gruppen) und Verlauf.
      * Alles lässt sich unter Einstellungen > Menü wieder einblenden.
@@ -35,7 +37,9 @@ object MenuLogic {
             // Neuer Bereich (gespeicherte Reihenfolge von vorher): vor „Einstellungen“ einreihen, nicht dahinter
             val s = order.indexOf(SETTINGS)
             val ml = order.indexOf(MYLIST)
-            if (id == REC && ml >= 0) order.add(ml, id)   // TiviMate: Aufnahmen vor „Meine Liste“
+            val tv = order.indexOf(3)
+            if (id == SPORT && tv >= 0) order.add(tv + 1, id)   // Sport direkt hinter TV
+            else if (id == REC && ml >= 0) order.add(ml, id)   // TiviMate: Aufnahmen vor „Meine Liste“
             else if (id >= EPG && s >= 0) order.add(s, id) else order.add(id)
         }
         return order

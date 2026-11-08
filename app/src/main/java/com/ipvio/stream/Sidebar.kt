@@ -127,6 +127,23 @@ fun MenuIcon(id: Int, color: Color, modifier: Modifier = Modifier) {
                 drawCircle(color, radius = .36f * s, center = Offset(.5f * s, .5f * s), style = sw)
                 drawCircle(color, radius = .16f * s, center = Offset(.5f * s, .5f * s))
             }
+            11 -> { // Sport: Ball (Kreis mit Fünfeck und Nähten)
+                val c = Offset(.5f * s, .5f * s)
+                drawCircle(color, radius = .36f * s, center = c, style = sw)
+                val pent = Path().apply {
+                    for (k in 0 until 5) {
+                        val a = Math.toRadians(-90.0 + k * 72.0)
+                        val x = (.5f + .13f * Math.cos(a).toFloat()) * s; val y = (.5f + .13f * Math.sin(a).toFloat()) * s
+                        if (k == 0) moveTo(x, y) else lineTo(x, y)
+                    }
+                    close()
+                }
+                drawPath(pent, color)
+                for (k in 0 until 5) {
+                    val a = Math.toRadians(-90.0 + k * 72.0)
+                    line(.5f + .13f * Math.cos(a).toFloat(), .5f + .13f * Math.sin(a).toFloat(), .5f + .34f * Math.cos(a).toFloat(), .5f + .34f * Math.sin(a).toFloat())
+                }
+            }
             else -> {
                 for (y in listOf(.26f, .5f, .74f)) line(.12f, y, .88f, y)
             }
