@@ -14,6 +14,7 @@ Anzeigen¦Show¦Göster¦Prikaži¦Prikaži¦Prikaži¦Mostrar¦Afficher¦Mostra
 Verbergen¦Hide¦Gizle¦Sakrij¦Sakrij¦Sakrij¦Ocultar¦Masquer¦Nascondi
 Vorgegeben¦Preset¦Hazır¦Zadano¦Zadano¦Zadato¦Predefinido¦Prédéfini¦Predefinito
 Selbst eingeben¦Enter manually¦Kendin gir¦Unesi sam¦Unesi sam¦Unesi sam¦Introducir manualmente¦Saisir soi-même¦Inserisci tu
+Art der Playlist¦Playlist type¦Oynatma listesi türü¦Vrsta playliste¦Vrsta playliste¦Vrsta plejliste¦Tipo de lista¦Type de playlist¦Tipo di playlist
 Hinzufügen¦Add¦Ekle¦Dodaj¦Dodaj¦Dodaj¦Añadir¦Ajouter¦Aggiungi
 Abbrechen¦Cancel¦İptal¦Otkaži¦Otkaži¦Otkaži¦Cancelar¦Annuler¦Annulla
 Alle¦All¦Tümü¦Sve¦Sve¦Sve¦Todos¦Tous¦Tutti
