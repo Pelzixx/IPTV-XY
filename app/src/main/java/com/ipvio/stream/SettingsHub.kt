@@ -2202,7 +2202,7 @@ private fun TmPlayback(ctx: Context, open: (String, String) -> Unit) {
     }
     if (AppSettings.autoFps) {
         val am = listOf(Lang.tr("Nahtlos (ohne Bildaussetzer)"), Lang.tr("Anzeigemodus wechseln"))
-        val ami = Tm.i(Tm.PB_AFR_MODE, 0)
+        val ami = Tm.i(Tm.PB_AFR_MODE, 1)
         SelectRow("AFR-Methode", am[ami], am, ami) { Tm.set(ctx, Tm.PB_AFR_MODE, it) }
         if (ami == 1) ToggleRow("Amlogic Fix", Lang.tr("Beim Umschalten die aktuelle Auflösung beibehalten (Amlogic-Geräte)"), Tm.b(Tm.PB_AFR_AMLOGIC, false)) { Tm.set(ctx, Tm.PB_AFR_AMLOGIC, it) }
     }

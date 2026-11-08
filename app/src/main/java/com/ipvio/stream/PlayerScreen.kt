@@ -199,20 +199,15 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     var tracksVer by remember { mutableIntStateOf(0) }
     // Gemessene Bildrate (angezeigte Bilder je Sekunde), gerundet auf 24/25/30/50/60
     var measuredFps by remember { mutableIntStateOf(0) }
-    LaunchedEffect(req.url) {
-        while (true) {
-            delay(1500)
-            if (player.videoFormat?.frameRate?.let { it > 0f } == true || !player.isPlaying) continue
-            val c0 = player.videoDecoderCounters ?: continue
-            c0.ensureUpdated(); val n0 = c0.renderedOutputBufferCount; val t0 = android.os.SystemClock.elapsedRealtime()
-            delay(2000)
-            val c1 = player.videoDecoderCounters ?: continue
-            c1.ensureUpdated()
-            val dt = (android.os.SystemClock.elapsedRealtime() - t0) / 1000f
-            if (c1 !== c0 || dt <= 0f || !player.isPlaying) continue
-            val f = (c1.renderedOutputBufferCount - n0) / dt
-            if (f >= 10f) measuredFps = listOf(24, 25, 30, 50, 60).minByOrNull { kotlin.math.abs(it - f) } ?: 0
-        }
+    // Bildrate aus den Zeitstempeln der ersten Bilder (schnell, auch ohne Angabe im Stream); dazu AFR wie TiviMate
+    val fpsProbe = remember { FpsProbe() }
+    fpsProbe.onFps = { f ->
+        measuredFps = f
+        if (AppSettings.autoFps && Tm.i(Tm.PB_AFR_MODE, 1) == 1) findActivity(ctx)?.let { DisplayAfr.apply(it, f.toFloat()) }
+    }
+    DisposableEffect(player) {
+        player.setVideoFrameMetadataListener(fpsProbe)
+        onDispose { player.clearVideoFrameMetadataListener(fpsProbe) }
     }
     var pos by remember { mutableLongStateOf(0L) }
     var dur by remember { mutableLongStateOf(0L) }
@@ -856,7 +851,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                 val vf = player.videoFormat
                 if (vf != null) showInfo(vf.width, vf.height)
                 // AFR wie TiviMate: Anzeigemodus des Fernsehers passend zur Bildrate (Einstellungen > Wiedergabe)
-                if (vf != null && AppSettings.autoFps && Tm.i(Tm.PB_AFR_MODE, 0) == 1 && vf.frameRate > 0f) findActivity(ctx)?.let { DisplayAfr.apply(it, vf.frameRate) }
+                if (vf != null && AppSettings.autoFps && Tm.i(Tm.PB_AFR_MODE, 1) == 1 && vf.frameRate > 0f) findActivity(ctx)?.let { DisplayAfr.apply(it, vf.frameRate) }
             }
             override fun onVideoSizeChanged(videoSize: VideoSize) { showInfo(videoSize.width, videoSize.height) }
             override fun onRenderedFirstFrame() { frameShown = true }
@@ -948,7 +943,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
 
     LaunchedEffect(cur.url) {
         AppNav.playingId = cur.itemId
-        measuredFps = 0
+        measuredFps = 0; fpsProbe.reset()
         readyOnce = false; stalls = emptyList()
         retries = 0; msg = null; buffering = true; segs = emptyList(); pos = 0; dur = 0; buffered = 0
         infoFor = ""; info = null; badges = emptyList(); nextDismissed = false

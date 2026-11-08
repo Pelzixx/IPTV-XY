@@ -127,7 +127,7 @@ object Tm {
     const val PB_VIDEO_DEC = "pb_video_dec"          // 0 Hardware, 1 Software
     const val PB_SURROUND = "pb_surround"
     const val PB_PASSTHROUGH = "pb_passthrough"
-    const val PB_AFR_MODE = "pb_afr_mode"        // 0 nahtlos (Surface-Bildrate), 1 Anzeigemodus wechseln (TiviMate)
+    const val PB_AFR_MODE = "pb_afr_mode"        // 0 nahtlos (Surface-Bildrate), 1 Anzeigemodus wechseln (TiviMate, Standard seit 2026-11-08: RAW-Sender mit 25 fps ruckelten auf 60 Hz)
     const val PB_AFR_AMLOGIC = "pb_afr_amlogic"  // Amlogic Fix: nur Modi mit der aktuellen Auflösung
     const val PB_SUB_ALL = "pb_sub_all"          // Live: Untertitel, falls vorhanden, immer an
     const val PB_TUNNEL = "pb_tunnel"
