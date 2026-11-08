@@ -63,8 +63,10 @@ object VodPrefs {
 
     fun sorted(list: List<Item>, sort: Int): List<Item> = when (sort) {
         1 -> list.sortedBy { it.title.lowercase() }
-        2 -> list.sortedByDescending { MetaRepo.cached(it)?.rating ?: -1.0 }
-        3 -> list.asReversed()
+        // Bewertung: TMDB, sonst die des Anbieters (Xtream „rating“)
+        2 -> list.sortedByDescending { MetaRepo.cached(it)?.rating ?: VodMeta.rating(it) ?: -1.0 }
+        // Zuletzt hinzugefügt: Datum des Anbieters (Xtream „added“), ohne Angabe die umgekehrte Reihenfolge der Liste
+        3 -> if (VodMeta.hasAdded()) list.sortedByDescending { VodMeta.added(it) } else list.asReversed()
         else -> list
     }
 }
@@ -77,24 +79,21 @@ fun VodTab(tab: Int, onTab: (Int) -> Unit, onOpen: (Item) -> Unit, onPlay: (Item
     val kind = if (tab == 1) Kind.MOVIE else Kind.SERIES
     val all = PlaylistStore.channels
     val noun = if (kind == Kind.MOVIE) "Filme" else "Serien"
-    val tick = 0
+
     val sort = VodPrefs.sort(kind)
-    val byKind by produceState(emptyList<Item>(), all, kind) {
-        value = withContext(Dispatchers.Default) { all.filter { it.kind == kind } }
+    // Daten je Art einmal berechnen und über Reiterwechsel hinweg behalten (sonst bei jedem Öffnen alles neu, sichtbar als Ruckeln)
+    val data by produceState(VodCache.get(all, kind) ?: VodData.EMPTY, all, kind) {
+        value = VodCache.get(all, kind) ?: withContext(Dispatchers.Default) { VodCache.build(all, kind) }
     }
-    val providerGroups by produceState(emptyList<Pair<String, List<Item>>>(), byKind) {
-        value = withContext(Dispatchers.Default) {
-            val g = LinkedHashMap<String, MutableList<Item>>()
-            byKind.forEach { g.getOrPut(it.group) { ArrayList() }.add(it) }
-            g.entries.map { it.key to it.value.toList() }
-        }
-    }
-    val byId = remember(byKind) { byKind.associateBy { it.id } }
-    val mine = Library.watch.mapNotNull { byId[it] }
-    // Verlauf (TiviMate): jeder gestartete Titel dieser Art, zuletzt gestartet zuerst
+    val byKind = data.items
+    val providerGroups = data.groups
+    val byId = data.byId
+    // Meine Liste / Verlauf nur neu, wenn sich die Listen wirklich ändern (nicht bei jedem Fokuswechsel)
     History.init(ctx)
-    val hist = History.ids.mapNotNull { byId[it] }
-    val groups = remember(providerGroups, mine, hist, tick) {
+    val mine by remember(byId) { derivedStateOf { Library.watch.mapNotNull { byId[it] } } }
+    // Verlauf (TiviMate): jeder gestartete Titel dieser Art, zuletzt gestartet zuerst
+    val hist by remember(byId) { derivedStateOf { History.ids.mapNotNull { byId[it] } } }
+    val groups = remember(data, mine, hist) {
         listOf(
             VodGroup(K_MY, "Meine Liste", false, mine),
             VodGroup(K_HIST, "Verlauf", false, hist),
@@ -106,9 +105,12 @@ fun VodTab(tab: Int, onTab: (Int) -> Unit, onOpen: (Item) -> Unit, onPlay: (Item
     var query by remember(tab) { mutableStateOf("") }
     // „Alle Filme“ nach Kategorien gruppieren: Abschnitte mit Überschrift im Raster
     val grouped = sel?.key == K_ALL && VodPrefs.groupAll(kind) && query.isBlank()
-    val items = remember(sel, sort, query, tick) {
+    val items = remember(sel?.key, sel?.items, sort, query) {
         val base = sel?.items.orEmpty().let { l -> if (query.isBlank()) l else l.filter { it.title.contains(query, ignoreCase = true) } }
         if (sel?.key == K_HIST || sel?.key == K_MY) base else VodPrefs.sorted(base, sort)
+    }
+    val groupedSections = remember(grouped, providerGroups, sort) {
+        if (!grouped) emptyList() else providerGroups.map { (g, l) -> g to VodPrefs.sorted(l, sort) }
     }
     val gridState = rememberLazyGridState()
     // Zurück von der Detailseite: wieder auf dem Titel im Raster stehen (wie TiviMate)
@@ -193,12 +195,11 @@ fun VodTab(tab: Int, onTab: (Int) -> Unit, onOpen: (Item) -> Unit, onPlay: (Item
                     ) {
                         if (grouped) {
                             var idx = 0
-                            providerGroups.forEach { (g, l) ->
+                            groupedSections.forEach { (g, sl) ->
                                 item(key = "h$g", span = { GridItemSpan(maxLineSpan) }) {
                                     Text(raw = true, text = g, color = Tok.TextMid, fontSize = 15.sp, modifier = Modifier.padding(top = 8.dp))
                                 }
                                 val start = idx
-                                val sl = VodPrefs.sorted(l, sort)
                                 itemsIndexed(sl, key = { _, it -> "g$g" + it.id }) { i, it ->
                                     VodPosterCard(it, if (start + i == 0) Modifier.focusRequester(firstCard) else Modifier,
                                         onFocus = { focused = it; focusIdx = start + i; gridMode = true },
@@ -301,7 +302,7 @@ private fun VodPosterCard(item: Item, modifier: Modifier, onFocus: () -> Unit, o
     ) {
         Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).background(Color(0xFF2B2E33))) {
             if (img != null) AsyncImage(img, item.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-            m?.rating?.takeIf { it > 0 }?.let { r ->
+            (m?.rating ?: VodMeta.rating(item))?.takeIf { it > 0 }?.let { r ->
                 Box(Modifier.align(Alignment.BottomStart).padding(6.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xFF1E88E5)).padding(horizontal = 4.dp, vertical = 1.dp)) {
                     Text(raw = true, text = String.format(java.util.Locale.US, "%.1f", r), color = Color.White, fontSize = 12.sp)
                 }
@@ -326,7 +327,7 @@ private fun VodInfo(item: Item, modifier: Modifier) {
         val title = item.title.let { t -> if (year != null && !t.contains("($year)")) "$t ($year)" else t }
         Text(raw = true, text = title, color = Tok.TextHi, fontSize = 28.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            m?.rating?.takeIf { it > 0 }?.let { r ->
+            (m?.rating ?: VodMeta.rating(item))?.takeIf { it > 0 }?.let { r ->
                 Box(Modifier.clip(RoundedCornerShape(3.dp)).background(Color(0xFFBDBDBD)).padding(horizontal = 4.dp, vertical = 1.dp)) {
                     Text(raw = true, text = String.format(java.util.Locale.US, "%.1f", r), color = Color(0xFF15171A), fontSize = 12.sp)
                 }
@@ -365,4 +366,29 @@ private fun VodBackdrop(item: Item, modifier: Modifier) {
 private object VodMem {
     val grid = HashMap<Int, Boolean>()
     val idx = HashMap<Int, Int>()
+}
+
+/** Filme bzw. Serien einer Playlist mit ihren Gruppen (einmal berechnet). */
+class VodData(val items: List<Item>, val groups: List<Pair<String, List<Item>>>, val byId: Map<String, Item>) {
+    companion object { val EMPTY = VodData(emptyList(), emptyList(), emptyMap()) }
+}
+
+/** Hält die Daten je Art, solange sich die Playlist nicht ändert – der Reiter öffnet dann ohne Neuberechnung. */
+object VodCache {
+    private var src: List<Item>? = null
+    private val byKind = HashMap<Kind, VodData>()
+
+    @Synchronized fun get(all: List<Item>, kind: Kind): VodData? = if (src === all) byKind[kind] else null
+
+    fun build(all: List<Item>, kind: Kind): VodData {
+        val items = all.filter { it.kind == kind }
+        val g = LinkedHashMap<String, MutableList<Item>>()
+        items.forEach { g.getOrPut(it.group) { ArrayList() }.add(it) }
+        val d = VodData(items, g.entries.map { it.key to it.value.toList() }, items.associateBy { it.id })
+        synchronized(this) {
+            if (src !== all) { src = all; byKind.clear() }
+            byKind[kind] = d
+        }
+        return d
+    }
 }

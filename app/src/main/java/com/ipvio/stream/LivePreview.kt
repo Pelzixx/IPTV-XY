@@ -79,6 +79,30 @@ class LivePreviewPlayer(ctx: Context) {
     }
 
     fun release() { url = null; if (!released) { released = true; player.release() } }
+    val isReleased: Boolean get() = released
+}
+
+/**
+ * Vorschau-Player und seine Videofläche bleiben über Reiterwechsel erhalten (TiviMate behält seine Ansichten):
+ * beim Öffnen des TV-Bereichs muss weder ExoPlayer noch PlayerView neu angelegt werden. Beim Verlassen wird nur gestoppt.
+ */
+object PreviewHolder {
+    private var p: LivePreviewPlayer? = null
+    private var v: PlayerView? = null
+
+    fun player(ctx: Context): LivePreviewPlayer = p?.takeIf { !it.isReleased } ?: LivePreviewPlayer(ctx.applicationContext).also { p = it }
+
+    fun view(c: Context, pl: LivePreviewPlayer): PlayerView {
+        v?.let { cur -> if (cur.context === c) { (cur.parent as? android.view.ViewGroup)?.removeView(cur); cur.player = pl.player; return cur } }
+        return PlayerView(c).apply {
+            useController = false
+            setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
+            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+            player = pl.player
+        }.also { v = it }
+    }
+
+    fun releaseAll() { p?.release(); p = null; v = null }
 }
 
 /** Vorschaufenster: spielt den markierten Sender nach kurzer Pause ab; bis dahin (und bei Fehlern) das Senderlogo. */
@@ -103,14 +127,7 @@ fun LivePreview(p: LivePreviewPlayer, ch: Item?, modifier: Modifier = Modifier, 
     val shape = RoundedCornerShape(DS.RadiusS)
     Box(modifier.clip(shape).background(Color.Black), contentAlignment = Alignment.Center) {
         AndroidView(
-            factory = { c ->
-                PlayerView(c).apply {
-                    useController = false
-                    setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
-                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                    player = p.player
-                }
-            },
+            factory = { c -> PreviewHolder.view(c, p) },
             modifier = Modifier.fillMaxSize()
         )
         // Kein Sender markiert (Fokus links in den Kategorien): statt einer schwarzen Fläche das Logo des oberen Senders

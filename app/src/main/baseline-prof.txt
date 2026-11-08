@@ -1,0 +1,3 @@
+# Baseline-Profil: ganzen App-Code vorab kompilieren lassen (schwache TV-Geräte, Compose)
+HSPLcom/ipvio/stream/**->**(**)**
+Lcom/ipvio/stream/**;

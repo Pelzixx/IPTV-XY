@@ -63,6 +63,7 @@ android {
             if (keystoreFile != null) signingConfig = signingConfigs.getByName("release")
             optimization {
                 // Aus, bis die verkleinerte Release-Version auf einem Gerät getestet ist (R8 kann per Reflexion genutzte Klassen entfernen)
+                // Getestet 2026-11-08: mit packageScope stürzt die App beim Start ab (IllegalAccessError kotlin.text) – bleibt aus
                 enable = false
                 packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
             }
@@ -109,6 +110,8 @@ dependencies {
     // QR-Code auf der Startseite (HomeInfo.kt)
     implementation("com.google.zxing:core:3.5.3")
     implementation("io.coil-kt:coil-compose:2.7.0")
+    // Installiert Baseline-Profile auch bei Installation per APK (ohne Play Store)
+    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
 
     implementation("androidx.work:work-runtime-ktx:2.10.0")
 

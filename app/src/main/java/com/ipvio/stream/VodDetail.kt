@@ -89,7 +89,7 @@ fun VodDetail(item0: Item, all: List<Item>, onPlay: (String, String, Long) -> Un
                     Text(raw = true, text = item.title.let { t -> if (year != null && !t.contains("($year)")) "$t ($year)" else t },
                         color = Tok.TextHi, fontSize = 28.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        meta?.rating?.takeIf { it > 0 }?.let { r ->
+                        (meta?.rating ?: VodMeta.rating(item))?.takeIf { it > 0 }?.let { r ->
                             Box(Modifier.clip(RoundedCornerShape(3.dp)).background(Color(0xFFBDBDBD)).padding(horizontal = 4.dp, vertical = 1.dp)) {
                                 Text(raw = true, text = String.format(java.util.Locale.US, "%.1f", r), color = Color(0xFF15171A), fontSize = 12.sp)
                             }

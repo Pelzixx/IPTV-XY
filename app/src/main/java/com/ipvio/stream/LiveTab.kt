@@ -149,13 +149,19 @@ fun LiveTab(live: List<Item>, groups0: Map<String, List<Item>>, favs: List<Item>
     // Gruppenliste links: offen, solange man dort ist; beim Durchblättern der Sender eingeklappt (mehr Platz fürs Programm).
     // Links auf einem Sender klappt sie wieder auf.
     // Runde 20: Start mit dem Fokus auf den Sendern (Gruppen zu), wie bei TV-Playern; Links öffnet die Gruppen
-    var catOpen by remember { mutableStateOf(false) }
+    // TiviMate: über das Menü geöffnet startet der TV-Bereich mit der Gruppenliste (Fokus auf der aktuellen Gruppe);
+    // zurück aus dem Player bleibt der Fokus auf dem Sender
+    val startInGroups = remember { LastFocus.pending == null }
+    var catOpen by remember { mutableStateOf(startInGroups) }
     val catSelReq = remember { FocusRequester() }
     val catFirstReq = remember { FocusRequester() }
     var catFocusReq by remember { mutableIntStateOf(0) }
+    // Beim Öffnen des Reiters ohne Animation (sonst wird der ganze Guide in jedem Bild neu ausgemessen)
+    var catAnim by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { kotlinx.coroutines.delay(400); catAnim = true }
     val catW by androidx.compose.animation.core.animateDpAsState(
         if (catOpen) 270.dp else 0.dp,
-        if (Look.motion == 0) androidx.compose.animation.core.snap() else androidx.compose.animation.core.tween(180), label = "catW"
+        if (Look.motion == 0 || !catAnim) androidx.compose.animation.core.snap() else androidx.compose.animation.core.tween(180), label = "catW"
     )
     LaunchedEffect(catFocusReq) {
         if (catFocusReq == 0) return@LaunchedEffect
@@ -172,6 +178,8 @@ fun LiveTab(live: List<Item>, groups0: Map<String, List<Item>>, favs: List<Item>
         runCatching { catState.scrollToItem(0) }
         repeat(5) { kotlinx.coroutines.delay(40); if (runCatching { catFirstReq.requestFocus() }.isSuccess) return@LaunchedEffect }
     }
+    // Start mit Gruppen: gewählte Gruppe ins Bild holen und markieren
+    LaunchedEffect(Unit) { if (startInGroups) catFocusReq++ }
     // Rechts aus den Gruppen: Senderliste nach oben holen (sonst gibt es den ersten Sender noch nicht) und so lange
     // fokussieren, bis ein Sender den Fokus hat (dann klappen die Gruppen zu)
     val chanScope = rememberCoroutineScope()
@@ -223,8 +231,8 @@ fun LiveTab(live: List<Item>, groups0: Map<String, List<Item>>, favs: List<Item>
     // Optik > EPG „Verwende Zurück, um zu den aktuellen Programmen zurückzukehren“
     androidx.activity.compose.BackHandler(enabled = tOff != 0 && Tm.b(Tm.EPG_BACK_NOW, true)) { tOff = 0 }
     // Vorschau nur, solange ein Sender in der Liste markiert ist (nicht beim Wechseln der Kategorie)
-    val preview = remember { LivePreviewPlayer(ctx) }
-    DisposableEffect(Unit) { onDispose { preview.release() } }
+    val preview = remember { PreviewHolder.player(ctx) }
+    DisposableEffect(Unit) { onDispose { preview.stop() } }
     fun open(ch: Item) { preview.stop(); ZapContext.list = list; ZapContext.key = sel; LiveMemory.setSel(ctx, sel); onOpen(ch) }
     // Sender, der gerade läuft (zuletzt gesehen) – für Vorschau und ▶
     val playingCh = History.ids.firstOrNull()?.let { id -> list.firstOrNull { it.id == id } ?: PlaylistStore.channels.firstOrNull { it.id == id && it.kind == Kind.LIVE } }
@@ -311,7 +319,7 @@ fun LiveTab(live: List<Item>, groups0: Map<String, List<Item>>, favs: List<Item>
                         CatRow(
                             label, count, n == sel,
                             (if (n == "GUIDE") Modifier.focusRequester(catFirstReq) else Modifier).then(
-                                if (n == sel) Modifier.focusRequester(catSelReq).then(if (list.isEmpty()) Modifier.focusRequester(ContentFocus.req) else Modifier) else Modifier),
+                                if (n == sel) Modifier.focusRequester(catSelReq).then(if (list.isEmpty() || startInGroups) Modifier.focusRequester(ContentFocus.req) else Modifier) else Modifier),
                             onFocus = { hoverCat(n) }, onRight = { toChannels() },
                             onFav = { if (ml != null) listMenu = true else if (n != FAV_CAT && n != "ALL" && n != HIDDEN_CAT && n != "GUIDE" && !n.startsWith(PlGroups.P)) grpMenu = true },
                             icon = if (n.startsWith(PlGroups.P)) null else if (ChLock.version >= 0 && ChLock.isGroupLocked(PlGroups.label(n) ?: n)) AIcon.Lock else icon, raw = ml != null || PlGroups.isPl(n), header = n.startsWith(PlGroups.P),
@@ -427,7 +435,7 @@ fun LiveTab(live: List<Item>, groups0: Map<String, List<Item>>, favs: List<Item>
                     // In eigenen Listen wandert der Fokus beim Verschieben mit dem Sender mit (Schlüssel = Sender)
                     itemsIndexed(list, key = if (curList != null) { _, ch -> ch.id } else null) { i, ch ->
                         ChannelLine(
-                            ch, i + 1, look, ws, nowSec, tlW, (if (i == 0) Modifier.focusRequester(firstChan).focusRequester(ContentFocus.req) else Modifier)
+                            ch, i + 1, look, ws, nowSec, tlW, (if (i == 0) Modifier.focusRequester(firstChan).then(if (startInGroups) Modifier else Modifier.focusRequester(ContentFocus.req)) else Modifier)
                                 .then(if (ch.id == restoreId) Modifier.focusRequester(restoreReq) else Modifier), curList,
                             onNewList = { newList(ch.id) },
                             onRename = { ask = NameAsk("Sender umbenennen", ChannelEdit.title(ch)) { ChannelEdit.rename(ctx, ch.id, it) } },

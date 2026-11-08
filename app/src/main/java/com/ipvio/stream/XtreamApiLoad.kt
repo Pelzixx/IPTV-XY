@@ -20,11 +20,13 @@ object XtreamApiLoad {
     fun writeM3u(
         client: OkHttpClient, host: String, user: String, pass: String, out: Writer,
         onPhase: (String) -> Unit, onCount: (Int) -> Unit, cancelled: () -> Boolean,
-        liveExt: String = "ts", withLive: Boolean = true, withVod: Boolean = true
+        liveExt: String = "ts", withLive: Boolean = true, withVod: Boolean = true,
+        meta: VodMeta.Collector? = null
     ): Int {
         val api = "$host/player_api.php?username=${URLEncoder.encode(user, "UTF-8")}&password=${URLEncoder.encode(pass, "UTF-8")}&action="
         val w = XtreamM3uLogic.Writer(out, host, user, pass)
         w.liveExt = liveExt
+        w.meta = meta
         w.header()
         // TiviMate (Xtream Codes Parameter): „TV-Kanäle einbeziehen“ / „VOD einbeziehen“
         if (withLive) {
@@ -104,6 +106,8 @@ object XtreamM3uLogic {
     class Writer(private val out: java.io.Writer, private val host: String, private val user: String, private val pass: String) {
         /** Ausgabeformat der Sender (TiviMate: „Ausgabeformat“): ts oder m3u8. */
         var liveExt = "ts"
+        /** Bewertung und Hinzufügedatum des Anbieters (Sortierung wie TiviMate). */
+        var meta: VodMeta.Collector? = null
         var count = 0
             private set
 
@@ -131,13 +135,17 @@ object XtreamM3uLogic {
             val id = o["stream_id"] ?: return
             val name = t(o["name"]).ifEmpty { return }
             val ext = o["container_extension"]?.trim()?.trimStart('.')?.ifEmpty { null } ?: "mp4"
-            entry("tvg-logo=\"${a(o["stream_icon"])}\" group-title=\"${a(cats[o["category_id"]] ?: "Filme")}\"", name, "$host/movie/$user/$pass/$id.$ext")
+            val url = "$host/movie/$user/$pass/$id.$ext"
+            meta?.add(url, ProviderLogic.ratingOf(o["rating"], o["rating_5based"]), o["added"]?.toLongOrNull() ?: 0L)
+            entry("tvg-logo=\"${a(o["stream_icon"])}\" group-title=\"${a(cats[o["category_id"]] ?: "Filme")}\"", name, url)
         }
 
         fun series(o: Map<String, String>, cats: Map<String, String>) {
             val id = o["series_id"] ?: return
             val name = t(o["name"]).ifEmpty { return }
-            entry("tvg-logo=\"${a(o["cover"])}\" group-title=\"${a(cats[o["category_id"]] ?: "Serien")}\"", name, lazySeriesUrl(host, user, pass, id))
+            val url = lazySeriesUrl(host, user, pass, id)
+            meta?.add(url, ProviderLogic.ratingOf(o["rating"], o["rating_5based"]), o["last_modified"]?.toLongOrNull() ?: 0L)
+            entry("tvg-logo=\"${a(o["cover"])}\" group-title=\"${a(cats[o["category_id"]] ?: "Serien")}\"", name, url)
         }
     }
 }

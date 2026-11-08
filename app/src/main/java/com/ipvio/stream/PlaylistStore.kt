@@ -599,10 +599,12 @@ object PlaylistStore {
                 part.delete()
                 val n = java.io.OutputStreamWriter(BufferedOutputStream(FileOutputStream(part), 1 shl 16), Charsets.UTF_8).use { w ->
                     val ln = lists.firstOrNull { it.url.trim() == u.trim() }?.name
+                    val vm = VodMeta.Collector()
                     XtreamApiLoad.writeM3u(client, host, user, pass, w,
                         onPhase = { phase = it }, onCount = { k -> if (k % 500 == 0) bytesRead = part.length() },
                         cancelled = { cancelled() },
-                        liveExt = PlOpts.xtExt(ln), withLive = PlOpts.xtLive(ln), withVod = PlOpts.xtVod(ln))
+                        liveExt = PlOpts.xtExt(ln), withLive = PlOpts.xtLive(ln), withVod = PlOpts.xtVod(ln), meta = vm)
+                        .also { vm.save(c, u) }
                 }
                 if (n > 0 && part.length() > 0) {
                     info.writeText(LoadLogic.PartInfo(key(u), null, null, "UTF-8").encode())

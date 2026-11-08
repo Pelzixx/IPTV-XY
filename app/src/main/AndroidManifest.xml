@@ -35,6 +35,8 @@
         android:usesCleartextTraffic="true"
         android:largeHeap="true"
         android:theme="@android:style/Theme.Material.NoActionBar">
+        <!-- Messbar mit dem Android-Profiler (simpleperf), ändert am Verhalten nichts -->
+        <profileable android:shell="true" />
         <activity
             android:name=".MainActivity"
             android:supportsPictureInPicture="true"

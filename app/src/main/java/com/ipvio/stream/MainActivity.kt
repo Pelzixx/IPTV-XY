@@ -78,6 +78,8 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         if (intent.getBooleanExtra(Reminders.EXTRA_WAKE, false)) turnScreenOn()
         intent.getStringExtra(Reminders.EXTRA_CH)?.let { AppNav.openChannel = it }
+        // Nur Test-App: Reiter per ADB öffnen (Messung der Geschwindigkeit ohne Fernbedienung)
+        if (BuildConfig.APPLICATION_ID.endsWith(".debug") && intent.hasExtra("xy_tab")) AppNav.tabNow = intent.getIntExtra("xy_tab", -1)
     }
 
     /** Erinnerung weckt das Gerät: Bildschirm einschalten, auch über der Sperre. */
@@ -133,6 +135,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         ScreenAwake.detach(this)
+        PreviewHolder.releaseAll()
         super.onDestroy()
     }
 
@@ -249,6 +252,8 @@ private fun AppContent() {
     }
 
     val all = PlaylistStore.channels
+    // Filme/Serien vorberechnen, damit die Reiter sofort öffnen
+    LaunchedEffect(all) { if (all.isNotEmpty()) withContext(Dispatchers.Default) { VodMeta.load(ctx); VodCache.build(all, Kind.MOVIE); VodCache.build(all, Kind.SERIES) } }
     val liveAll = remember(all) { all.filter { it.kind == Kind.LIVE } }
     // Beim Herunterladen und Einlesen der Playlist nicht in den Bildschirmschoner fallen
     KeepScreenOn("playlist", PlaylistStore.loading)
@@ -457,7 +462,7 @@ private fun AppContent() {
                 playing = PlayReq(r.title, RecStore.playUrl(r.file), "rec:" + r.id, false, 0L)
             } }
             // Filme/Serien im Aufbau von TiviMate (Gruppen links, Infos oben, Posterraster)
-            (tab == 1 || tab == 2) && Tm.b(Tm.VOD_TM, true) -> Box(Modifier.fillMaxSize().screenEnter(tab)) { VodTab(
+            (tab == 1 || tab == 2) && Tm.b(Tm.VOD_TM, true) -> Box(Modifier.fillMaxSize()) { VodTab(
                 tab, onTab = { goTab(it) }, onOpen = open, onAdd = { adding = true },
                 onPlay = { i -> LastFocus.pending = i.id; if (i.kind == Kind.SERIES) pushTop(i) else { pushTop(i); start(i, i.title, i.url) } }
             ) }
@@ -467,7 +472,8 @@ private fun AppContent() {
                 onBrowse = { browse = BrowseState(it) },
                 onTab = { goTab(it) }
             ) }
-            else -> Box(Modifier.fillMaxSize().screenEnter(tab)) { HomeScreen(
+            // TiviMate: Reiterwechsel ohne Einblenden (sofort da, kein zusätzliches Neuzeichnen)
+            else -> Box(Modifier.fillMaxSize()) { HomeScreen(
                 tab = tab, onTab = { goTab(it) }, states = states,
                 onOpen = open,
                 onPlayNow = { i -> LastFocus.pending = i.id; if (i.kind == Kind.SERIES) pushTop(i) else { if (i.kind != Kind.LIVE) pushTop(i); start(i, i.title, i.url) } },
