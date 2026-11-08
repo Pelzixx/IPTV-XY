@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import android.os.Handler
 import android.os.Looper
@@ -242,6 +243,15 @@ private fun PhoneCard(modifier: Modifier, address: String?, code: String) {
                 color = Color(0xFFFFB86B), fontSize = 15.sp, lineHeight = 21.sp
             )
         } else {
+            // QR-Code (Wunsch des Nutzers, 2026-11-08): scannen öffnet die Seite, der Code ist dort schon eingetragen
+            val qr = remember(address, code) { HomeInfo.qrBitmap("$address/?c=$code", 300)?.asImageBitmap() }
+            if (qr != null) Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(132.dp).clip(RoundedCornerShape(8.dp)).background(Color.White).padding(6.dp)) {
+                    androidx.compose.foundation.Image(qr, null, Modifier.fillMaxSize(), filterQuality = androidx.compose.ui.graphics.FilterQuality.None)
+                }
+                Text("Mit dem Handy scannen – der Code ist dann schon eingetragen.", color = Color.White, fontSize = 15.sp, lineHeight = 21.sp)
+            }
+            Text("Oder so:", color = Muted, fontSize = 14.sp)
             Step(1, "Handy mit demselben WLAN verbinden wie dieses Gerät.")
             Step(2, "Im Browser des Handys diese Adresse öffnen:")
             Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Bg).padding(horizontal = 14.dp, vertical = 10.dp)) {
