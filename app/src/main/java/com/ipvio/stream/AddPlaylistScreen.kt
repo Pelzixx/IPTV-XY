@@ -60,7 +60,10 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
     // Fest eingebaute Server (Presets.kt): dann reichen Benutzername und Passwort. "Andere Quelle" öffnet die freie Eingabe.
     val servers = Presets.servers
     val pendIdx = remember { pendX?.let { PresetLogic.indexOf(it.first, servers) } ?: -1 }
-    var manual by remember { mutableStateOf(servers.isEmpty() || (pend != null && pendIdx < 0)) }
+    // Freie Eingabe nur, wenn gewählt oder (noch) keine Server da sind. Die Server aus dem Panel kommen beim ersten Start
+    // erst nach dem Aufbau der Seite an (Township 3.43): dann von selbst zur Anmeldung wechseln.
+    var manualPick by remember { mutableStateOf<Boolean?>(if (pend != null && (pendX == null || (pendIdx < 0 && servers.isNotEmpty()))) true else null) }
+    val manual = manualPick ?: servers.isEmpty()
     var sel by remember { mutableStateOf(pendIdx.coerceAtLeast(0)) }
     // Vom Handy senden: lokaler Mini-Server, solange dieser Bildschirm offen ist
     val ip = remember { PhoneImport.localIp() }
@@ -73,8 +76,8 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
                 if (inp.isXtream) {
                     xtream = true; host = h; user = inp.user; pass = inp.pass
                     val i = PresetLogic.indexOf(h, servers)
-                    if (i >= 0) { sel = i; manual = false } else manual = true
-                } else { xtream = false; url = inp.url; manual = true }
+                    if (i >= 0) { sel = i; manualPick = false } else manualPick = true
+                } else { xtream = false; url = inp.url; manualPick = true }
                 if (u == null) PlaylistStore.error = "Angaben unvollständig: Server, Benutzername und Passwort nötig."
                 else scope.launch { if (PlaylistStore.load(ctx, u, true)) onDone() }
             }
@@ -127,39 +130,52 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
     Row(
         Modifier.fillMaxSize()
             .background(Brush.radialGradient(listOf(lerp(Bg, Accent1, 0.14f), Bg), radius = 1400f))
-            .padding(horizontal = 56.dp, vertical = 28.dp),
+            .padding(horizontal = 56.dp, vertical = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(32.dp),
         verticalAlignment = Alignment.Top
     ) {
-        // Links: das Formular
+        // Links: das Formular (kompakter, Wunsch des Nutzers)
         Column(
             Modifier.weight(1.1f).clip(cardShape).background(Surf).border(2.dp, Surf2, cardShape)
                 // Innenabstand im Scrollbereich: der fokussierte Knopf wird vergrößert und darf nicht abgeschnitten werden
-                .verticalScroll(rememberScrollState()).padding(28.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .verticalScroll(rememberScrollState()).padding(22.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Kopf: Logo und Überschrift nebeneinander
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                BrandMark(Modifier.height(64.dp).widthIn(max = 160.dp))
-                Text(if (!manual) "Anmelden" else "Playlist hinzufügen", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                BrandMark(Modifier.height(52.dp).widthIn(max = 140.dp))
+                Text(if (!manual) "Anmelden" else "Playlist hinzufügen", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
             }
-            Spacer(Modifier.height(2.dp))
+            // Mit fest hinterlegten Servern (XY, Township): oben klar getrennt „Vorgegeben“ / „Selbst eingeben“
+            if (servers.isNotEmpty()) {
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(Bg).padding(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    FocusButton("Vorgegeben", Modifier.weight(1f).then(if (!manual) Modifier.focusRequester(startFocus) else Modifier), primary = !manual) {
+                        manualPick = false; PlaylistStore.error = null
+                    }
+                    FocusButton("Selbst eingeben", Modifier.weight(1f).then(if (manual) Modifier.focusRequester(startFocus) else Modifier), primary = manual) {
+                        if (!manual) { manualPick = true; xtream = true; host = ""; PlaylistStore.error = null }
+                    }
+                }
+            }
             if (!manual) {
                 PresetLogin(
                     servers, sel, { sel = it }, user, { user = it }, pass, { pass = it }, showPass, { showPass = !showPass },
-                    startFocus, canCancel,
+                    remember { FocusRequester() }, canCancel,
                     onLogin = {
                         val finalUrl = PlaylistStore.xtreamUrl(servers[sel].url, user, pass)
                         if (finalUrl == null) PlaylistStore.error = "Angaben unvollständig: Benutzername und Passwort nötig."
                         else { host = servers[sel].url; PlaylistStore.pendingName = servers[sel].name; scope.launch { if (PlaylistStore.load(ctx, finalUrl, true)) onDone() } }
                     },
-                    onOther = { manual = true; xtream = true; host = ""; PlaylistStore.error = null },
+                    onOther = { manualPick = true; xtream = true; host = ""; PlaylistStore.error = null },
                     onCancel = { PlaylistStore.clearPending(ctx); onDone() }
                 )
             } else {
             @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
             androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                FocusButton("M3U-Link", Modifier.focusRequester(startFocus), primary = !xtream && !stalker) { xtream = false; stalker = false }
+                FocusButton("M3U-Link", if (servers.isEmpty()) Modifier.focusRequester(startFocus) else Modifier, primary = !xtream && !stalker) { xtream = false; stalker = false }
                 FocusButton("Xtream-Login", primary = xtream) { xtream = true; stalker = false }
                 FocusButton("Stalker-Portal", primary = stalker) { stalker = true; xtream = false }
                 // TiviMate: Playlist aus einer lokalen Datei (USB, Download-Ordner …)
@@ -194,7 +210,6 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
                 }
                 if (canCancel) FocusButton("Abbrechen") { PlaylistStore.clearPending(ctx); onDone() }
             }
-            if (servers.isNotEmpty()) FocusButton("Zurück zur Anmeldung") { manual = false; PlaylistStore.error = null }
             }
         }
         // Rechts: Anleitung für die Eingabe am Handy
@@ -280,7 +295,7 @@ private fun PresetLogin(
         FocusButton("Anmelden", if (servers.size > 1) Modifier else Modifier.focusRequester(startFocus), primary = true) {
             if (!PlaylistStore.loading) onLogin()
         }
-        FocusButton("Andere Quelle") { onOther() }
+        // „Andere Quelle“ ist jetzt der Umschalter „Selbst eingeben“ oben
         if (canCancel) FocusButton("Abbrechen") { onCancel() }
     }
 }
