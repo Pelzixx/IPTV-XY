@@ -20,7 +20,8 @@ data class UpdateInfo(val code: Long, val name: String, val apkUrl: String, val 
  */
 object AppUpdate {
     /** Fest eingebaute Update-Adresse (öffentliches Repo IPTV-XY-Releases). */
-    const val DEFAULT_URL = "https://github.com/Pelzixx/IPTV-XY-Releases/releases/latest/download/update.json"
+    /** Je Ausgabe eine eigene Datei (update.json = XY, update-standard.json, update-anbieter.json). */
+    val DEFAULT_URL = "https://github.com/Pelzixx/IPTV-XY-Releases/releases/latest/download/" + BuildConfig.UPDATE_FILE
 
     private fun prefs(c: Context) = Profiles.sp(c, "ipvio_upd")
     /** Immer die fest eingebaute Adresse (eine früher eingetragene eigene Adresse wird nicht mehr verwendet). */

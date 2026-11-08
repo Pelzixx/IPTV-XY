@@ -110,7 +110,7 @@ object HomeInfo {
         r
     }
 
-    suspend fun news(): NewsInfo? = withContext(Dispatchers.IO) {
+    suspend fun news(): NewsInfo? = if (!BuildConfig.NEWS) null else withContext(Dispatchers.IO) {
         val now = System.currentTimeMillis()
         news?.let { if (now - it.first < TTL) return@withContext it.second }
         val r = runCatching {

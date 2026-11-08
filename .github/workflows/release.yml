@@ -73,30 +73,36 @@ jobs:
       - run: chmod +x gradlew
 
       - name: Unit-Tests
-        run: ./gradlew --no-daemon testDebugUnitTest
+        run: ./gradlew --no-daemon testXyDebugUnitTest
 
-      - name: Release-APK bauen
-        run: ./gradlew --no-daemon assembleRelease
+      # Ausgaben (siehe app/build.gradle.kts): xy = App des Nutzers (iptv-xy.apk, update.json, wie bisher),
+      # standard = für alle ohne Voreinstellungen (iptv-xy-standard.apk, update-standard.json)
+      - name: Release-APKs bauen
+        run: ./gradlew --no-daemon assembleXyRelease assembleStandardRelease
 
       - name: Signatur prüfen und Dateien vorbereiten
         env:
           NOTES: ${{ inputs.notes }}
         run: |
-          APK=app/build/outputs/apk/release/app-release.apk
-          test -f "$APK" || { echo "::error::Signierte APK fehlt"; ls -R app/build/outputs/apk; exit 1; }
-          "$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner" verify --print-certs "$APK" | grep -i 'SHA-256'
           mkdir -p dist
-          cp "$APK" dist/iptv-xy.apk
-          jq -n --argjson code "$VERSION_CODE" --arg name "$VERSION_NAME" --arg notes "$NOTES" \
-            '{versionCode: $code, versionName: $name, apk: "iptv-xy.apk", notes: $notes}' > dist/update.json
-          cat dist/update.json
+          SIGNER="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner"
+          for spec in "xy:iptv-xy.apk:update.json" "standard:iptv-xy-standard.apk:update-standard.json"; do
+            IFS=: read -r flavor apkname updname <<< "$spec"
+            APK="app/build/outputs/apk/$flavor/release/app-$flavor-release.apk"
+            test -f "$APK" || { echo "::error::Signierte APK fehlt ($flavor)"; ls -R app/build/outputs/apk; exit 1; }
+            "$SIGNER" verify --print-certs "$APK" | grep -i 'SHA-256'
+            cp "$APK" "dist/$apkname"
+            jq -n --argjson code "$VERSION_CODE" --arg name "$VERSION_NAME" --arg notes "$NOTES" --arg apk "$apkname" \
+              '{versionCode: $code, versionName: $name, apk: $apk, notes: $notes}' > "dist/$updname"
+            cat "dist/$updname"
+          done
 
       - name: GitHub-Release im öffentlichen Repo anlegen
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
           NOTES: ${{ inputs.notes }}
         run: |
-          gh release create "v$VERSION_NAME" dist/iptv-xy.apk dist/update.json \
+          gh release create "v$VERSION_NAME" dist/iptv-xy.apk dist/update.json dist/iptv-xy-standard.apk dist/update-standard.json \
             -R "$RELEASES_REPO" --title "IPTV-XY $VERSION_NAME" \
             --notes "${NOTES:-Neue Version $VERSION_NAME}"
 

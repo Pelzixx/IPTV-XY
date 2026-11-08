@@ -235,9 +235,11 @@ fun HomeSportRow(onOpenSport: () -> Unit) {
     val list = SportsRepo.events.filter { it.scoreHome != null && it.home != null && it.away != null && (it.live(nowSec) || (it.finished && it.end > nowSec - 8 * 3600)) }
         .sortedWith(compareBy<SportEvent> { if (it.live(nowSec)) 0 else 1 }.thenBy { SportsLogic.prio(it.league) }).take(10)
     if (list.isEmpty()) return
-    Column(Modifier.padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Sport", color = Tok.TextHi, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 2.dp))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    // Gleicher Rand und Titel wie die übrigen Reihen der Startseite (RowTitle / RowPadX)
+    Column {
+        RowTitle("Sport", null, null, onAll = onOpenSport)
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(start = RowPadX, end = RowPadX, top = dpx(18), bottom = dpx(18))) {
             items(list, key = { it.key }) { e -> HomeSportCard(e, nowSec, onOpenSport) }
         }
     }

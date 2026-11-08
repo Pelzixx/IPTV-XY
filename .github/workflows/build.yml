@@ -19,14 +19,14 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
       - name: Unit tests
-        run: ./gradlew --no-daemon testDebugUnitTest
+        run: ./gradlew --no-daemon testXyDebugUnitTest
       - name: Build debug APK
         env:
           PRESET_SERVERS: ${{ secrets.PRESET_SERVERS }}
           PRESET_EPG: ${{ secrets.PRESET_EPG }}
           PRESET_CONFIG_URL: ${{ secrets.PRESET_CONFIG_URL }}
-        run: ./gradlew --no-daemon assembleDebug
+        run: ./gradlew --no-daemon assembleXyDebug assembleStandardDebug
       - uses: actions/upload-artifact@v4
         with:
           name: iptv-xy-debug
-          path: app/build/outputs/apk/debug/*.apk
+          path: app/build/outputs/apk/*/debug/*.apk

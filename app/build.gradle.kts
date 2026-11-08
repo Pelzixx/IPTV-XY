@@ -36,9 +36,36 @@ android {
 
         buildConfigField("String", "TMDB_KEY", "\"${secret("TMDB_KEY")}\"")
         buildConfigField("String", "OMDB_KEY", "\"${secret("OMDB_KEY")}\"")
-        buildConfigField("String", "PRESET_SERVERS", "\"${presetText("PRESET_SERVERS")}\"")
-        buildConfigField("String", "PRESET_EPG", "\"${presetText("PRESET_EPG")}\"")
-        buildConfigField("String", "PRESET_CONFIG_URL", "\"${presetText("PRESET_CONFIG_URL")}\"")
+        manifestPlaceholders["labelSuffix"] = ""
+    }
+
+    // Ausgaben (Wunsch des Nutzers, 2026-11-08), nebeneinander installierbar, jede mit eigenen Updates:
+    // - xy:       die App des Nutzers (XY-TV-Logo, eigene Server/EPG/Panel aus den Secrets PRESET_*), bisherige App-ID
+    // - standard: für alle, ohne Voreinstellungen (freie Eingabe M3U/Xtream/Stalker), eigenes neutrales Logo
+    // Weitere Betreiber bekommen je eine eigene Ausgabe nach dem Muster unten (create("name") …): eigene App-ID,
+    // eigener Name, Logo unter app/src/<name>/res, eigene Panel-Adresse, eigene Update-Datei.
+    flavorDimensions += "edition"
+    productFlavors {
+        create("xy") {
+            dimension = "edition"
+            buildConfigField("String", "EDITION", "\"xy\"")
+            buildConfigField("String", "UPDATE_FILE", "\"update.json\"")
+            buildConfigField("boolean", "NEWS", "true")
+            buildConfigField("String", "PRESET_SERVERS", "\"${presetText("PRESET_SERVERS")}\"")
+            buildConfigField("String", "PRESET_EPG", "\"${presetText("PRESET_EPG")}\"")
+            buildConfigField("String", "PRESET_CONFIG_URL", "\"${presetText("PRESET_CONFIG_URL")}\"")
+        }
+        create("standard") {
+            dimension = "edition"
+            applicationIdSuffix = ".standard"
+            manifestPlaceholders["appLabel"] = "IPTV-XY Player"
+            buildConfigField("String", "EDITION", "\"standard\"")
+            buildConfigField("String", "UPDATE_FILE", "\"update-standard.json\"")
+            buildConfigField("boolean", "NEWS", "false")
+            buildConfigField("String", "PRESET_SERVERS", "\"\"")
+            buildConfigField("String", "PRESET_EPG", "\"\"")
+            buildConfigField("String", "PRESET_CONFIG_URL", "\"\"")
+        }
     }
 
     // Signaturschlüssel für Releases kommt aus den GitHub-Secrets. Fehlt er (lokaler Build), bleibt die Release-APK unsigniert.
@@ -57,7 +84,7 @@ android {
         // Test-Builds laufen neben der installierten App (eigene App-ID, eigene Daten)
         debug {
             applicationIdSuffix = ".debug"
-            manifestPlaceholders["appLabel"] = "XY Test"
+            manifestPlaceholders["labelSuffix"] = " Test"
         }
         release {
             if (keystoreFile != null) signingConfig = signingConfigs.getByName("release")
@@ -73,7 +100,7 @@ android {
         create("staging") {
             initWith(getByName("release"))
             applicationIdSuffix = ".debug"
-            manifestPlaceholders["appLabel"] = "XY Test"
+            manifestPlaceholders["labelSuffix"] = " Test"
             signingConfig = signingConfigs.getByName("debug")
             matchingFallbacks += listOf("release")
         }
