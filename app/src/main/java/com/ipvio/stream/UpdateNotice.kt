@@ -32,6 +32,8 @@ object UpdateNotice {
     private var dismissed = 0L
 
     suspend fun watch(c: Context) {
+        // Test-Apps (…debug) haben eine eigene App-ID und einen anderen Schlüssel: das Update wäre eine ganz andere App
+        if (BuildConfig.APPLICATION_ID.endsWith(".debug")) return
         delay(8_000)
         while (true) {
             AppUpdate.check(c).getOrNull()?.let { if (it.code != dismissed) pending = it }
