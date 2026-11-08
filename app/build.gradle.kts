@@ -51,6 +51,8 @@ android {
             dimension = "edition"
             buildConfigField("String", "EDITION", "\"xy\"")
             buildConfigField("String", "APP_NAME", "\"IPTV-XY\"")
+            // Name des Anbieters auf dem Reiter der Anmeldeseite (statt „Vorgegeben“)
+            buildConfigField("String", "PROVIDER", "\"XY TV\"")
             applicationIdSuffix = ".xy"
             buildConfigField("String", "UPDATE_FILE", "\"update-xy.json\"")
             buildConfigField("boolean", "NEWS", "true")
@@ -63,6 +65,7 @@ android {
             manifestPlaceholders["appLabel"] = "IPTV-XY Player"
             buildConfigField("String", "EDITION", "\"standard\"")
             buildConfigField("String", "APP_NAME", "\"IPTV-XY\"")
+            buildConfigField("String", "PROVIDER", "\"\"")
             buildConfigField("String", "UPDATE_FILE", "\"update.json\"")
             buildConfigField("boolean", "NEWS", "false")
             buildConfigField("String", "PRESET_SERVERS", "\"\"")
@@ -77,6 +80,7 @@ android {
             manifestPlaceholders["appLabel"] = "Township TV"
             buildConfigField("String", "EDITION", "\"township\"")
             buildConfigField("String", "APP_NAME", "\"Township TV\"")
+            buildConfigField("String", "PROVIDER", "\"Township TV\"")
             buildConfigField("String", "UPDATE_FILE", "\"update-township.json\"")
             buildConfigField("boolean", "NEWS", "false")
             buildConfigField("String", "PRESET_SERVERS", "\"${presetText("TOWNSHIP_SERVERS")}\"")

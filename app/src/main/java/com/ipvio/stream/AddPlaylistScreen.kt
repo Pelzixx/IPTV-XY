@@ -148,7 +148,7 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
 
             if (servers.isNotEmpty()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    LoginTab("Vorgegeben", !manual, if (!manual) Modifier.focusRequester(startFocus) else Modifier) {
+                    LoginTab(BuildConfig.PROVIDER.ifBlank { "Vorgegeben" }, !manual, if (!manual) Modifier.focusRequester(startFocus) else Modifier) {
                         manualPick = false; PlaylistStore.error = null
                     }
                     LoginTab("Selbst eingeben", manual, if (manual) Modifier.focusRequester(startFocus) else Modifier) {
