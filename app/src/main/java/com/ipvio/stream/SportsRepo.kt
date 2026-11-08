@@ -39,23 +39,28 @@ object SportsRepo {
         loading = true
         try {
             // Spielstände parallel laden, während das TV-Programm durchsucht wird
-            val oldb = kotlinx.coroutines.coroutineScope {
+            kotlinx.coroutines.coroutineScope {
                 val jobs = OLDB.map { (s, n) -> async(Dispatchers.IO) { runCatching { openLiga(s, n) }.getOrDefault(emptyList()) } }
                 val old = scan
                 val count = Xmltv.channelCount
-                val sc = if (old != null && (old.live === live || old.live.size == live.size) && old.epgCount == count && System.currentTimeMillis() - old.at < 10 * 60_000) old
-                    else withContext(Dispatchers.Default) { fromEpg(live, count) }.also { scan = it }
-                if (events.isEmpty()) { events = withContext(Dispatchers.Default) { merge(sc, lastOldb) }; updatedAt = System.currentTimeMillis() }
-                jobs.awaitAll().flatten()
+                val fresh = old != null && (old.live === live || old.live.size == live.size) && old.epgCount == count && System.currentTimeMillis() - old.at < 10 * 60_000
+                val scanJob = if (fresh) null else async(Dispatchers.Default) { fromEpg(live, count) }
+                val oldb = jobs.awaitAll().flatten()
+                if (oldb.isNotEmpty()) lastOldb = oldb
+                // Spielstände schon zeigen, während das Programm der Sportsender noch geholt wird
+                if (scanJob != null && events.isEmpty()) {
+                    events = withContext(Dispatchers.Default) { merge(old ?: Scan(emptyList(), emptyList(), live, 0, 0), lastOldb) }
+                    updatedAt = System.currentTimeMillis()
+                }
+                scanJob?.await()?.let { scan = it }
             }
-            if (oldb.isNotEmpty()) lastOldb = oldb
             val sc = scan ?: return
             events = withContext(Dispatchers.Default) { merge(sc, lastOldb) }
             updatedAt = System.currentTimeMillis()
         } finally { loading = false }
     }
 
-    private fun fromEpg(live: List<Item>, count: Int): Scan {
+    private suspend fun fromEpg(live: List<Item>, count: Int): Scan {
         val now = System.currentTimeMillis() / 1000
         val from = now - 3 * 3600; val to = now + 48 * 3600
         class Acc(val hit: SportHit, val e: EpgEntry, val chans: MutableList<Item>)
@@ -65,11 +70,29 @@ object SportsRepo {
         val done = java.util.IdentityHashMap<List<EpgEntry>, HashMap<String, List<String>>>()
         // Einmal je App-Start ins Log: was Sky/DAZN gerade zeigen (zum Prüfen der Zuordnung per ADB)
         val log = !logged; logged = true
-        for (ch in live) {
+        class C(val ch: Item, val name: String, val c: SportsLogic.Chan, val xml: List<EpgEntry>)
+        val cands = live.mapNotNull { ch ->
             val name = ChannelEdit.title(ch) + " " + ch.group
             val c = SportsLogic.chan(name)
-            if (!c.relevant) continue
-            val list = Xmltv.forItem(ch)
+            if (c.relevant) C(ch, name, c, Xmltv.forItem(ch)) else null
+        }
+        // Sportsender ohne XMLTV: Programm beim Anbieter holen (wie der TV-Guide), je Sender nur einmal für alle
+        // Qualitäten, höchstens 8 Abfragen gleichzeitig
+        val missing = cands.filter { it.xml.isEmpty() && it.c.sport && Epg.xtreamApi(it.ch, "get_short_epg") != null }
+            .sortedByDescending { SportsLogic.isPayTvSport(it.name) }
+            .groupBy { SportsLogic.baseName(ChannelEdit.title(it.ch)) }.entries.take(200)
+        val sem = kotlinx.coroutines.sync.Semaphore(8)
+        val fetched: Map<String, List<EpgEntry>> = kotlinx.coroutines.coroutineScope {
+            missing.map { (base, l) ->
+                async(Dispatchers.IO) {
+                    sem.acquire()
+                    try { base to runCatching { Epg.now(l.first().ch) }.getOrDefault(emptyList()) } finally { sem.release() }
+                }
+            }.awaitAll().toMap()
+        }
+        for (cd in cands) {
+            val ch = cd.ch; val name = cd.name; val c = cd.c
+            val list = cd.xml.ifEmpty { if (c.sport) fetched[SportsLogic.baseName(ChannelEdit.title(ch))].orEmpty() else emptyList() }
             if (list.isEmpty()) continue
             if (log && c.sport && SportsLogic.isPayTvSport(name)) list.filter { it.end > now && it.start < now + 4 * 3600 }.take(3)
                 .forEach { android.util.Log.i("XYSPORT", "${ChannelEdit.title(ch)} | ${it.title} | ${it.desc.take(100)}") }

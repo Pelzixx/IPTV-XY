@@ -53,5 +53,7 @@ class SportsLogicTest {
         assertTrue(SportsLogic.allowed("Bundesliga")); assertTrue(!SportsLogic.allowed("NBA"))
         assertTrue(SportsLogic.prio("Bundesliga") < SportsLogic.prio("Champions League"))
         assertTrue(SportsLogic.mentions("Live: Heidenheim gegen Hannover", "1. FC Heidenheim 1846"))
+        assertEquals("sky sport bundesliga 1", SportsLogic.baseName("DE: Sky Sport Bundesliga 1 FHD"))
+        assertEquals("sky sport bundesliga 1", SportsLogic.baseName("Sky Sport Bundesliga 1 HD (1080p)"))
     }
 }

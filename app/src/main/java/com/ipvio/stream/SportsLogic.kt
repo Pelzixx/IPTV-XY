@@ -111,7 +111,14 @@ object SportsLogic {
         return Chan(sport, league(channel), sport || GERMAN_TV.containsMatchIn(channel))
     }
 
-    private val PAYTV = Regex("""\b(sky|dazn|magenta|sport ?1|sportdigital)\b""", RegexOption.IGNORE_CASE)
+    /** Sendername ohne Länderkürzel und Qualitätsangabe („DE: Sky Sport Bundesliga 1 FHD“ → „sky sport bundesliga 1“). */
+    fun baseName(title: String): String = title.lowercase()
+        .replace(Regex("""^\s*[a-z]{2,3}\s*[:|]\s*"""), "")
+        .replace(Regex("""[(\[].*?[)\]]"""), " ")
+        .replace(Regex("""\b(uhd|fhd|hd|sd|4k|hevc|h265|raw|\d{3,4}p|50 ?fps|60 ?fps|backup|\+)\b"""), " ")
+        .replace(Regex("""[^a-z0-9äöüß ]"""), " ").replace(Regex("""\s+"""), " ").trim()
+
+    private val PAYTV =Regex("""\b(sky|dazn|magenta|sport ?1|sportdigital)\b""", RegexOption.IGNORE_CASE)
     fun isPayTvSport(channel: String) = PAYTV.containsMatchIn(channel)
 
     private val KONFERENZ =Regex("""\bkonferenz\b""", RegexOption.IGNORE_CASE)
