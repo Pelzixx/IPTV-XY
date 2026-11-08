@@ -1,6 +1,6 @@
 # IPTV-XY
 
-IPTV-Player für **Android TV, Google TV und Amazon Fire TV**, gebaut mit Kotlin, Jetpack Compose und Media3 und ganz auf die Fernbedienung ausgelegt.
+**IPTV-XY Player** ist ein IPTV-Player für **Android TV, Google TV und Amazon Fire TV**, gebaut mit Kotlin, Jetpack Compose und Media3 und ganz auf die Fernbedienung ausgelegt.
 
 ![Startseite](docs/screenshots/startseite.jpg)
 
@@ -29,9 +29,14 @@ Direkter Link zur neuesten Version: https://github.com/Pelzixx/IPTV-XY-Releases/
 - Sehr große Listen: Sprachfilter beim Laden, fortsetzbarer Download, Aktualisierung im Hintergrund
 - Gruppen und Kategorien in der Reihenfolge des Anbieters, eigene Gruppen, Sender und Gruppen ausblenden oder sperren
 
+**Startseite**
+- Weiterschauen, Favoriten und Empfehlungen; unten aktuelle Sportspiele mit Spielstand sowie die 5 neuesten Filme und Serien
+- Menü: Suche, Home, TV, Filme, Serien, Aufnahmen, Sport, Meine Liste, Einstellungen; die Version steht unten im Menü
+
 **TV**
 - Gruppenliste, Senderliste und TV-Guide auf einer Seite, oben läuft die Vorschau mit Ton
 - Nahtloser Übergang von der Vorschau ins Vollbild, ohne Neuladen
+- Im Vollbild öffnet die Taste links die Senderliste direkt im Ordner des laufenden Senders
 - Beim Umschalten eine kleine Info mit Sendung, Auflösung (HD/FHD/4K), Bildrate und Tonformat
 - Archiv/Catch-up bei Sendern, die es anbieten: im Guide zurückgehen und alte Sendungen mit Spulen abspielen
 - Favoriten, Erinnerungen, Aufnahmen (auch auf ein NAS per SMB), Multi-View, Bild-in-Bild
