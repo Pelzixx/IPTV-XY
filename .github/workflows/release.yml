@@ -120,6 +120,17 @@ jobs:
           git tag "v$VERSION_NAME" "$GITHUB_SHA"
           git push origin "v$VERSION_NAME"
 
+      # Öffentliches Code-Repo: unter „Releases“ nur die Original-App (ohne Voreinstellungen) zum Herunterladen.
+      # XY und Township enthalten Server-Adressen und liegen nur im Download-Repo.
+      - name: Original-App im Code-Repo veröffentlichen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NOTES: ${{ inputs.notes }}
+        run: |
+          gh release create "v$VERSION_NAME" dist/iptv-xy.apk -R "$GITHUB_REPOSITORY" --verify-tag \
+            --title "IPTV-XY Player $VERSION_NAME" \
+            --notes "${NOTES:-Neue Version $VERSION_NAME}"
+
       - name: Schlüssel entfernen
         if: always()
         run: rm -f "$KEYSTORE_FILE"
