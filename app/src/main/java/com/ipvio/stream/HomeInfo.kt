@@ -86,7 +86,8 @@ object HomeInfo {
     /** Mitteilung, QR-Link und Bild: im öffentlichen Releases-Repo änderbar, ohne neue App-Version. */
     const val NEWS_URL = "https://raw.githubusercontent.com/Pelzixx/IPTV-XY-Releases/main/news.json"
     private const val TTL = 30 * 60 * 1000L
-    private var acc: Triple<String, Long, AccountInfo>? = null
+    /** Zuletzt abgefragte Zugänge je Playlist-Adresse (mehrere Server: Laufzeit je Zugang auf der Startseite). */
+    private val accs = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, AccountInfo>>()
     /** Grund, warum keine Zugangsdaten kamen (für die Anzeige), oder null. */
     var accountError by mutableStateOf<String?>(null)
         private set
@@ -95,7 +96,7 @@ object HomeInfo {
     suspend fun account(playlistUrl: String?): AccountInfo? = withContext(Dispatchers.IO) {
         val parts = playlistUrl?.let { LoadLogic.xtreamParts(it) } ?: return@withContext null
         val now = System.currentTimeMillis()
-        acc?.let { if (it.first == playlistUrl && now - it.second < TTL) return@withContext it.third }
+        accs[playlistUrl]?.let { if (now - it.first < TTL) return@withContext it.second }
         val (host, user, pass) = parts
         val url = "$host/player_api.php?username=${URLEncoder.encode(user, "UTF-8")}&password=${URLEncoder.encode(pass, "UTF-8")}"
         // Gleiche Kennung wie beim Laden der Playlist: manche Server lehnen unbekannte Programme ab
@@ -106,7 +107,7 @@ object HomeInfo {
             }
         }.getOrElse { e -> accountError = e.javaClass.simpleName; null }
         // Nur Erfolge merken: ein Fehler (z. B. Netz beim Start noch nicht da) wird beim nächsten Anzeigen erneut versucht
-        if (r != null) acc = Triple(playlistUrl, now, r)
+        if (r != null) accs[playlistUrl] = now to r
         r
     }
 
@@ -138,6 +139,13 @@ fun HomeInfoRow(modifier: Modifier = Modifier) {
         repeat(2) { if (value == null && LoadLogic.xtreamParts(url ?: "") != null) { kotlinx.coroutines.delay(15_000); value = HomeInfo.account(url) } }
     }
     val isXtream = url?.let { LoadLogic.xtreamParts(it) } != null
+    // Mehrere Xtream-Zugänge (Wunsch des Nutzers, 2026-11-08): Laufzeit jedes Zugangs untereinander
+    val xtLists = PlaylistStore.lists.filter { LoadLogic.xtreamParts(it.url) != null }
+    val multi by produceState<List<Pair<String, AccountInfo?>>>(emptyList(), xtLists.map { it.url }) {
+        if (xtLists.size < 2) { value = emptyList(); return@produceState }
+        value = xtLists.map { it.name to null }
+        value = xtLists.map { pl -> pl.name to HomeInfo.account(pl.url) }
+    }
     val news by produceState<NewsInfo?>(null) { value = HomeInfo.news() }
     val a = account
     val n = news
@@ -147,14 +155,27 @@ fun HomeInfoRow(modifier: Modifier = Modifier) {
     val shape = RoundedCornerShape(DS.RadiusM)
     val card = Modifier.fillMaxHeight().clip(shape).background(Color(0x14FFFFFF)).padding(16.dp)
     Row(modifier.fillMaxWidth().height(150.dp).padding(horizontal = DS.PageX), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        if (xtLists.size >= 2) Column(card.width(380.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text("Meine Zugänge", color = Muted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            val nowSec = System.currentTimeMillis() / 1000
+            multi.take(4).forEach { (name, ai) ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(raw = true, text = name, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    val (txt, col) = AccountLine.short(ai, nowSec)
+                    Text(raw = true, text = txt, color = col, fontSize = 14.sp, maxLines = 1)
+                }
+            }
+            if (multi.size > 4) Text(raw = true, text = "+ " + (multi.size - 4), color = Muted, fontSize = 13.sp)
+        }
         // Xtream-Zugang, aber (noch) keine Angaben vom Server: Karte trotzdem zeigen, mit Grund
-        if (a == null && isXtream) Column(card.width(300.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        else if (a == null && isXtream) Column(card.width(300.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("Mein Zugang", color = Muted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             val err = HomeInfo.accountError
             Text(if (err == null) "Wird abgefragt …" else "Keine Angaben vom Server", color = Tok.TextMid, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             if (err != null) Text(raw = true, text = err, color = Muted, fontSize = 13.sp)
         }
-        if (a != null) Column(card.width(300.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (xtLists.size < 2 && a != null) Column(card.width(300.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(if (a.trial) "Testzugang" else "Mein Zugang", color = Muted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             val days = HomeInfoLogic.daysLeft(a.expSec, System.currentTimeMillis() / 1000)
             val active = a.status.equals("Active", true) && (days == null || days >= 0)
@@ -185,6 +206,24 @@ fun HomeInfoRow(modifier: Modifier = Modifier) {
                 }
                 if (n?.qrLabel.orEmpty().isNotEmpty()) Text(raw = true, text = n?.qrLabel.orEmpty(), color = Color.White, fontSize = 15.sp, lineHeight = 20.sp,
                     maxLines = 4, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(150.dp))
+            }
+        }
+    }
+}
+
+/** Kurze Zeile je Zugang für „Meine Zugänge“: „bis 04.03.27 · 116 T.“, abgelaufen rot, bald ablaufend gelb. */
+object AccountLine {
+    fun short(a: AccountInfo?, nowSec: Long): Pair<String, Color> {
+        if (a == null) return "…" to Muted
+        val days = HomeInfoLogic.daysLeft(a.expSec, nowSec)
+        val active = a.status.equals("Active", true) && (days == null || days >= 0)
+        return when {
+            !active && days != null && days < 0 -> Lang.tr("Abgelaufen") to DS.Danger
+            !active -> a.status.ifEmpty { "?" } to DS.Danger
+            days == null -> Lang.tr("Unbegrenzt") to Color.White
+            else -> {
+                val date = SimpleDateFormat("dd.MM.yy", Locale.GERMANY).apply { timeZone = epgZone() }.format(Date(a.expSec!! * 1000))
+                (Lang.tr("bis") + " $date · $days " + Lang.tr("T.")) to (if (days <= 14) DS.Gold else Accent2)
             }
         }
     }

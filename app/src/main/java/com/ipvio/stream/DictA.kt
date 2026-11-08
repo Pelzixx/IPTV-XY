@@ -16,6 +16,8 @@ Vorgegeben¦Preset¦Hazır¦Zadano¦Zadano¦Zadato¦Predefinido¦Prédéfini¦Pr
 Selbst eingeben¦Enter manually¦Kendin gir¦Unesi sam¦Unesi sam¦Unesi sam¦Introducir manualmente¦Saisir soi-même¦Inserisci tu
 Art der Playlist¦Playlist type¦Oynatma listesi türü¦Vrsta playliste¦Vrsta playliste¦Vrsta plejliste¦Tipo de lista¦Type de playlist¦Tipo di playlist
 Später¦Later¦Sonra¦Kasnije¦Kasnije¦Kasnije¦Más tarde¦Plus tard¦Più tardi
+Meine Zugänge¦My accounts¦Erişimlerim¦Moji pristupi¦Moji pristupi¦Moji pristupi¦Mis accesos¦Mes accès¦I miei accessi
+T.¦d¦g.¦d.¦d.¦d.¦d¦j.¦g.
 Erlaube der App einmal „Apps installieren“. Danach startet die Installation von selbst.¦Allow the app to "Install apps" once. The installation then starts automatically.¦Uygulamaya bir kez „Uygulama yükle“ izni ver. Kurulum ardından kendiliğinden başlar.¦Dopusti aplikaciji jednom „Instaliraj aplikacije“. Instalacija zatim počinje sama.¦Dopusti aplikaciji jednom „Instaliraj aplikacije“. Instalacija zatim počinje sama.¦Dozvoli aplikaciji jednom „Instaliraj aplikacije“. Instalacija zatim počinje sama.¦Permite una vez a la app „Instalar apps“. La instalación empezará sola.¦Autorise une fois l’app à « Installer des apps ». L’installation démarre ensuite toute seule.¦Consenti una volta all’app „Installa app“. L’installazione partirà da sola.
 Hinzufügen¦Add¦Ekle¦Dodaj¦Dodaj¦Dodaj¦Añadir¦Ajouter¦Aggiungi
 Abbrechen¦Cancel¦İptal¦Otkaži¦Otkaži¦Otkaži¦Cancelar¦Annuler¦Annulla
