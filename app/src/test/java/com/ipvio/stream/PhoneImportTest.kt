@@ -68,4 +68,21 @@ class PhoneImportTest {
         assertTrue(PhoneImportLogic.page(1).contains("Send to TV"))
         assertTrue(PhoneImportLogic.message(7, "ok").contains("Envoyé"))
     }
+
+    @Test fun vorgegebener_server_nur_mit_benutzer_und_passwort() {
+        val urls = listOf("http://a.tld:8080", "http://b.tld:80")
+        val x = PhoneImportLogic.toInput(mapOf("srv" to "1", "user" to "u", "pass" to "p"), presetUrls = urls)!!
+        assertTrue(x.isXtream)
+        assertEquals("http://b.tld:80", x.host)
+        assertNull(PhoneImportLogic.toInput(mapOf("srv" to "5", "user" to "u", "pass" to "p"), presetUrls = urls))
+        assertNull(PhoneImportLogic.toInput(mapOf("srv" to "0", "user" to "u"), presetUrls = urls))
+    }
+
+    @Test fun handy_seite_zeigt_vorgegebene_server_ohne_adressen() {
+        val p = PhoneImportLogic.page(0, listOf("XY TV", "XY <Backup>"), "IPTV-XY", "XY TV")
+        assertTrue(p.contains("Anmelden · XY TV"))
+        assertTrue(p.contains("<option value=\"1\">XY &lt;Backup&gt;</option>"))
+        assertTrue(p.contains("Selbst eingeben"))
+        assertTrue(!PhoneImportLogic.page(0).contains("name=\"srv\""))
+    }
 }

@@ -27,7 +27,14 @@ object PhoneImportLogic {
 
     /** Prüft Eingaben; null = ungültig. */
     /** [noHostOk]: fest eingebaute Server vorhanden – dann darf das Server-Feld leer bleiben (die App nimmt den gewählten). */
-    fun toInput(f: Map<String, String>, noHostOk: Boolean = false): PhoneInput? {
+    fun toInput(f: Map<String, String>, noHostOk: Boolean = false, presetUrls: List<String> = emptyList()): PhoneInput? {
+        // Vorgegebener Server (Auswahl nach Namen auf der Handy-Seite, „srv“ = Index): nur Benutzername und Passwort
+        f["srv"]?.let { s ->
+            val host = presetUrls.getOrNull(s.trim().toIntOrNull() ?: -1) ?: return null
+            val user = f["user"].orEmpty().trim()
+            val pass = f["pass"].orEmpty().trim()
+            return if (user.isNotEmpty() && pass.isNotEmpty()) PhoneInput("", host, user, pass) else null
+        }
         // Stalker-Portal (wie TiviMate): Portal und MAC, optional Seriennummer und Geräte-ID
         val portal = f["portal"].orEmpty().trim()
         val mac = f["mac"].orEmpty().trim()
@@ -64,17 +71,33 @@ object PhoneImportLogic {
     fun page(de: Boolean): String = page(if (de) 0 else 1)
     fun message(de: Boolean, kind: String): String = message(if (de) 0 else 1, kind)
 
-    fun page(li: Int): String {
+    /**
+     * Handy-Seite. Mit vorgegebenen Servern ([servers] = angezeigte Namen, die Adressen bleiben in der App) steht oben
+     * „Anmelden bei [provider]“ mit Server-Auswahl, Benutzername und Passwort; darunter die freie Eingabe.
+     */
+    fun page(li: Int, servers: List<String> = emptyList(), title: String = "IPTV-XY", provider: String = ""): String {
         fun t(a: String, b: String) = tr(li, a, b)
+        fun esc(s: String) = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
+        val preset = if (servers.isEmpty()) "" else {
+            val opts = servers.mapIndexed { i, n -> "<option value=\"$i\">${esc(n)}</option>" }.joinToString("")
+            val sel = if (servers.size > 1) "<select name=\"srv\">$opts</select>" else "<input type=\"hidden\" name=\"srv\" value=\"0\">"
+            """<form method="post" action="/send"><h2 class="main">${esc(t("Anmelden", "Sign in") + (if (provider.isNotBlank()) " · $provider" else ""))}</h2>
+<input name="code" inputmode="numeric" maxlength="4" placeholder="${t("Code vom Fernseher", "Code from the TV")}" required>
+$sel
+<input name="user" placeholder="${t("Benutzername", "Username")}" autocapitalize="off" required>
+<input name="pass" placeholder="${t("Passwort", "Password")}" autocapitalize="off" required>
+<button type="submit">${t("An den Fernseher senden", "Send to TV")}</button></form>
+<h1 class="sub">${t("Selbst eingeben", "Enter manually")}</h1>"""
+        }
         return """<!doctype html><html lang="${I18nCore.CODES.getOrElse(li) { "en" }}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>IPTV-XY</title><style>
+<title>${esc(title)}</title><style>
 body{font-family:system-ui,sans-serif;background:#0B0F19;color:#fff;margin:0;padding:20px;max-width:560px}
-h1{font-size:22px}h2{font-size:16px;color:#9aa;margin-top:28px}
-input,textarea{width:100%;box-sizing:border-box;padding:14px;margin:6px 0;border-radius:10px;border:1px solid #333;background:#171a26;color:#fff;font-size:16px}
+h1{font-size:22px}h1.sub{font-size:18px;margin-top:40px;padding-top:20px;border-top:1px solid #333}h2{font-size:16px;color:#9aa;margin-top:28px}h2.main{color:#fff;font-size:18px}
+input,textarea,select{width:100%;box-sizing:border-box;padding:14px;margin:6px 0;border-radius:10px;border:1px solid #333;background:#171a26;color:#fff;font-size:16px}
 button{width:100%;padding:14px;margin-top:10px;border:0;border-radius:10px;background:#4ADE80;color:#0B0F19;font-size:17px;font-weight:700}
-</style></head><body><h1>IPTV-XY</h1>
+</style></head><body><h1>${esc(title)}</h1>
 <p>${t("Sende deine Playlist an den Fernseher. Den Code siehst du auf dem Bildschirm.", "Send your playlist to the TV. You can see the code on the screen.")}</p>
-<form method="post" action="/send"><h2>${t("M3U-Link", "M3U link")}</h2>
+$preset<form method="post" action="/send"><h2>${t("M3U-Link", "M3U link")}</h2>
 <input name="code" inputmode="numeric" maxlength="4" placeholder="${t("Code vom Fernseher", "Code from the TV")}" required>
 <textarea name="url" rows="3" placeholder="http://…/playlist.m3u"></textarea>
 <button type="submit">${t("An den Fernseher senden", "Send to TV")}</button></form>
@@ -161,14 +184,14 @@ class PhoneImport(private val onReceive: (PhoneInput) -> Unit) {
         val (req, body, lang) = readRequest(s.getInputStream()) ?: return
         val de = PhoneImportLogic.langIndex(lang)
         val (status, html) = when (req) {
-            "GET /" -> 200 to PhoneImportLogic.page(de)
+            "GET /" -> 200 to PhoneImportLogic.page(de, Presets.servers.map { it.name }, BuildConfig.APP_NAME, BuildConfig.PROVIDER)
             "POST /send" -> {
                 val f = PhoneImportLogic.parseForm(body)
                 when {
                     fails >= 5 -> 429 to PhoneImportLogic.message(de, "lock")
                     f["code"].orEmpty().trim() != code -> { fails++; 403 to PhoneImportLogic.message(de, "code") }
                     else -> {
-                        val input = PhoneImportLogic.toInput(f, noHostOk = Presets.servers.isNotEmpty())
+                        val input = PhoneImportLogic.toInput(f, noHostOk = Presets.servers.isNotEmpty(), presetUrls = Presets.servers.map { it.url })
                         if (input == null) 400 to PhoneImportLogic.message(de, "bad")
                         else { onReceive(input); 200 to PhoneImportLogic.message(de, "ok") }
                     }

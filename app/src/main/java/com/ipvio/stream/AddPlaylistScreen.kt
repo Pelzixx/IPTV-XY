@@ -72,12 +72,14 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
     val receiver = remember {
         PhoneImport { inp ->
             Handler(Looper.getMainLooper()).post {
-                // Ohne Server vom Handy: den gewählten fest eingebauten Server nehmen
-                val h = if (inp.isXtream && inp.host.isBlank()) servers.getOrNull(sel)?.url.orEmpty() else inp.host
+                // Ohne Server vom Handy: den gewählten fest eingebauten Server nehmen. Immer die aktuelle Liste lesen: beim
+                // Öffnen des Bildschirms war das Panel evtl. noch nicht geladen (sonst Sprung auf „Selbst eingeben“)
+                val srv = Presets.servers
+                val h = if (inp.isXtream && inp.host.isBlank()) srv.getOrNull(sel)?.url.orEmpty() else inp.host
                 val u = if (inp.isXtream) PlaylistStore.xtreamUrl(h, inp.user, inp.pass) else inp.url
                 if (inp.isXtream) {
                     xtream = true; host = h; user = inp.user; pass = inp.pass
-                    val i = PresetLogic.indexOf(h, servers)
+                    val i = PresetLogic.indexOf(h, srv)
                     if (i >= 0) { sel = i; manualPick = false } else manualPick = true
                 } else { xtream = false; url = inp.url; manualPick = true }
                 if (u == null) PlaylistStore.error = "Angaben unvollständig: Server, Benutzername und Passwort nötig."
