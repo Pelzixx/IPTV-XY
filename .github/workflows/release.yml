@@ -75,8 +75,8 @@ jobs:
       - name: Unit-Tests
         run: ./gradlew --no-daemon testXyDebugUnitTest
 
-      # Ausgaben (siehe app/build.gradle.kts): xy = App des Nutzers (iptv-xy.apk, update.json, wie bisher),
-      # standard = für alle ohne Voreinstellungen (iptv-xy-standard.apk, update-standard.json)
+      # Ausgaben (siehe app/build.gradle.kts): standard = Original-App für alle (iptv-xy.apk, update.json, bisheriger Link),
+      # xy = App des Nutzers mit Logo und Panel (iptv-xy-tv.apk, update-xy.json, eigener Link)
       - name: Release-APKs bauen
         run: ./gradlew --no-daemon assembleXyRelease assembleStandardRelease
 
@@ -86,7 +86,7 @@ jobs:
         run: |
           mkdir -p dist
           SIGNER="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner"
-          for spec in "xy:iptv-xy.apk:update.json" "standard:iptv-xy-standard.apk:update-standard.json"; do
+          for spec in "standard:iptv-xy.apk:update.json" "xy:iptv-xy-tv.apk:update-xy.json"; do
             IFS=: read -r flavor apkname updname <<< "$spec"
             APK="app/build/outputs/apk/$flavor/release/app-$flavor-release.apk"
             test -f "$APK" || { echo "::error::Signierte APK fehlt ($flavor)"; ls -R app/build/outputs/apk; exit 1; }
@@ -102,7 +102,7 @@ jobs:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
           NOTES: ${{ inputs.notes }}
         run: |
-          gh release create "v$VERSION_NAME" dist/iptv-xy.apk dist/update.json dist/iptv-xy-standard.apk dist/update-standard.json \
+          gh release create "v$VERSION_NAME" dist/iptv-xy.apk dist/update.json dist/iptv-xy-tv.apk dist/update-xy.json \
             -R "$RELEASES_REPO" --title "IPTV-XY $VERSION_NAME" \
             --notes "${NOTES:-Neue Version $VERSION_NAME}"
 
