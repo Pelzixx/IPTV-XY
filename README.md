@@ -25,49 +25,74 @@ Direkter Link zur neuesten Version: https://github.com/Pelzixx/IPTV-XY-Releases/
 ## Funktionen
 
 **Playlists**
-- Xtream Codes, M3U-Adresse, lokale M3U-Datei oder Stalker-Portal; mehrere Playlists; Eingabe bequem über das Handy im WLAN
+- Xtream Codes, M3U-Adresse, lokale M3U-Datei oder Stalker-Portal; mehrere Playlists gleichzeitig
+- Zugangsdaten bequem über das Handy im WLAN eingeben (Adresse und Code werden am TV angezeigt)
 - Sehr große Listen: Sprachfilter beim Laden, fortsetzbarer Download, Aktualisierung im Hintergrund
-- Gruppen und Kategorien in der Reihenfolge des Anbieters, eigene Gruppen, Sender und Gruppen ausblenden oder sperren
+- Gruppen und Kategorien in der Reihenfolge des Anbieters oder sortiert, eigene Gruppen, Sender und Gruppen ausblenden oder sperren
+- Senderlogos vom Anbieter, aus dem EPG oder aus einem eigenen Ordner, auch bei leicht abweichenden Namen
 
 **Startseite**
-- Weiterschauen, Favoriten und Empfehlungen; unten aktuelle Sportspiele mit Spielstand sowie die 5 neuesten Filme und Serien
-- Menü: Suche, Home, TV, Filme, Serien, Aufnahmen, Sport, Meine Liste, Einstellungen; die Version steht unten im Menü
+- Live TV, Weiterschauen, Favoriten und Empfehlungen
+- Aktuelle Sportspiele mit Spielstand, die 5 neuesten Filme und die 5 neuesten Serien
+- Menü: Suche, Home, TV, Filme, Serien, Aufnahmen, Sport, Meine Liste, Einstellungen; frei sortierbar, einzelne Punkte ausblendbar; die Version steht unten im Menü
 
-**TV**
+**Suche**
+- Sucht in Sendern, laufenden und kommenden Sendungen, Filmen und Serien; auch per Sprache
+- Verlauf der letzten Suchen
+
+**TV und TV-Guide**
 - Gruppenliste, Senderliste und TV-Guide auf einer Seite, oben läuft die Vorschau mit Ton
-- Nahtloser Übergang von der Vorschau ins Vollbild, ohne Neuladen
-- Im Vollbild öffnet die Taste links die Senderliste direkt im Ordner des laufenden Senders
-- Beim Umschalten eine kleine Info mit Sendung, Auflösung (HD/FHD/4K), Bildrate und Tonformat
+- Nahtloser Übergang von der Vorschau ins Vollbild und mit *Zurück* wieder in die Vorschau, ohne Neuladen
+- Guide mit Zeitleiste, Fortschritt der laufenden Sendung, Sendernummern, zweizeiligen Titeln und Catch-up-Symbol
+- XMLTV-EPG (auch .gz) zusätzlich zum EPG des Anbieters, Sendernamen für die Zuordnung anpassbar
 - Archiv/Catch-up bei Sendern, die es anbieten: im Guide zurückgehen und alte Sendungen mit Spulen abspielen
-- Favoriten, Erinnerungen, Aufnahmen (auch auf ein NAS per SMB), Multi-View, Bild-in-Bild
+- Favoriten, Verlauf der zuletzt gesehenen Sender, Erinnerungen an Sendungen (auch mit automatischem Umschalten)
+- Multi-View (mehrere Sender gleichzeitig) und Bild-in-Bild
+
+**Im Vollbild**
+- Taste links öffnet die Senderliste direkt im Ordner des laufenden Senders, mit Programm und Beschreibung
+- Hoch/runter schaltet um; Senderwahl per Zifferntasten
+- Beim Umschalten eine kleine Info mit Sendung, Uhrzeit, Auflösung (HD/FHD/4K), Bildrate und Tonformat
+- Zeitversetztes Spulen bei Catch-up-Sendern
+
+**Aufnahmen**
+- Sendungen aufnehmen, auch geplant aus dem Guide, mit Vor- und Nachlaufzeit
+- Speicherort im Gerät oder auf einem NAS per SMB
 
 **Sport Guide**
-- Spiele aus dem TV-Programm: Bundesliga, 2. und 3. Liga, DFB-Pokal, Europapokal, Länderspiele, Formel 1 u. a.
-- Live-Spielstände und Spielminute, Sender zum Spiel (beste Qualität zuerst), Erinnerung für kommende Spiele
+- Spiele aus dem TV-Programm, deutscher Fußball zuerst: Bundesliga, 2. und 3. Liga, DFB-Pokal, Champions League, Europa League, Conference League, Länderspiele, Frauen-Bundesliga, außerdem Formel 1, Handball, Basketball und Eishockey
+- Live-Spielstände und Spielminute (mit Halbzeit), Ergebnisse beendeter Spiele
+- Die Sender, auf denen das Spiel läuft, inklusive Konferenz; beste Qualität zuerst; ein Klick startet den Sender
+- Erinnerung für kommende Spiele
 
 **Filme und Serien**
 - Kategorien in der Reihenfolge des Anbieters, Sortierung nach Name, Bewertung, Jahr oder „zuletzt hinzugefügt“
-- Detailseite mit Fortsetzen, Trailer, Meine Liste; Staffeln und Folgen übersichtlich
+- Detailseite mit Beschreibung, Bewertung, Fortsetzen, Trailer und Meine Liste; Staffeln und Folgen übersichtlich
 - Meine Liste und Verlauf
 
 **Player** (Media3 / ExoPlayer)
-- Ton- und Untertitelwahl, FFmpeg-Tondecoder für AC3/E-AC3/DTS
+- Ton- und Untertitelwahl, FFmpeg-Tondecoder für AC3/E-AC3/DTS, Surround und Passthrough
 - Bildratenanpassung (AFR), Seitenverhältnis/Zoom, Audioversatz, Schlummertimer
+- Wahlweise externer Player
 - Der Stream stoppt immer, wenn die App verlassen wird
 
 **Einstellungen**
 - Aufbau wie bei bekannten TV-Playern: Allgemein, Wiedergabelisten, EPG, Optik, Wiedergabe, Fernbedienung, Kindersicherung, Sonstiges, Über
-- Menü frei sortierbar, Farbthemen, Schriftgröße, Kindersicherung mit PIN, Sicherung und Wiederherstellung
+- Farbthemen, Schriftgröße und Transparenz der Oberfläche
+- Fernbedienung: Belegung der Tasten, Umschaltverzögerung, Sprungweiten beim Spulen
+- Kindersicherung mit PIN für Gruppen, Sender und Einstellungen
+- Sicherung und Wiederherstellung aller Einstellungen
+- Updates direkt in der App (*Einstellungen > Über*)
 
 ## Screenshots
 
-Alle Bilder stammen aus einer Test-Installation mit frei verfügbaren Test-Sendern.
+Alle Bilder stammen aus einer Test-Installation mit frei verfügbaren Test-Sendern. Das Videobild der Vorschau fehlt auf den Bildern, weil der Fernseher laufendes Video nicht mit aufnimmt.
 
 | | |
 |---|---|
-| ![Startseite](docs/screenshots/startseite.jpg)<br>**Startseite** | ![TV](docs/screenshots/tv-gruppen.jpg)<br>**TV** – Gruppen, Sender, Guide und Vorschau |
-| ![TV-Guide](docs/screenshots/tv-guide.jpg)<br>**TV-Guide** – Zeitleiste mit Vorschau | ![Sport Guide](docs/screenshots/sport-guide.jpg)<br>**Sport Guide** – Spiele, Spielstände, Sender |
-| ![Einstellungen](docs/screenshots/einstellungen.jpg)<br>**Einstellungen** | |
+| ![Startseite](docs/screenshots/startseite.jpg)<br>**Startseite** mit Menü | ![Startseite unten](docs/screenshots/startseite-sport.jpg)<br>**Startseite** – Live TV, Sport-Ergebnisse, neue Filme |
+| ![TV](docs/screenshots/tv-gruppen.jpg)<br>**TV** – Gruppen, Sender, Guide und Vorschau | ![TV-Guide](docs/screenshots/tv-guide.jpg)<br>**TV-Guide** – Zeitleiste mit Beschreibung |
+| ![Sport Guide](docs/screenshots/sport-guide.jpg)<br>**Sport Guide** – Spiele, Spielstände, Spielminute | ![Einstellungen](docs/screenshots/einstellungen.jpg)<br>**Einstellungen** |
 
 ## Eigene API-Schlüssel (optional)
 
