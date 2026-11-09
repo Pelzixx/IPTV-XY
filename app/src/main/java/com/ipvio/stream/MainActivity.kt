@@ -371,6 +371,8 @@ private fun AppContent() {
     LaunchedEffect(Unit) { Member.watch(ctx) }
     // Laufband mit News/Störungen des Betreibers (XY TV/Township)
     LaunchedEffect(Unit) { Ticker.watch() }
+    // Panel-Konfiguration (Mitteilungen, Server) auch bei lange laufender App alle 30 Minuten neu holen
+    LaunchedEffect(Unit) { while (true) { kotlinx.coroutines.delay(30 * 60_000L); kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { Presets.refresh(ctx.applicationContext) } } } }
     // Nutzung an das Panel melden (XY TV/Township): beim Start und sobald sich die Zugänge ändern (Anmeldung)
     LaunchedEffect(PlaylistStore.lists.size, PlaylistStore.active, Presets.memberUrl) { Member.seen(ctx) }
     // Pflicht-Update (XY TV/Township): laufende Wiedergabe beenden, solange gesperrt ist

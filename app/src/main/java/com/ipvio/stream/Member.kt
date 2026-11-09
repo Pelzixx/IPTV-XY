@@ -27,6 +27,9 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 
+/** Persönliche Kachel auf der Startseite; [from]/[until] in Unix-Sekunden (0 = offen). */
+data class MemberNote(val title: String, val text: String, val from: Long, val until: Long)
+
 /** Nachricht des Betreibers an genau diesen Nutzer. */
 data class MemberMsg(val id: String, val title: String, val text: String, val ts: Long)
 
@@ -253,13 +256,13 @@ object Member {
         // Persönlicher Hinweis für die Startseite (Kachel neben der Laufzeit), z. B. „Dein Paket: Sport“
         val nt = o.optJSONObject("note")?.let { j ->
             val t = j.optString("title", "").trim().take(80); val x = j.optString("text", "").trim().take(500)
-            if (t.isEmpty() && x.isEmpty()) null else t to x
+            if (t.isEmpty() && x.isEmpty()) null else MemberNote(t, x, j.optLong("from", 0L), j.optLong("until", 0L))
         }
         withContext(Dispatchers.Main) { inbox = list; note = nt }
     }
 
     /** Persönliche Kachel auf der Startseite (Titel, Text) aus dem Panel, null = keine. */
-    var note by mutableStateOf<Pair<String, String>?>(null)
+    var note by mutableStateOf<MemberNote?>(null)
         private set
 
     /** Nachricht gelesen: lokal merken und dem Panel melden (dort „gelesen“). */

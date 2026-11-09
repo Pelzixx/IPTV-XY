@@ -172,3 +172,9 @@ Panel: liest einen Element-Raum (Raum-ID im Admin einstellbar) über die Matrix-
   Element-Nutzer (fehlt oder leer = keine Kachel). Erscheint als eigene Kachel neben der Laufzeit; Titel optional
   (sonst „Für dich“), Text max. 500 Zeichen. Die App holt sie beim Start und alle 5 Minuten (nur mit bestätigtem Element-Namen).
   Panel: im Reiter „TV App“ beim Nutzer ein Feld „Kachel auf der Startseite“ (Titel, Text, leeren).
+
+**Zeitraum (beide Kacheln):** `"from"` und `"until"` als Unix-Sekunden (0 oder fehlt = keine Grenze); im Admin mit Datum
+und Uhrzeit eingeben. Die App prüft den Zeitraum jede Minute selbst. `news` darf auch eine **Liste** sein (mehrere
+geplante Mitteilungen, z. B. „Willkommen“ jetzt und eine weitere ab in zwei Wochen) – angezeigt wird die erste gültige.
+Abgelaufene bitte nicht mehr ausliefern. Bei `note` die gerade gültige, sonst die nächste geplante liefern.
+Die App holt die Konfiguration beim Start und alle 30 Minuten.

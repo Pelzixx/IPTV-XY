@@ -130,7 +130,7 @@ object PresetLogic {
         val epg = ArrayList<String>()
         o.optJSONArray("epg")?.let { a -> for (i in 0 until a.length()) epg.add(a.optString(i, "")) }
         fun url(k: String) = o.optString(k, "").trim().takeIf { it.startsWith("https://") || it.startsWith("http://") }
-        RemoteConfig(servers, parseUrls(epg.joinToString("\n")), o.optJSONObject("news")?.toString(), url("diag"), url("backup"),
+        RemoteConfig(servers, parseUrls(epg.joinToString("\n")), (o.optJSONArray("news") ?: o.optJSONObject("news"))?.toString(), url("diag"), url("backup"),
             url("member"), o.optString("memberFrom", "").trim().ifEmpty { null }, o.optBoolean("forceUpdate", true), url("ticker"))
     }.getOrNull()
 

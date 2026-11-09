@@ -50,7 +50,8 @@ import java.util.Locale
 data class AccountInfo(val status: String, val expSec: Long?, val maxCons: Int?, val activeCons: Int?, val trial: Boolean)
 
 /** Mitteilung für die Startseite aus news.json (alles optional; ohne Inhalt wird nichts angezeigt). */
-data class NewsInfo(val title: String, val text: String, val image: String?, val qr: String?, val qrLabel: String)
+/** [from]/[until]: Anzeigezeitraum in Unix-Sekunden (0 = ohne Grenze), im Panel mit Datum und Uhrzeit eingestellt. */
+data class NewsInfo(val title: String, val text: String, val image: String?, val qr: String?, val qrLabel: String, val from: Long = 0, val until: Long = 0)
 
 /** Reine Logik ohne Android (Unit-Tests). */
 object HomeInfoLogic {
@@ -77,9 +78,20 @@ object HomeInfoLogic {
         val o = JSONObject(body)
         fun s(k: String) = o.optString(k, "").trim()
         val n = NewsInfo(s("title"), s("text"), s("image").ifEmpty { null }?.takeIf { it.startsWith("http") },
-            s("qr").ifEmpty { null }, s("qrLabel"))
+            s("qr").ifEmpty { null }, s("qrLabel"), o.optLong("from", 0L), o.optLong("until", 0L))
         if (n.title.isEmpty() && n.text.isEmpty() && n.image == null && n.qr == null) null else n
     }.getOrNull()
+
+    /** Eine Mitteilung (Objekt) oder mehrere geplante (Liste, z. B. „ab in zwei Wochen“). */
+    fun parseNewsAll(body: String): List<NewsInfo> = runCatching {
+        val t = body.trim()
+        if (!t.startsWith("[")) return listOfNotNull(parseNews(t))
+        val a = org.json.JSONArray(t)
+        (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { parseNews(it.toString()) } }
+    }.getOrDefault(emptyList())
+
+    /** Liegt [nowSec] im Zeitraum? 0 = keine Grenze. */
+    fun active(from: Long, until: Long, nowSec: Long): Boolean = (from <= 0 || nowSec >= from) && (until <= 0 || nowSec < until)
 }
 
 /** Lädt Zugang und Mitteilung; beides wird 30 Minuten zwischengespeichert. */
@@ -113,9 +125,9 @@ object HomeInfo {
     }
 
     /** Mitteilung: zuerst aus dem Panel des Betreibers (XY, Township), sonst – nur XY – aus news.json auf GitHub. */
-    suspend fun news(): NewsInfo? {
-        Presets.news?.let { return HomeInfoLogic.parseNews(it) }
-        return githubNews()
+    suspend fun news(): List<NewsInfo> {
+        Presets.news?.let { return HomeInfoLogic.parseNewsAll(it) }
+        return listOfNotNull(githubNews())
     }
 
     private suspend fun githubNews(): NewsInfo? = if (!BuildConfig.NEWS) null else withContext(Dispatchers.IO) {
@@ -154,12 +166,16 @@ fun HomeInfoRow(modifier: Modifier = Modifier) {
         value = xtLists.map { pl -> pl.name to HomeInfo.account(pl.url) }
     }
     // Neu laden, sobald die Panel-Konfiguration (mit Mitteilung) angekommen ist
-    val news by produceState<NewsInfo?>(null, Presets.news) { value = HomeInfo.news() }
+    val news by produceState<List<NewsInfo>>(emptyList(), Presets.news) { value = HomeInfo.news() }
     val a = account
-    val n = news
+    // Jede Minute neu prüfen, damit zeitgesteuerte Kacheln pünktlich kommen und gehen
+    val minute by produceState(System.currentTimeMillis() / 60_000) { while (true) { kotlinx.coroutines.delay(60_000L - System.currentTimeMillis() % 60_000L + 50); value = System.currentTimeMillis() / 60_000 } }
+    val nowSec = minute * 60
+    val n = news.firstOrNull { HomeInfoLogic.active(it.from, it.until, nowSec) }
+    val myNote = Member.note?.takeIf { HomeInfoLogic.active(it.from, it.until, nowSec) }
     val hasNews = n != null && (n.title.isNotEmpty() || n.text.isNotEmpty() || n.image != null)
     val qr = n?.qr
-    if (a == null && !isXtream && !hasNews && qr == null && Member.note == null) return
+    if (a == null && !isXtream && !hasNews && qr == null && myNote == null) return
     // Benutzername (Xtream) und Element-Name unter der Überschrift (Wunsch des Nutzers, 2026-11-09)
     val xUser = url?.let { LoadLogic.xtreamParts(it)?.second }.orEmpty()
     val elem = Member.name
@@ -208,7 +224,7 @@ fun HomeInfoRow(modifier: Modifier = Modifier) {
             if (a.maxCons != null) Text("Verbindungen: ${a.activeCons ?: 0} von ${a.maxCons}", color = Tok.TextMid, fontSize = 15.sp)
         }
         // Persönliche Kachel nur für diesen Nutzer (im Panel beim Nutzer eingetragen)
-        Member.note?.let { (t, x) ->
+        myNote?.let { nt -> val t = nt.title; val x = nt.text
             Column(card.width(360.dp).border(1.dp, Accent2.copy(alpha = 0.5f), shape), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(raw = true, text = t.ifEmpty { Lang.tr("Für dich") }, color = Accent2, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (x.isNotEmpty()) Text(raw = true, text = x, color = Color.White, fontSize = 15.sp, lineHeight = 20.sp, maxLines = 5, overflow = TextOverflow.Ellipsis)
