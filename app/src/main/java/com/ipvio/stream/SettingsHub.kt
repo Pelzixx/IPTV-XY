@@ -2102,7 +2102,7 @@ private fun TmLookEpg(ctx: Context) {
     ToggleRow("Catchup Symbol in Kanalliste anzeigen", null, Tm.b(Tm.EPG_CATCHUP_ICON, true)) { Tm.set(ctx, Tm.EPG_CATCHUP_ICON, it) }
     ToggleRow("Aktuellen Sender farbig hervorheben", null, Tm.b(Tm.EPG_HL_CURRENT, true)) { Tm.set(ctx, Tm.EPG_HL_CURRENT, it) }
     ToggleRow("Zweizeilige Programmtitel", null, Tm.b(Tm.EPG_TWO_LINE_TITLES, false)) { Tm.set(ctx, Tm.EPG_TWO_LINE_TITLES, it) }
-    ToggleRow("Markiere laufendes Programm", null, Tm.b(Tm.EPG_MARK_RUNNING, true)) { Tm.set(ctx, Tm.EPG_MARK_RUNNING, it) }
+    ToggleRow("Markiere laufendes Programm", null, Tm.b(Tm.EPG_MARK_RUNNING, false)) { Tm.set(ctx, Tm.EPG_MARK_RUNNING, it) }
     ToggleRow("Markiere nur den aktuellen Fortschritt", null, Tm.b(Tm.EPG_MARK_PROGRESS, true)) { Tm.set(ctx, Tm.EPG_MARK_PROGRESS, it) }
     ToggleRow("Aktuelle Zeitanzeige in voller Höhe anzeigen", null, Tm.b(Tm.EPG_NOW_FULL, true)) { Tm.set(ctx, Tm.EPG_NOW_FULL, it) }
     ToggleRow("Kanäle scrollen animieren", null, Tm.b(Tm.EPG_SCROLL_ANIM, false)) { Tm.set(ctx, Tm.EPG_SCROLL_ANIM, it) }

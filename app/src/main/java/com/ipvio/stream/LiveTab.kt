@@ -123,7 +123,7 @@ fun LiveTab(live: List<Item>, groups0: Map<String, List<Item>>, favs: List<Item>
     val look = GuideLook(
         Tm.b(Tm.EPG_NUMBERS, false), Tm.b(Tm.EPG_NAMES, true), Tm.b(Tm.EPG_TWO_LINE_NAMES, false), Tm.b(Tm.EPG_CATCHUP_ICON, true),
         if (Tm.b(Tm.EPG_HL_CURRENT, true)) History.ids.firstOrNull() else null, Tm.b(Tm.EPG_TWO_LINE_TITLES, false),
-        Tm.b(Tm.EPG_MARK_RUNNING, true), Tm.b(Tm.EPG_MARK_PROGRESS, true), Tm.b(Tm.EPG_NOW_FULL, true)
+        Tm.b(Tm.EPG_MARK_RUNNING, false), Tm.b(Tm.EPG_MARK_PROGRESS, true), Tm.b(Tm.EPG_NOW_FULL, true)
     )
     val bivSpec = if (Tm.b(Tm.EPG_SCROLL_ANIM, false)) androidx.compose.foundation.gestures.LocalBringIntoViewSpec.current else InstantSpec
     // Letzter ausgeblendeter Sender wieder eingeblendet: Kategorie gibt es nicht mehr
@@ -782,7 +782,10 @@ private fun ChannelLine(
                     contentAlignment = Alignment.CenterStart
                 ) {
                     if (running && !f && look.markRunning && look.progressOnly) {
-                        val frac = ((nowSec - e.start).toFloat() / (e.end - e.start).coerceAtLeast(1)).coerceIn(0f, 1f)
+                        // Bezogen auf das sichtbare Stück: begann die Sendung vor dem linken Rand, endet die Fläche sonst
+                        // nicht an der Jetzt-Linie, sondern zu weit rechts
+                        val vs = maxOf(e.start, ws); val ve = minOf(e.end, ws + SPAN)
+                        val frac = ((nowSec - vs).toFloat() / (ve - vs).coerceAtLeast(1)).coerceIn(0f, 1f)
                         Box(Modifier.fillMaxHeight().fillMaxWidth(frac).background(TvCellNow))
                     }
                     Text(raw = true, text = e.title, color = if (lit) DS.FocusInk else if (f) Color.White else Color(0xFFC9CCD1), fontSize = 17.sp,
