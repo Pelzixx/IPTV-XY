@@ -259,7 +259,7 @@ fun LiveTab(live: List<Item>, groups0: Map<String, List<Item>>, favs: List<Item>
     LaunchedEffect(idleTick, playingCh?.id, fsTo, manage, guideHasFocus) {
         // nur solange der Fokus im TV-Guide liegt (nicht in der Seitenleiste, in Menüs oder Dialogen)
         if (fsTo <= 0 || !AppSettings.livePreview || manage != 0 || !guideHasFocus) return@LaunchedEffect
-        val ch = (if (Tm.b(Tm.CV_AUTOPLAY, false)) focus.shown else null) ?: playingCh ?: return@LaunchedEffect
+        val ch = (if (Tm.b(Tm.CV_AUTOPLAY, true)) focus.shown else null) ?: playingCh ?: return@LaunchedEffect
         kotlinx.coroutines.delay(fsTo * 1000L)
         open(ch)
     }
@@ -458,7 +458,7 @@ fun LiveTab(live: List<Item>, groups0: Map<String, List<Item>>, favs: List<Item>
                                 val has = ch.id in addList.ids
                                 if (has) ChannelLists.remove(ctx, addList.id, ch.id) else ChannelLists.add(ctx, addList.id, ch.id)
                                 Toast.makeText(ctx, (if (has) Lang.tr("Entfernt: ") else Lang.tr("Hinzugefügt: ")) + ch.title, Toast.LENGTH_SHORT).show()
-                            } else if (Tm.b(Tm.CV_STAY, true) && AppSettings.livePreview && !Tm.b(Tm.CV_AUTOPLAY, false) && playingCh?.id != ch.id) {
+                            } else if (Tm.b(Tm.CV_STAY, true) && AppSettings.livePreview && !Tm.b(Tm.CV_AUTOPLAY, true) && playingCh?.id != ch.id) {
                                 // Vorschaumodus > „Bleib in der Liste beim Sender wechseln“: erst in der Vorschau, das zweite OK im Vollbild
                                 History.add(ctx, ch.id)
                             } else open(ch)
@@ -761,7 +761,9 @@ private fun ChannelLine(
         // Breite der Zeitleiste wird einmal für die ganze Liste gemessen (nicht je Zeile)
         Box(Modifier.width(tlW).fillMaxHeight().padding(vertical = 2.dp)) {
             val w = tlW
-            val shownE = all.filter { it.end > ws && it.start < ws + SPAN }
+            // Überschneidungen im Programm des Anbieters (Sendung endet nach Beginn der nächsten): Kachel an der nächsten
+            // Sendung enden lassen, sonst liegen zwei Kacheln übereinander („Der Promihof“ mit „Der …“ darin)
+            val shownE = remember(all, ws) { GuideLogic.noOverlap(all.filter { it.end > ws && it.start < ws + SPAN }) }
             if (shownE.isEmpty()) {
                 // Kein Programm: eine Fläche mit dem Sendernamen über die ganze Breite
                 Box(Modifier.fillMaxSize().padding(start = 3.dp).clip(cell).background(if (f) TvFocusFill else TvCell).padding(horizontal = 14.dp),
@@ -967,7 +969,7 @@ private fun RowScope.GuideTop(focus: GuideFocusState, first: Item?, preview: Liv
     // Optik > EPG > Vorschau: aus = kein Vorschaubild, die Sendung nutzt die ganze Breite
     // Optik > Player > Senderliste > Vorschaumodus (TiviMate): ohne „Kanäle automatisch abspielen“ zeigt die Vorschau
     // den laufenden Sender, nicht jeden markierten
-    val auto = Tm.b(Tm.CV_AUTOPLAY, false)
+    val auto = Tm.b(Tm.CV_AUTOPLAY, true)
     if (AppSettings.livePreview) LivePreview(preview, if (auto) focus.shown else (playingCh ?: focus.shown), Modifier.fillMaxHeight().aspectRatio(16f / 9f), fallback = if (auto) shown else (playingCh ?: shown))
     LiveInfo(shown, Modifier.weight(1f).fillMaxHeight(), prog = if (shown != null && shown.id == focus.target?.id) focus.prog else null)
 }

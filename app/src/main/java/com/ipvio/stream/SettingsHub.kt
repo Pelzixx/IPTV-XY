@@ -2167,7 +2167,7 @@ private fun TmLpList(ctx: Context) {
     // TiviMate: Vorschaumodus = TV-Guide mit Vorschaubild
     PanelSection(Lang.tr("Vorschaumodus"))
     ToggleRow("Animierter Übergang", null, Tm.b(Tm.CV_ANIM, true)) { Tm.set(ctx, Tm.CV_ANIM, it) }
-    ToggleRow("Kanäle automatisch abspielen", null, Tm.b(Tm.CV_AUTOPLAY, false)) { Tm.set(ctx, Tm.CV_AUTOPLAY, it) }
+    ToggleRow("Kanäle automatisch abspielen", null, Tm.b(Tm.CV_AUTOPLAY, true)) { Tm.set(ctx, Tm.CV_AUTOPLAY, it) }
     ToggleRow("Bleib in der Liste beim Sender wechseln", null, Tm.b(Tm.CV_STAY, true)) { Tm.set(ctx, Tm.CV_STAY, it) }
     ToggleRow("Vorschau mit Ton", null, Tm.b(Tm.CV_SOUND, true)) { Tm.set(ctx, Tm.CV_SOUND, it) }
     val fsOpts = listOf(0, 5, 10, 15, 20, 30, 60)
