@@ -1865,6 +1865,22 @@ private fun TmGeneral(ctx: Context) {
     if (backupMenu != 0) {
         val save = backupMenu == 1
         val e = ArrayList<SideEntry>()
+        // Beim Betreiber (XY, Township): zugeordnet zum eigenen Zugang, auf jedem Gerät wiederherstellbar
+        if (BackupPanel.available()) e.add(SideEntry(Lang.tr("Beim Anbieter") + " (" + BuildConfig.PROVIDER.ifBlank { BuildConfig.APP_NAME } + ")", raw = true) {
+            scope.launch {
+                if (save) {
+                    val err = withContext(Dispatchers.IO) { BackupPanel.save(ctx) }
+                    msg = if (err == null) Lang.tr("Beim Anbieter gesichert") else Lang.tr("Sicherung fehlgeschlagen.") + " " + Lang.tr(err)
+                } else {
+                    val n = withContext(Dispatchers.IO) { BackupPanel.load(ctx) }
+                    when {
+                        n >= 0 -> Profiles.restart(ctx)
+                        n == -2 -> msg = Lang.tr("Beim Anbieter ist noch keine Sicherung vorhanden.")
+                        else -> msg = Lang.tr("Keine gültige Sicherung gefunden.")
+                    }
+                }
+            }
+        })
         e.add(SideEntry(Lang.tr("Gerätespeicher") + ": " + Backup.file(ctx).absolutePath, raw = true) {
             scope.launch {
                 if (save) {

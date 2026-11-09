@@ -1,6 +1,8 @@
 package com.ipvio.stream
 
 import android.content.Context
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -121,6 +123,68 @@ object BackupRemote {
             if (body.size > 8 * 1024 * 1024) return -1
             Backup.file(c).writeBytes(body)
         }
+        Backup.restore(c)
+    }.getOrDefault(-1)
+}
+
+/**
+ * Sicherung beim Betreiber (Wunsch des Nutzers, 2026-11-09; Schnittstelle docs/panel-schnittstelle.md).
+ * Das Panel prüft den Xtream-Zugang beim Server und legt die Sicherung unter „Server + Benutzername“ ab,
+ * ohne das Passwort zu speichern. Geht nur mit einem Zugang auf einem der vorgegebenen Server.
+ */
+object BackupPanel {
+    private const val MAX = 2 * 1024 * 1024
+
+    /** (Server, Benutzer, Passwort) der aktiven Playlist, wenn sie auf einem vorgegebenen Server liegt. */
+    private fun creds(): Triple<String, String, String>? {
+        val pl = PlaylistStore.lists.getOrNull(PlaylistStore.active) ?: return null
+        val p = LoadLogic.xtreamParts(pl.url) ?: return null
+        val i = PresetLogic.indexOf(p.first, Presets.servers)
+        return if (i >= 0) Triple(Presets.servers[i].url, p.second, p.third) else null
+    }
+
+    fun available(): Boolean = Presets.backupUrl != null && creds() != null
+
+    private fun call(action: String, data: String? = null): JSONObject {
+        val url = Presets.backupUrl ?: error("Für diese App nicht eingerichtet")
+        val (s, u, p) = creds() ?: error("Nur mit einem Zugang des Anbieters möglich")
+        val j = JSONObject().put("action", action).put("server", s).put("user", u).put("pass", p)
+        if (data != null) j.put("data", data)
+        val body = j.toString().toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
+        Net.withTimeouts(15, 30).newCall(okhttp3.Request.Builder().url(url).post(body).build()).execute().use { r ->
+            val txt = r.body?.string().orEmpty()
+            when (r.code) {
+                401 -> error("Zugang wurde vom Server nicht bestätigt")
+                413 -> error("Sicherung zu groß")
+                429 -> error("Zu viele Versuche, später erneut")
+            }
+            if (!r.isSuccessful) error("Fehler ${r.code}")
+            return JSONObject(txt)
+        }
+    }
+
+    /** Sichern. null = gut, sonst Fehlertext. */
+    fun save(c: Context): String? = runCatching {
+        val f = Backup.export(c) ?: return "Sicherung fehlgeschlagen."
+        val text = f.readText()
+        if (text.length > MAX) return "Sicherung zu groß"
+        if (!call("save", text).optBoolean("ok")) return "Panel hat abgelehnt"
+        null
+    }.getOrElse { it.message ?: it.javaClass.simpleName }
+
+    /** Zeitpunkt der letzten Sicherung beim Betreiber (ms) oder null. */
+    fun info(): Long? = runCatching {
+        val o = call("info")
+        if (o.optBoolean("ok")) o.optLong("ts") * 1000 else null
+    }.getOrNull()
+
+    /** Holen und einspielen. Zahl der wiederhergestellten Dateien, -1 bei Fehler, -2 = keine Sicherung vorhanden. */
+    fun load(c: Context): Int = runCatching {
+        val o = call("load")
+        if (!o.optBoolean("ok")) return -2
+        val data = o.optString("data", "")
+        if (data.isEmpty() || data.length > MAX) return -1
+        Backup.file(c).writeText(data)
         Backup.restore(c)
     }.getOrDefault(-1)
 }
