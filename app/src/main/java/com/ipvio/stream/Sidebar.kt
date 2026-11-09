@@ -229,7 +229,8 @@ fun Sidebar(tab: Int, onTab: (Int) -> Unit, modifier: Modifier, activeFocus: Foc
                     if (BuildConfig.EDITION == "xy") " XY" else ""
             }
             Text(if (expanded) "Version $ver" else ver, color = SidebarInk, fontSize = spx(13), maxLines = 1,
-                modifier = Modifier.fillMaxWidth().padding(bottom = dpx(18)), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                // Über dem Laufband (40 dp), solange es angezeigt wird
+                modifier = Modifier.fillMaxWidth().padding(bottom = dpx(18) + (if (Ticker.items.isNotEmpty()) 40.dp else 0.dp)), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         }
     }
 }
