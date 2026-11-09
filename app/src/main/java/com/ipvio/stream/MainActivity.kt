@@ -525,7 +525,7 @@ private fun AppContent() {
         }
         // Nachricht des Betreibers an diesen Nutzer (nicht mitten im Film/Sender)
         Member.inbox.firstOrNull()?.let { m ->
-            if (p == null && !adding && remindNow == null && pinAsk == null && UpdateNotice.pending == null) MemberMsgCard(m, Modifier.align(Alignment.TopCenter).padding(top = 24.dp))
+            if (p == null && remindNow == null && pinAsk == null && UpdateNotice.pending == null && !Member.asking) MemberMsgCard(m, Modifier.align(Alignment.TopCenter).padding(top = 24.dp))
         }
         if (Member.asking && !(UpdateNotice.forced && UpdateNotice.pending != null)) MemberGate()
         // Tor/Abpfiff eines markierten Spiels – auch im Player (dann mit „Umschalten“ zum Spiel)
