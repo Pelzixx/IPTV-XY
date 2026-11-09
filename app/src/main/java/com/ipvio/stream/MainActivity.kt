@@ -365,6 +365,8 @@ private fun AppContent() {
     LaunchedEffect(Unit) { Recorder.init(ctx); Recorder.schedule(ctx) }
     // Neue Version: beim Start und danach regelmäßig prüfen, Hinweis-Karte siehe unten
     LaunchedEffect(Unit) { UpdateNotice.watch(ctx) }
+    // Tor-Alarm für markierte Spiele (Sport Guide), Einblendung siehe unten
+    LaunchedEffect(Unit) { GoalAlert.watch(ctx) }
     // Wiedergabeliste von Hand aktualisiert: Meldung, sobald sie fertig ist (TiviMate)
     LaunchedEffect(Xmltv.doneSignal) {
         if (Xmltv.doneSignal > 0) android.widget.Toast.makeText(ctx, Xmltv.doneMsg, android.widget.Toast.LENGTH_LONG).show()
@@ -513,6 +515,16 @@ private fun AppContent() {
         // Neue Version: nicht mitten im Film/Sender und nicht beim Hinzufügen, sondern sobald man wieder in der App ist
         UpdateNotice.pending?.let { u ->
             if (p == null && !adding && remindNow == null && pinAsk == null) UpdateCard(u, Modifier.align(Alignment.TopCenter).padding(top = 24.dp))
+        }
+        // Tor/Abpfiff eines markierten Spiels – auch im Player (dann mit „Umschalten“ zum Spiel)
+        GoalAlert.pending?.let { g ->
+            if (remindNow == null && pinAsk == null) {
+                val ch = g.event.channels.firstNotNullOfOrNull { id -> liveAll.firstOrNull { it.id == id } }
+                GoalCard(g, ch, Modifier.align(Alignment.TopCenter).padding(top = 24.dp), onClose = { GoalAlert.pending = null }) {
+                    GoalAlert.pending = null
+                    if (ch != null) { top = null; browse = null; cats = null; start(ch, ch.title, ch.url) }
+                }
+            }
         }
         remindNow?.let { r ->
             ReminderCard(r, Modifier.align(Alignment.TopCenter).padding(top = 24.dp), onClose = { remindNow = null }) {

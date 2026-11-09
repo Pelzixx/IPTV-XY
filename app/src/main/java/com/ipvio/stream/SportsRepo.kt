@@ -66,6 +66,18 @@ object SportsRepo {
         } finally { loading = false }
     }
 
+    /** Nur die Spielstände neu holen (Tor-Alarm, jede Minute): ohne erneute Programmsuche. */
+    suspend fun refreshScores() {
+        val sc = scan ?: return
+        val oldb = kotlinx.coroutines.coroutineScope {
+            OLDB.map { (s, n) -> async(Dispatchers.IO) { runCatching { openLiga(s, n) }.getOrDefault(emptyList()) } }.awaitAll().flatten()
+        }
+        if (oldb.isEmpty()) return
+        lastOldb = oldb
+        events = withContext(Dispatchers.Default) { merge(sc, lastOldb) }
+        updatedAt = System.currentTimeMillis()
+    }
+
     /** Vom Anbieter geholtes Programm je Sender-Grundname, 15 Minuten gültig (Öffnen des Reiters ist dann sofort fertig). */
     private val provCache = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, List<EpgEntry>>>()
     private val PRIO_CH = Regex("""bundesliga|konferenz|top ?event|dazn|liga|fu(ß|ss)ball|sport ?1\b|sportdigital|magenta""", RegexOption.IGNORE_CASE)

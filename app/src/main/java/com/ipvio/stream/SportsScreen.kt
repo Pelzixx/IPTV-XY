@@ -95,7 +95,8 @@ fun SportsScreen(tab: Int, onTab: (Int) -> Unit, onPlay: (Item) -> Unit) {
                 }
             }
             item(key = "hero") {
-                if (hero != null) SportHero(hero, nowSec, byId, onWatch = { act(hero) }, onMore = { chanMenu = hero })
+                if (hero != null) SportHero(hero, nowSec, byId, onWatch = { act(hero) }, onMore = { chanMenu = hero },
+                    onGoal = if (GoalAlert.supported(hero)) ({ val on = GoalAlert.toggle(ctx, hero); Toast.makeText(ctx, Lang.tr(if (on) "Tor-Alarm an: Du bekommst Tore und Abpfiff angezeigt" else "Tor-Alarm aus"), Toast.LENGTH_SHORT).show() }) else null)
                 else Box(Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(14.dp)).background(CardBg), contentAlignment = Alignment.Center) {
                     Text(if (SportsRepo.loading || SportsRepo.updatedAt == 0L) "Sportprogramm wird gesucht …" else "Gerade keine Sportereignisse im TV-Programm",
                         color = Tok.TextMid, fontSize = 17.sp)
@@ -158,7 +159,7 @@ private fun sportTimeText(e: SportEvent): String {
 }
 
 @Composable
-private fun SportHero(e: SportEvent, now: Long, byId: Map<String, Item>, onWatch: () -> Unit, onMore: () -> Unit) {
+private fun SportHero(e: SportEvent, now: Long, byId: Map<String, Item>, onWatch: () -> Unit, onMore: () -> Unit, onGoal: (() -> Unit)? = null) {
     val ch = e.channels.firstNotNullOfOrNull { byId[it] }
     Row(Modifier.fillMaxWidth().height(210.dp).clip(RoundedCornerShape(14.dp)).background(CardBg).padding(18.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
         Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -184,6 +185,8 @@ private fun SportHero(e: SportEvent, now: Long, byId: Map<String, Item>, onWatch
                     Text(raw = true, text = ChannelEdit.title(ch), color = fg, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 } else Text("Kein Sender mit diesem Spiel gefunden", color = Tok.TextLow, fontSize = 14.sp, modifier = Modifier.weight(1f))
                 if (e.channels.size > 1) HeroBtn(Modifier, onMore) { fg -> Text("Weitere Sender", color = fg, fontSize = 15.sp) }
+                // Tor-Alarm: Einblendung bei Tor/Abpfiff, auch wenn ein anderer Sender läuft
+                if (onGoal != null) HeroBtn(Modifier, onGoal) { fg -> Text(if (GoalAlert.isOn(e.key)) "Tor-Alarm an" else "Tor-Alarm", color = if (GoalAlert.isOn(e.key) && fg == Color.White) Accent2 else fg, fontSize = 15.sp) }
             }
             if (e.channels.isNotEmpty()) Text(Lang.tr("Verfügbare Sender") + ": " + e.channels.size, raw = true, color = Tok.TextLow, fontSize = 13.sp)
         }
