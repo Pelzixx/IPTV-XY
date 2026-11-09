@@ -107,3 +107,32 @@ die aktuelle ist. Beim Nutzer im Reiter „TV App“ dieselben Geräte (Zuordnun
 **Pflicht-Update:** In der Konfiguration `"forceUpdate": true|false` (fehlt es: `true`). Bei `true` muss in XY TV und
 Township jede neue Version installiert werden, sonst ist die App gesperrt; bei `false` nur Hinweis mit „Später“.
 Bitte im Admin als Schalter „Update ist Pflicht“ anbieten.
+
+## 6. Strenge Prüfung: Element-Name gehört zum Xtream-Zugang (ab 3.53) und Testzugänge
+
+Ab 3.53 schickt `check` zusätzlich den Zugang mit, sobald einer auf einem Server aus der Konfiguration angemeldet ist:
+
+```json
+{"action": "check", "name": "vojadsvv_xy", "server": "http://host:8080", "user": "xtreamname", "pass": "…"}
+```
+
+- **Neue Nutzer** geben Element-Name, Benutzername und Passwort zusammen auf der Anmeldeseite ein (auch per Handy);
+  die App prüft zuerst `check` und lädt die Playlist nur bei `ok`.
+- **Bestehende Nutzer** (Zugang schon vorhanden) werden wie bisher nach dem Element-Namen gefragt, mit Karenzzeit bis
+  `memberFrom` bzw. 7 Tage. Die App prüft den gespeicherten Namen bei jedem Start erneut mit dem Zugang.
+
+Ablauf im Panel bei `check` mit `pass`:
+1. `server` muss einer der eigenen Server sein; Zugang prüfen wie bei der Sicherung (`player_api.php`, `auth == 1`),
+   sonst `{"ok": false, "error": "auth"}`. Das Passwort wird nicht gespeichert.
+2. **Testname** (im Admin einstellbar, z. B. `test`, Laufzeit einstellbar, Standard 7 Tage): Ist `name` der Testname,
+   wird je Zugang (`server` + `user`) der erste Tag gespeichert. Innerhalb der Laufzeit `{"ok": true, "name": "test"}`,
+   danach `{"ok": false, "error": "trial_expired"}`. Admin-Seite „Testzugänge“: Zugang, Start, Ende, verlängern, zurücksetzen.
+3. **XY-Panel:** Den Element-Namen gibt es, und der Xtream-Name gehört zu diesem Kunden (hinterlegte Zugänge),
+   sonst `{"ok": false, "error": "mismatch"}`; unbekannter Name `unknown`.
+4. **Township-Panel:** Den Element-Namen gibt es; beim ersten erfolgreichen `check` wird er an diesen Zugang
+   (`server` + `user`) gebunden. Kommt der Name später mit einem anderen Zugang: `{"ok": false, "error": "bound"}` und
+   im Admin markieren; Knopf „Bindung lösen“ beim Element-Nutzer.
+5. Ohne `pass` (App 3.52) wie bisher nur prüfen, ob es den Namen gibt.
+
+Die App zeigt je `error` einen eigenen Text. Bei `mismatch`, `bound` und `trial_expired` sperrt sie sofort (kein „Später“),
+bei `auth` bleibt der gespeicherte Name (Passwort vielleicht nur kurz falsch).

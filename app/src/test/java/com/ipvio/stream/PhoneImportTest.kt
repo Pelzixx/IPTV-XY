@@ -85,4 +85,13 @@ class PhoneImportTest {
         assertTrue(p.contains("Selbst eingeben"))
         assertTrue(!PhoneImportLogic.page(0).contains("name=\"srv\""))
     }
+
+    @Test fun element_name_bei_vorgegebenem_server() {
+        val urls = listOf("http://a.tld:8080")
+        assertNull(PhoneImportLogic.toInput(mapOf("srv" to "0", "user" to "u", "pass" to "p"), presetUrls = urls, memberRequired = true))
+        val x = PhoneImportLogic.toInput(mapOf("srv" to "0", "user" to "u", "pass" to "p", "member" to " name_xy "), presetUrls = urls, memberRequired = true)!!
+        assertEquals("name_xy", x.member)
+        assertTrue(PhoneImportLogic.page(0, listOf("XY TV"), memberField = true).contains("name=\"member\""))
+        assertTrue(!PhoneImportLogic.page(0, listOf("XY TV")).contains("name=\"member\""))
+    }
 }

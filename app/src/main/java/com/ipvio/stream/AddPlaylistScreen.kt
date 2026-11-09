@@ -68,6 +68,26 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
     var manualPick by remember { mutableStateOf<Boolean?>(if (pend != null && (pendX == null || (pendIdx < 0 && servers.isNotEmpty()))) true else null) }
     val manual = manualPick ?: servers.isEmpty()
     var sel by remember { mutableStateOf(pendIdx.coerceAtLeast(0)) }
+    // Element-Name (XY TV/Township, Wunsch des Nutzers 2026-11-09): bei der Anmeldung beim Anbieter Pflicht,
+    // das Panel prüft, ob er zum Xtream-Zugang gehört – erst danach wird die Playlist geladen
+    var elem by remember { mutableStateOf(Member.name) }
+    var checking by remember { mutableStateOf(false) }
+    fun presetLogin(h: String, u: String, p: String, e: String) {
+        val finalUrl = PlaylistStore.xtreamUrl(h, u, p)
+        if (finalUrl == null) { PlaylistStore.error = "Angaben unvollständig: Benutzername und Passwort nötig."; return }
+        if (checking) return
+        scope.launch {
+            if (Member.required()) {
+                checking = true; PlaylistStore.error = null
+                val err = Member.confirm(ctx, e, Triple(h, u, p))
+                checking = false
+                if (err != null) { PlaylistStore.error = err; return@launch }
+            }
+            host = h
+            Presets.servers.getOrNull(PresetLogic.indexOf(h, Presets.servers))?.let { PlaylistStore.pendingName = it.name }
+            if (PlaylistStore.load(ctx, finalUrl, true)) onDone()
+        }
+    }
     // Vom Handy senden: lokaler Mini-Server, solange dieser Bildschirm offen ist
     val ip = remember { PhoneImport.localIp() }
     val receiver = remember {
@@ -78,12 +98,15 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
                 val srv = Presets.servers
                 val h = if (inp.isXtream && inp.host.isBlank()) srv.getOrNull(sel)?.url.orEmpty() else inp.host
                 val u = if (inp.isXtream) PlaylistStore.xtreamUrl(h, inp.user, inp.pass) else inp.url
+                var preset = false
                 if (inp.isXtream) {
                     xtream = true; host = h; user = inp.user; pass = inp.pass
                     val i = PresetLogic.indexOf(h, srv)
-                    if (i >= 0) { sel = i; manualPick = false } else manualPick = true
+                    if (i >= 0) { sel = i; manualPick = false; preset = true } else manualPick = true
+                    if (inp.member.isNotBlank()) elem = inp.member
                 } else { xtream = false; url = inp.url; manualPick = true }
                 if (u == null) PlaylistStore.error = "Angaben unvollständig: Server, Benutzername und Passwort nötig."
+                else if (preset) presetLogin(h, inp.user, inp.pass, inp.member.ifBlank { elem })
                 else scope.launch { if (PlaylistStore.load(ctx, u, true)) onDone() }
             }
         }
@@ -171,14 +194,16 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
                             servers.forEachIndexed { i, s -> SmallButton(s.name, selected = i == sel) { sel = i } }
                         }
                     }
+                    if (Member.required()) {
+                        FieldLabel("Element-Benutzername")
+                        SmallField(elem, { elem = it }, "z. B. name_xy")
+                    }
                     UserPassFields(user, { user = it }, pass, { pass = it }, showPass, { showPass = !showPass })
                     PlaylistStore.error?.let { ErrorText(it) }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 4.dp)) {
-                        SmallButton("Anmelden", primary = true) {
+                        SmallButton(if (checking) "Prüfe …" else "Anmelden", primary = true) {
                             if (PlaylistStore.loading) return@SmallButton
-                            val finalUrl = PlaylistStore.xtreamUrl(servers[sel].url, user, pass)
-                            if (finalUrl == null) PlaylistStore.error = "Angaben unvollständig: Benutzername und Passwort nötig."
-                            else { host = servers[sel].url; PlaylistStore.pendingName = servers[sel].name; scope.launch { if (PlaylistStore.load(ctx, finalUrl, true)) onDone() } }
+                            presetLogin(servers[sel].url, user, pass, elem)
                         }
                         if (canCancel) SmallButton("Abbrechen") { PlaylistStore.clearPending(ctx); onDone() }
                     }
@@ -209,7 +234,10 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
                             if (PlaylistStore.loading) return@SmallButton
                             val macOk = Regex("^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$").matches(mac.trim())
                             val finalUrl = if (stalker) (if (host.isNotBlank() && macOk) Stalker.listUrl(host, mac, stSn, stDev) else null) else if (xtream) PlaylistStore.xtreamUrl(host, user, pass) else url
+                            val presetIdx = if (xtream && !stalker) PresetLogic.indexOf(host, servers) else -1
                             if (finalUrl == null) PlaylistStore.error = if (stalker) "Angaben unvollständig: Portal-Adresse und gültige MAC-Adresse nötig." else "Angaben unvollständig: Server, Benutzername und Passwort nötig."
+                            // Server des Anbieters von Hand eingetragen: wie die normale Anmeldung (mit Element-Name)
+                            else if (presetIdx >= 0 && Member.required()) { sel = presetIdx; manualPick = false; PlaylistStore.error = "Bitte hier mit deinem Element-Namen anmelden." }
                             else scope.launch { if (PlaylistStore.load(ctx, finalUrl, true)) onDone() }
                         }
                         if (!xtream && !stalker) SmallButton("Aus Zwischenablage einfügen") {

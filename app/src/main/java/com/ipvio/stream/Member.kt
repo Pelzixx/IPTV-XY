@@ -87,9 +87,16 @@ object Member {
 
     fun required(): Boolean = Presets.memberUrl != null
 
-    /** Eingabe ist jetzt Pflicht (Stichtag vorbei, noch kein bestätigter Name). */
+    /** Vom Panel abgelehnt (fremder Name, Test abgelaufen): sofort Pflicht, ohne „Später“. Grund steht in [lastError]. */
+    var blocked by mutableStateOf(false)
+        private set
+    var lastError by mutableStateOf("")
+        private set
+
+    /** Eingabe ist jetzt Pflicht (Stichtag vorbei oder vom Panel abgelehnt, noch kein bestätigter Name). */
     fun mandatory(c: Context): Boolean {
         if (!required() || name.isNotEmpty()) return false
+        if (blocked) return true
         val p = prefs(c)
         var first = p.getLong("firstSeen", 0L)
         if (first == 0L) { first = System.currentTimeMillis(); p.edit().putLong("firstSeen", first).apply() }
@@ -106,6 +113,9 @@ object Member {
         if (ready) return
         ready = true
         name = prefs(c).getString("name", "").orEmpty()
+        // Sperre (fremder Name/Testende) gilt auch nach einem Neustart weiter
+        blocked = prefs(c).getBoolean("blocked", false)
+        lastError = prefs(c).getString("lastError", "").orEmpty()
     }
 
     /** Zufällige Gerätenummer (nur zur Unterscheidung mehrerer Geräte eines Nutzers im Panel). */
@@ -137,19 +147,54 @@ object Member {
     private fun xtreamUser(): String =
         PlaylistStore.lists.getOrNull(PlaylistStore.active)?.url?.let { LoadLogic.xtreamParts(it)?.second }.orEmpty()
 
-    /** Namen beim Panel prüfen und speichern. Fehlertext oder null bei Erfolg. */
-    suspend fun confirm(c: Context, raw: String): String? = withContext(Dispatchers.IO) {
+    /**
+     * (Server, Benutzer, Passwort) eines Zugangs auf einem Server des Anbieters: der aktive, sonst der erste.
+     * null = kein solcher Zugang (dann gibt es nichts zu prüfen und die App fragt nicht).
+     */
+    fun presetCreds(): Triple<String, String, String>? {
+        val lists = PlaylistStore.lists.toList()
+        val order = listOfNotNull(lists.getOrNull(PlaylistStore.active)) + lists
+        for (pl in order) {
+            val p = LoadLogic.xtreamParts(pl.url) ?: continue
+            val i = PresetLogic.indexOf(p.first, Presets.servers)
+            if (i >= 0) return Triple(Presets.servers[i].url, p.second, p.third)
+        }
+        return null
+    }
+
+    /** Ablehnungsgrund des Panels als Text für den Nutzer. */
+    fun reason(code: String): String = Lang.tr(when (code) {
+        "mismatch", "bound" -> "Dieser Element-Name gehört zu einem anderen Zugang. Bitte deinen eigenen Element-Namen eingeben."
+        "trial_expired" -> "Der Testzeitraum ist abgelaufen. Bitte melde dich bei deinem Anbieter."
+        "auth" -> "Benutzername oder Passwort stimmen nicht."
+        else -> "Diesen Element-Namen kennt der Anbieter nicht. Bitte genau so eingeben, wie er in Element steht."
+    })
+
+    /** Gründe, bei denen die App sofort gesperrt bleibt (kein „Später“). */
+    private fun hard(code: String) = code == "mismatch" || code == "bound" || code == "trial_expired"
+
+    private fun checkJson(n: String, creds: Triple<String, String, String>?) = JSONObject().put("action", "check").put("name", n).apply {
+        // Server und Zugang mitschicken: das Panel prüft, ob Element-Name und Xtream-Zugang zusammengehören
+        // (Passwort nur zur Prüfung beim Server, wird im Panel nicht gespeichert – wie bei der Sicherung)
+        if (creds != null) put("server", creds.first).put("user", creds.second).put("pass", creds.third) else put("user", xtreamUser())
+    }
+
+    /**
+     * Namen beim Panel prüfen und speichern. [creds] = Zugang aus dem Anmeldeformular (Erstanmeldung), sonst der
+     * gespeicherte Zugang beim Anbieter. Fehlertext oder null bei Erfolg.
+     */
+    suspend fun confirm(c: Context, raw: String, creds: Triple<String, String, String>? = presetCreds()): String? = withContext(Dispatchers.IO) {
         val n = MemberLogic.norm(raw) ?: return@withContext Lang.tr("Bitte den Element-Benutzernamen eingeben, z. B. name_xy.")
-        runCatching { post(c, JSONObject().put("action", "check").put("name", n).put("user", xtreamUser())) }.fold(
+        runCatching { post(c, checkJson(n, creds)) }.fold(
             onSuccess = { o ->
                 val confirmed = MemberLogic.norm(o.optString("name", n)) ?: n
-                prefs(c).edit().putString("name", confirmed).apply()
-                withContext(Dispatchers.Main) { name = confirmed; asking = false }
+                prefs(c).edit().putString("name", confirmed).putBoolean("blocked", false).remove("lastError").apply()
+                withContext(Dispatchers.Main) { name = confirmed; asking = false; blocked = false; lastError = "" }
                 launchPoll(c)
                 null
             },
             onFailure = { e ->
-                if (e is Rejected) Lang.tr("Diesen Element-Namen kennt der Anbieter nicht. Bitte genau so eingeben, wie er in Element steht.")
+                if (e is Rejected) reason(e.message.orEmpty())
                 else Lang.tr("Anbieter gerade nicht erreichbar.") + " " + (e.message ?: "")
             }
         )
@@ -169,23 +214,29 @@ object Member {
         var waited = 0
         while (!required() && waited < 30) { delay(1000); waited++ }
         if (!required()) return
+        // Playlists sind beim Start evtl. noch nicht gelesen
+        delay(1500)
         if (name.isEmpty()) {
-            // Vor dem Stichtag einmal am Tag, danach bei jedem Start
-            if (mandatory(c) || !shownToday(c)) { markShown(c); asking = true }
-        } else withContext(Dispatchers.IO) {
-            runCatching { post(c, JSONObject().put("action", "check").put("name", name).put("user", xtreamUser())) }
-                .onFailure { e ->
-                    if (e is Rejected) {
-                        prefs(c).edit().remove("name").apply()
-                        withContext(Dispatchers.Main) { name = ""; asking = true }
-                    }
-                }
-        }
+            // Nur mit einem Zugang beim Anbieter (sonst gibt es nichts zuzuordnen); vor dem Stichtag einmal am Tag,
+            // danach bei jedem Start. Neue Nutzer geben den Namen schon beim Anmelden ein.
+            if (presetCreds() != null && (mandatory(c) || !shownToday(c))) { markShown(c); asking = true }
+        } else recheck(c)
         while (true) {
             if (name.isNotEmpty()) withContext(Dispatchers.IO) { runCatching { poll(c) } }
             delay(5 * 60_000L)
             // Hinweis-Zeit: einmal am Tag erneut anbieten; ab Stichtag Pflicht
-            if (name.isEmpty() && required() && (mandatory(c) || !shownToday(c))) { markShown(c); asking = true }
+            if (name.isEmpty() && required() && presetCreds() != null && (mandatory(c) || !shownToday(c))) { markShown(c); asking = true }
+        }
+    }
+
+    /** Gespeicherten Namen still nachprüfen: abgelehnt → Name weg, wieder fragen (bei fremdem Namen/Testende sofort Pflicht). */
+    private suspend fun recheck(c: Context) = withContext(Dispatchers.IO) {
+        runCatching { post(c, checkJson(name, presetCreds())) }.onFailure { e ->
+            if (e is Rejected && e.message != "auth") {
+                val code = e.message.orEmpty()
+                prefs(c).edit().remove("name").putBoolean("blocked", hard(code)).putString("lastError", reason(code)).apply()
+                withContext(Dispatchers.Main) { name = ""; lastError = reason(code); blocked = hard(code); asking = true }
+            }
         }
     }
 
@@ -255,7 +306,7 @@ fun MemberGate() {
     val scope = rememberCoroutineScope()
     val mandatory = remember { Member.mandatory(ctx) }
     var text by remember { mutableStateOf(Member.name) }
-    var err by remember { mutableStateOf("") }
+    var err by remember { mutableStateOf(Member.lastError) }
     var busy by remember { mutableStateOf(false) }
     val fieldFr = remember { FocusRequester() }
     val okFr = remember { FocusRequester() }

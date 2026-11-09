@@ -11,7 +11,7 @@ import java.security.SecureRandom
 import kotlin.concurrent.thread
 
 /** Eine vom Handy gesendete Playlist: entweder ein M3U-Link oder Xtream-Zugangsdaten. */
-class PhoneInput(val url: String, val host: String, val user: String, val pass: String) {
+class PhoneInput(val url: String, val host: String, val user: String, val pass: String, val member: String = "") {
     val isXtream get() = url.isBlank()
 }
 
@@ -27,13 +27,16 @@ object PhoneImportLogic {
 
     /** Prüft Eingaben; null = ungültig. */
     /** [noHostOk]: fest eingebaute Server vorhanden – dann darf das Server-Feld leer bleiben (die App nimmt den gewählten). */
-    fun toInput(f: Map<String, String>, noHostOk: Boolean = false, presetUrls: List<String> = emptyList()): PhoneInput? {
+    /** [memberRequired]: Element-Name ist bei vorgegebenen Servern Pflicht (XY TV/Township). */
+    fun toInput(f: Map<String, String>, noHostOk: Boolean = false, presetUrls: List<String> = emptyList(), memberRequired: Boolean = false): PhoneInput? {
         // Vorgegebener Server (Auswahl nach Namen auf der Handy-Seite, „srv“ = Index): nur Benutzername und Passwort
         f["srv"]?.let { s ->
             val host = presetUrls.getOrNull(s.trim().toIntOrNull() ?: -1) ?: return null
             val user = f["user"].orEmpty().trim()
             val pass = f["pass"].orEmpty().trim()
-            return if (user.isNotEmpty() && pass.isNotEmpty()) PhoneInput("", host, user, pass) else null
+            val member = f["member"].orEmpty().trim()
+            if (memberRequired && member.isEmpty()) return null
+            return if (user.isNotEmpty() && pass.isNotEmpty()) PhoneInput("", host, user, pass, member) else null
         }
         // Stalker-Portal (wie TiviMate): Portal und MAC, optional Seriennummer und Geräte-ID
         val portal = f["portal"].orEmpty().trim()
@@ -75,7 +78,7 @@ object PhoneImportLogic {
      * Handy-Seite. Mit vorgegebenen Servern ([servers] = angezeigte Namen, die Adressen bleiben in der App) steht oben
      * „Anmelden bei [provider]“ mit Server-Auswahl, Benutzername und Passwort; darunter die freie Eingabe.
      */
-    fun page(li: Int, servers: List<String> = emptyList(), title: String = "IPTV-XY", provider: String = "", code: String = ""): String {
+    fun page(li: Int, servers: List<String> = emptyList(), title: String = "IPTV-XY", provider: String = "", code: String = "", memberField: Boolean = false): String {
         fun t(a: String, b: String) = tr(li, a, b)
         fun esc(s: String) = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
         val preset = if (servers.isEmpty()) "" else {
@@ -84,6 +87,7 @@ object PhoneImportLogic {
             """<form method="post" action="/send"><h2 class="main">${esc(t("Anmelden", "Sign in") + (if (provider.isNotBlank()) " · $provider" else ""))}</h2>
 <input name="code" inputmode="numeric" maxlength="4" placeholder="${t("Code vom Fernseher", "Code from the TV")}" value="${esc(code.filter { it.isDigit() }.take(4))}" required>
 $sel
+${if (memberField) "<input name=\"member\" placeholder=\"" + t("Element-Benutzername (z. B. name_xy)", "Element username (e.g. name_xy)") + "\" autocapitalize=\"off\" required>" else ""}
 <input name="user" placeholder="${t("Benutzername", "Username")}" autocapitalize="off" required>
 <input name="pass" placeholder="${t("Passwort", "Password")}" autocapitalize="off" required>
 <button type="submit">${t("An den Fernseher senden", "Send to TV")}</button></form>
@@ -205,7 +209,7 @@ class PhoneImport(private val favMode: Boolean = false, private val onFavs: ((St
         val pre = PhoneImportLogic.parseForm(query)["c"]?.takeIf { it == code }.orEmpty()
         val de = PhoneImportLogic.langIndex(lang)
         val (status, html) = when (req) {
-            "GET /" -> 200 to (if (favMode) PhoneImportLogic.favPage(de, BuildConfig.APP_NAME, pre) else PhoneImportLogic.page(de, Presets.servers.map { it.name }, BuildConfig.APP_NAME, BuildConfig.PROVIDER, pre))
+            "GET /" -> 200 to (if (favMode) PhoneImportLogic.favPage(de, BuildConfig.APP_NAME, pre) else PhoneImportLogic.page(de, Presets.servers.map { it.name }, BuildConfig.APP_NAME, BuildConfig.PROVIDER, pre, Member.required()))
             "POST /send" -> {
                 val f = PhoneImportLogic.parseForm(body)
                 when {
@@ -216,7 +220,7 @@ class PhoneImport(private val favMode: Boolean = false, private val onFavs: ((St
                         if (t.isBlank()) 400 to PhoneImportLogic.message(de, "bad") else { onFavs?.invoke(t); 200 to PhoneImportLogic.message(de, "ok") }
                     }
                     else -> {
-                        val input = PhoneImportLogic.toInput(f, noHostOk = Presets.servers.isNotEmpty(), presetUrls = Presets.servers.map { it.url })
+                        val input = PhoneImportLogic.toInput(f, noHostOk = Presets.servers.isNotEmpty(), presetUrls = Presets.servers.map { it.url }, memberRequired = Member.required())
                         if (input == null) 400 to PhoneImportLogic.message(de, "bad")
                         else { onReceive(input); 200 to PhoneImportLogic.message(de, "ok") }
                     }
