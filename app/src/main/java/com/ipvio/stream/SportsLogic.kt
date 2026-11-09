@@ -189,7 +189,9 @@ object SportsLogic {
     }
 
     /** Sieht wie ein Teamname aus? (Buchstaben, kein „2026/27“, kein Liganame wie „Bundesliga der Frauen“) */
-    private fun teamLike(s: String): Boolean = Regex("""\p{L}{3,}""").containsMatchIn(s) && '/' !in s && league(s) == null
+    /** Sendungen statt Spiele („Glanzparade – Die Show mit Buschmann“, „Doppelpass – Talk“): kein Teamname. */
+    private val NOT_TEAM = Regex("""(?i)\b(show|magazin|talk|studio|highlights?|zusammenfassung|glanzparade|doppelpass|sportschau|analyse|vorbericht|vorschau|r(ü|ue)ckblick|reportage|dokumentation|doku|news|nachrichten)\b|\smit\s""")
+    private fun teamLike(s: String): Boolean = Regex("""\p{L}{3,}""").containsMatchIn(s) && '/' !in s && league(s) == null && !NOT_TEAM.containsMatchIn(s)
 
     private fun clean(s: String): String = s.replace(Regex("""\s{2,}"""), " ").trim().trim('-', '–', ':', ',').trim()
 

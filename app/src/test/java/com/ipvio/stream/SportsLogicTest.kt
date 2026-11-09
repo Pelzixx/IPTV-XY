@@ -64,4 +64,11 @@ class SportsLogicTest {
         assertEquals("sky sport bundesliga 1", SportsLogic.baseName("DE: Sky Sport Bundesliga 1 FHD"))
         assertEquals("sky sport bundesliga 1", SportsLogic.baseName("Sky Sport Bundesliga 1 HD (1080p)"))
     }
+
+    @Test fun sendungen_sind_keine_spiele() {
+        val h = SportsLogic.parse("Glanzparade - Die Show mit Buschmann", "", "Sky Sport Bundesliga 1 HD")
+        assertTrue(h == null || h.home == null)
+        val real = SportsLogic.parse("Bundesliga: Hertha BSC - VfL Wolfsburg", "", "Sky Sport Bundesliga 2 HD")!!
+        assertEquals("Hertha BSC", real.home)
+    }
 }
