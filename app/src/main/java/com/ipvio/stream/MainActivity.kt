@@ -369,6 +369,8 @@ private fun AppContent() {
     LaunchedEffect(Unit) { GoalAlert.watch(ctx) }
     // Element-Name (XY TV/Township): Abfrage und Nachrichten des Betreibers
     LaunchedEffect(Unit) { Member.watch(ctx) }
+    // Nutzung an das Panel melden (XY TV/Township): beim Start und sobald sich die Zugänge ändern (Anmeldung)
+    LaunchedEffect(PlaylistStore.lists.size, PlaylistStore.active, Presets.memberUrl) { Member.seen(ctx) }
     // Pflicht-Update (XY TV/Township): laufende Wiedergabe beenden, solange gesperrt ist
     LaunchedEffect(UpdateNotice.pending) { if (UpdateNotice.forced && UpdateNotice.pending != null) playing = null }
     // Wiedergabeliste von Hand aktualisiert: Meldung, sobald sie fertig ist (TiviMate)

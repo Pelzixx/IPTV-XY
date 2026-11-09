@@ -85,3 +85,25 @@ Diagnose (`diag`) und Sicherung (`backup`) schicken zusätzlich `"member": "voja
 Panel: beim Nutzer einen Reiter „TV App“ mit Geräten, Diagnosen und Sicherung dieses Nutzers sowie einem Feld
 „Nachricht schreiben“ (Titel optional, Text, Liste der gesendeten Nachrichten mit gelesen/ungelesen, löschen).
 Begrenzung je IP wie bei den anderen Endpunkten.
+
+## 5. Nutzung melden (`member`, action `seen`) und Pflicht-Update
+
+Sobald sich jemand in der App angemeldet hat (mindestens ein Zugang auf einem Server aus der Konfiguration), meldet die App
+die Nutzung an `member` – beim Start, nach jeder Änderung der Zugänge (neue Anmeldung, anderer aktiver Zugang,
+Element-Name bestätigt, neue App-Version) und sonst höchstens alle 6 Stunden:
+
+```json
+{"action": "seen", "name": "vojadsvv_xy", "user": "xtreamname",
+ "accounts": [{"server": "XY TV", "user": "xtreamname"}, {"server": "XY Backup", "user": "xtreamname2"}],
+ "android": "11", "versionCode": 174,
+ "edition": "xy", "app": "3.52", "device": "<zufällige Geräte-ID>", "model": "SEI Robotics SEI500"}
+```
+
+`name` ist leer, solange kein Element-Name bestätigt ist – trotzdem speichern. Kein Passwort, keine Server-Adresse.
+Antwort `{"ok": true}`. Panel: Admin-Seite „App-Nutzer“ (alle Geräte, neueste Meldung zuerst): Gerät, Modell, App-Version,
+Android, Element-Name, Xtream-Namen je Server, erste und letzte Meldung; Suche; Hinweis, wenn die App-Version älter als
+die aktuelle ist. Beim Nutzer im Reiter „TV App“ dieselben Geräte (Zuordnung über Element-Name oder Xtream-Namen).
+
+**Pflicht-Update:** In der Konfiguration `"forceUpdate": true|false` (fehlt es: `true`). Bei `true` muss in XY TV und
+Township jede neue Version installiert werden, sonst ist die App gesperrt; bei `false` nur Hinweis mit „Später“.
+Bitte im Admin als Schalter „Update ist Pflicht“ anbieten.

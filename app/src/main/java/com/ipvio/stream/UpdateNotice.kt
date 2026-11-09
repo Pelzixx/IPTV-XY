@@ -45,7 +45,7 @@ object UpdateNotice {
     fun later() { if (forced) return; pending?.let { dismissed = it.code }; pending = null }
 
     /** XY TV und Township: neue Versionen sind Pflicht (siehe UpdateGate). Die Original-App zeigt nur den Hinweis. */
-    val forced: Boolean get() = BuildConfig.EDITION != "standard"
+    val forced: Boolean get() = BuildConfig.EDITION != "standard" && Presets.forceUpdate
 }
 
 /** Karte oben in der Mitte: „Neue Version 3.46 verfügbar“, Neuerungen, „Jetzt aktualisieren“ / „Später“. */

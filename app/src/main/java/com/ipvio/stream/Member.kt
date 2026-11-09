@@ -156,7 +156,7 @@ object Member {
     }
 
     private fun launchPoll(c: Context) {
-        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch { runCatching { poll(c) } }
+        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch { runCatching { poll(c) }; runCatching { seen(c) } }
     }
 
     /**
@@ -210,6 +210,37 @@ object Member {
         val n = name
         kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
             runCatching { post(c, JSONObject().put("action", "read").put("name", n).put("ids", JSONArray().put(m.id))) }
+        }
+    }
+
+    /**
+     * Nutzung melden (Wunsch des Nutzers, 2026-11-09): Das Panel soll sehen, wer die App benutzt – sobald sich jemand
+     * angemeldet hat. Gemeldet werden die Xtream-Benutzernamen auf den Servern des Anbieters (ohne Passwort), welcher
+     * aktiv ist, der Element-Name (falls bestätigt), Gerät und App-Version. Höchstens alle 6 Stunden, außer die Zugänge
+     * haben sich geändert (neue Anmeldung).
+     */
+    suspend fun seen(c: Context) {
+        if (!required()) return
+        init(c)
+        val accounts = JSONArray()
+        var activeUser = ""
+        PlaylistStore.lists.toList().forEachIndexed { i, pl ->
+            val p = LoadLogic.xtreamParts(pl.url) ?: return@forEachIndexed
+            val k = PresetLogic.indexOf(p.first, Presets.servers)
+            if (k < 0) return@forEachIndexed
+            accounts.put(JSONObject().put("server", Presets.servers[k].name).put("user", p.second))
+            if (i == PlaylistStore.active) activeUser = p.second
+        }
+        if (accounts.length() == 0) return
+        val sig = accounts.toString() + "|" + activeUser + "|" + name + "|" + BuildConfig.VERSION_CODE
+        val p = prefs(c)
+        if (p.getString("seenSig", "") == sig && System.currentTimeMillis() - p.getLong("seenAt", 0L) < 6 * 3600_000L) return
+        withContext(Dispatchers.IO) {
+            runCatching {
+                post(c, JSONObject().put("action", "seen").put("name", name).put("user", activeUser).put("accounts", accounts)
+                    .put("android", android.os.Build.VERSION.RELEASE).put("versionCode", BuildConfig.VERSION_CODE))
+                p.edit().putString("seenSig", sig).putLong("seenAt", System.currentTimeMillis()).apply()
+            }
         }
     }
 
