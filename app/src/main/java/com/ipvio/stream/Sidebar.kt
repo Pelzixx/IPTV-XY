@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -188,7 +189,14 @@ fun Sidebar(tab: Int, onTab: (Int) -> Unit, modifier: Modifier, activeFocus: Foc
         ) {
             // Logo mittig über die ganze Breite: eingeklappt so breit wie die Leiste, aufgeklappt groß.
             // Feste Höhe, damit die Menüpunkte beim Aufklappen nicht springen.
-            Box(Modifier.fillMaxWidth().height(dpx(130)), contentAlignment = Alignment.Center) { BrandMark(Modifier.size(if (expanded) dpx(96) else dpx(52))) }
+            // Darunter die aktuelle Uhrzeit (Wunsch des Nutzers, 2026-11-09)
+            Box(Modifier.fillMaxWidth().height(dpx(130)), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    BrandMark(Modifier.size(if (expanded) dpx(92) else dpx(52)))
+                    Spacer(Modifier.height(dpx(4)))
+                    SidebarClock(expanded)
+                }
+            }
             Spacer(Modifier.height(dpx(20)))
             Column(verticalArrangement = Arrangement.spacedBy(dpx(10))) {
                 visible.forEach { id ->
@@ -251,4 +259,18 @@ private fun SideItem(id: Int, label: String, active: Boolean, expanded: Boolean,
                 fontWeight = if (active || f) FontWeight.Bold else FontWeight.Medium, maxLines = 1)
         }
     }
+}
+
+/** Aktuelle Uhrzeit unter dem Logo; springt pünktlich zur vollen Minute um. */
+@Composable
+private fun SidebarClock(expanded: Boolean) {
+    val now by androidx.compose.runtime.produceState(System.currentTimeMillis()) {
+        while (true) {
+            value = System.currentTimeMillis()
+            kotlinx.coroutines.delay(60_000L - value % 60_000L + 50)
+        }
+    }
+    val txt = remember(now / 60_000) { java.text.SimpleDateFormat("HH:mm", java.util.Locale.GERMANY).format(java.util.Date(now)) }
+    Text(raw = true, text = txt, color = androidx.compose.ui.graphics.Color.White, fontSize = if (expanded) 20.sp else 15.sp,
+        fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, maxLines = 1)
 }
