@@ -148,7 +148,7 @@ object BackupPanel {
     private fun call(action: String, data: String? = null): JSONObject {
         val url = Presets.backupUrl ?: error("Für diese App nicht eingerichtet")
         val (s, u, p) = creds() ?: error("Nur mit einem Zugang des Anbieters möglich")
-        val j = JSONObject().put("action", action).put("server", s).put("user", u).put("pass", p)
+        val j = JSONObject().put("action", action).put("server", s).put("user", u).put("pass", p).put("member", Member.name)
         if (data != null) j.put("data", data)
         val body = j.toString().toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
         Net.withTimeouts(15, 30).newCall(okhttp3.Request.Builder().url(url).post(body).build()).execute().use { r ->

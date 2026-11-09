@@ -367,6 +367,8 @@ private fun AppContent() {
     LaunchedEffect(Unit) { UpdateNotice.watch(ctx) }
     // Tor-Alarm für markierte Spiele (Sport Guide), Einblendung siehe unten
     LaunchedEffect(Unit) { GoalAlert.watch(ctx) }
+    // Element-Name (XY TV/Township): Abfrage und Nachrichten des Betreibers
+    LaunchedEffect(Unit) { Member.watch(ctx) }
     // Wiedergabeliste von Hand aktualisiert: Meldung, sobald sie fertig ist (TiviMate)
     LaunchedEffect(Xmltv.doneSignal) {
         if (Xmltv.doneSignal > 0) android.widget.Toast.makeText(ctx, Xmltv.doneMsg, android.widget.Toast.LENGTH_LONG).show()
@@ -516,6 +518,11 @@ private fun AppContent() {
         UpdateNotice.pending?.let { u ->
             if (p == null && !adding && remindNow == null && pinAsk == null) UpdateCard(u, Modifier.align(Alignment.TopCenter).padding(top = 24.dp))
         }
+        // Nachricht des Betreibers an diesen Nutzer (nicht mitten im Film/Sender)
+        Member.inbox.firstOrNull()?.let { m ->
+            if (p == null && !adding && remindNow == null && pinAsk == null && UpdateNotice.pending == null) MemberMsgCard(m, Modifier.align(Alignment.TopCenter).padding(top = 24.dp))
+        }
+        if (Member.asking) MemberGate()
         // Tor/Abpfiff eines markierten Spiels – auch im Player (dann mit „Umschalten“ zum Spiel)
         GoalAlert.pending?.let { g ->
             if (remindNow == null && pinAsk == null) {

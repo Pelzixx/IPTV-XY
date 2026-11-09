@@ -80,7 +80,7 @@ object DiagSend {
                 .put("crash", crash?.first ?: "")
                 .put("content", "${items.count { it.kind == Kind.LIVE }} Sender, ${items.count { it.kind == Kind.MOVIE }} Filme, ${items.count { it.kind == Kind.SERIES }} Serien; EPG ${Xmltv.status} (${Xmltv.channelCount})")
                 .put("memoryMb", Mem.totalMb(c))
-                .put("user", user).put("server", pl?.name.orEmpty())
+                .put("user", user).put("member", Member.name).put("server", pl?.name.orEmpty())
                 .put("note", note.take(500)).put("ts", System.currentTimeMillis() / 1000)
             val body = j.toString().toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
             Net.base.newCall(okhttp3.Request.Builder().url(url).post(body).build()).execute().use { r ->

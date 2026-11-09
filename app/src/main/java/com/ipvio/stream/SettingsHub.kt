@@ -1521,6 +1521,12 @@ private fun ApiKeysPage(ctx: Context) {
 
 /** „Diagnose an Betreiber senden“ (nur wenn das Panel eine Diagnose-Adresse liefert, also XY und Township). */
 @Composable
+private fun MemberRow() {
+    if (!Member.required()) return
+    SettingRow("Element-Benutzername", Member.name.ifEmpty { Lang.tr("Noch nicht eingegeben") }, rawValue = true, onClick = { Member.change() })
+}
+
+@Composable
 private fun DiagSendRow(ctx: Context) {
     if (!DiagSend.available()) return
     val scope = rememberCoroutineScope()
@@ -1576,6 +1582,7 @@ private fun AboutPage(ctx: Context, open: (String, String) -> Unit) {
             busy = false
         }
     })
+    MemberRow()
     DiagSendRow(ctx)
     SettingRow("Systemeinstellungen der App", null, onClick = {
         runCatching {

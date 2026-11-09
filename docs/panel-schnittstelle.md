@@ -50,3 +50,38 @@ Ablauf im Panel:
 5. Begrenzung je IP (z. B. 30 Anfragen/Stunde), nur HTTPS.
 
 Admin-Seite „Sicherungen“: Liste mit Benutzername, Server, Zeitpunkt, Größe; Löschen möglich (keine Inhalte anzeigen nötig).
+
+## 4. Element-Name und Nachrichten (`member`, POST, JSON)
+
+Neu in der Konfiguration (beide optional):
+
+```json
+{"member": "https://panel/app/member.php?key=…", "memberFrom": "2026-11-20"}
+```
+
+Ist `member` gesetzt, fragt die App nach dem Element-Benutzernamen des Nutzers (z. B. `vojadsvv_xy`).
+Bis `memberFrom` (fehlt es: 7 Tage nach dem ersten Hinweis auf dem Gerät) nur als Hinweis mit „Später“ (einmal am Tag),
+danach ist die Eingabe Pflicht – ohne bestätigten Namen lässt sich die App nicht mehr nutzen.
+Die App schickt den Namen so: ohne `@`, ohne `:server`, klein geschrieben.
+
+Jede Anfrage enthält zusätzlich `edition` (`xy`/`township`), `app` (Version), `device` (zufällige Geräte-ID der App)
+und `model` (Gerätename).
+
+```json
+{"action": "check",    "name": "vojadsvv_xy", "user": "xtreamname"}
+{"action": "messages", "name": "vojadsvv_xy"}
+{"action": "read",     "name": "vojadsvv_xy", "ids": ["a1"]}
+```
+
+- `check`: Gibt es den Element-Nutzer im Panel? Ja → `{"ok": true, "name": "vojadsvv_xy"}`, sonst
+  `{"ok": false, "error": "unknown"}` (oder HTTP 404). Die App prüft beim Eingeben und danach bei jedem Start;
+  löscht der Betreiber den Nutzer, fragt die App wieder. Ist das Panel nicht erreichbar, bleibt der gespeicherte Name gültig.
+  Panel merkt sich je Nutzer die Geräte (`device`, `model`, `app`, `edition`, zuletzt gesehen, `user` = Xtream-Name).
+- `messages`: ungelesene und gelesene Nachrichten an diesen Nutzer (die App zeigt nur, was sie noch nicht kennt):
+  `{"ok": true, "messages": [{"id": "a1", "title": "Hallo", "text": "…", "ts": 1762700000}]}`. Abfrage beim Start und alle 5 Minuten.
+- `read`: Nutzer hat „OK“ gedrückt → im Panel als gelesen markieren (mit Zeitpunkt und Gerät). Antwort `{"ok": true}`.
+
+Diagnose (`diag`) und Sicherung (`backup`) schicken zusätzlich `"member": "vojadsvv_xy"` (leer, wenn noch keiner bestätigt).
+Panel: beim Nutzer einen Reiter „TV App“ mit Geräten, Diagnosen und Sicherung dieses Nutzers sowie einem Feld
+„Nachricht schreiben“ (Titel optional, Text, Liste der gesendeten Nachrichten mit gelesen/ungelesen, löschen).
+Begrenzung je IP wie bei den anderen Endpunkten.
