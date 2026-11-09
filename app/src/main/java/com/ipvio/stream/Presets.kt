@@ -26,6 +26,10 @@ object Presets {
     val servers: List<PresetServer> get() = remote?.servers?.takeIf { it.isNotEmpty() } ?: builtServers
     /** EPG-Quellen: aus der Fernkonfiguration, sonst fest eingebaut. */
     val epg: List<String> get() = remote?.epg?.takeIf { it.isNotEmpty() } ?: builtEpg
+    /** Mitteilung, Diagnose- und Sicherungsadresse aus der Panel-Konfiguration (null = nicht eingerichtet). */
+    val news: String? get() = remote?.news
+    val diagUrl: String? get() = remote?.diag
+    val backupUrl: String? get() = remote?.backup
 
     private fun prefs(c: Context) = c.getSharedPreferences("ipvio_config", Context.MODE_PRIVATE)
 
@@ -61,7 +65,8 @@ object Presets {
 }
 
 /** Inhalt von config.json: {"servers":[{"name":"XY TV","url":"http://…:8080"}], "epg":["https://…/epg.xml.gz"]} */
-data class RemoteConfig(val servers: List<PresetServer>, val epg: List<String>)
+/** [news] = Mitteilung für die Startseite (JSON wie news.json), [diag]/[backup] = Adressen der Panel-Endpunkte (docs/panel-schnittstelle.md). */
+data class RemoteConfig(val servers: List<PresetServer>, val epg: List<String>, val news: String? = null, val diag: String? = null, val backup: String? = null)
 
 /** Reine Logik ohne Android (Unit-Tests). */
 object PresetLogic {
@@ -116,7 +121,8 @@ object PresetLogic {
         }
         val epg = ArrayList<String>()
         o.optJSONArray("epg")?.let { a -> for (i in 0 until a.length()) epg.add(a.optString(i, "")) }
-        RemoteConfig(servers, parseUrls(epg.joinToString("\n")))
+        fun url(k: String) = o.optString(k, "").trim().takeIf { it.startsWith("https://") || it.startsWith("http://") }
+        RemoteConfig(servers, parseUrls(epg.joinToString("\n")), o.optJSONObject("news")?.toString(), url("diag"), url("backup"))
     }.getOrNull()
 
     /**

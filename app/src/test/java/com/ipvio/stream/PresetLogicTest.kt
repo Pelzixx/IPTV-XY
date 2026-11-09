@@ -36,4 +36,13 @@ class PresetLogicTest {
         assertNull(PhoneImportLogic.toInput(f))
         assertTrue(PhoneImportLogic.toInput(f, noHostOk = true)!!.isXtream)
     }
+
+    @Test fun panel_liefert_mitteilung_diagnose_und_sicherung() {
+        val c = PresetLogic.parseConfig("""{"servers":[{"name":"T","url":"http://h:8080"}],
+            "news":{"title":"Hallo","text":"Neu","qr":"https://q"},"diag":"https://p/app/diag.php?key=k","backup":"ftp://x"}""")!!
+        assertEquals("Hallo", HomeInfoLogic.parseNews(c.news!!)!!.title)
+        assertEquals("https://p/app/diag.php?key=k", c.diag)
+        assertNull(c.backup)
+        assertNull(PresetLogic.parseConfig("""{"servers":[]}""")!!.news)
+    }
 }

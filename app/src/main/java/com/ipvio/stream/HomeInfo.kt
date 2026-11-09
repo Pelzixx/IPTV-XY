@@ -111,7 +111,13 @@ object HomeInfo {
         r
     }
 
-    suspend fun news(): NewsInfo? = if (!BuildConfig.NEWS) null else withContext(Dispatchers.IO) {
+    /** Mitteilung: zuerst aus dem Panel des Betreibers (XY, Township), sonst – nur XY – aus news.json auf GitHub. */
+    suspend fun news(): NewsInfo? {
+        Presets.news?.let { return HomeInfoLogic.parseNews(it) }
+        return githubNews()
+    }
+
+    private suspend fun githubNews(): NewsInfo? = if (!BuildConfig.NEWS) null else withContext(Dispatchers.IO) {
         val now = System.currentTimeMillis()
         news?.let { if (now - it.first < TTL) return@withContext it.second }
         val r = runCatching {
@@ -146,7 +152,8 @@ fun HomeInfoRow(modifier: Modifier = Modifier) {
         value = xtLists.map { it.name to null }
         value = xtLists.map { pl -> pl.name to HomeInfo.account(pl.url) }
     }
-    val news by produceState<NewsInfo?>(null) { value = HomeInfo.news() }
+    // Neu laden, sobald die Panel-Konfiguration (mit Mitteilung) angekommen ist
+    val news by produceState<NewsInfo?>(null, Presets.news) { value = HomeInfo.news() }
     val a = account
     val n = news
     val hasNews = n != null && (n.title.isNotEmpty() || n.text.isNotEmpty() || n.image != null)
