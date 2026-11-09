@@ -3,6 +3,7 @@ package com.ipvio.stream
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -158,7 +159,7 @@ fun HomeInfoRow(modifier: Modifier = Modifier) {
     val n = news
     val hasNews = n != null && (n.title.isNotEmpty() || n.text.isNotEmpty() || n.image != null)
     val qr = n?.qr
-    if (a == null && !isXtream && !hasNews && qr == null) return
+    if (a == null && !isXtream && !hasNews && qr == null && Member.note == null) return
     // Benutzername (Xtream) und Element-Name unter der Überschrift (Wunsch des Nutzers, 2026-11-09)
     val xUser = url?.let { LoadLogic.xtreamParts(it)?.second }.orEmpty()
     val elem = Member.name
@@ -205,6 +206,13 @@ fun HomeInfoRow(modifier: Modifier = Modifier) {
                 }
             }
             if (a.maxCons != null) Text("Verbindungen: ${a.activeCons ?: 0} von ${a.maxCons}", color = Tok.TextMid, fontSize = 15.sp)
+        }
+        // Persönliche Kachel nur für diesen Nutzer (im Panel beim Nutzer eingetragen)
+        Member.note?.let { (t, x) ->
+            Column(card.width(360.dp).border(1.dp, Accent2.copy(alpha = 0.5f), shape), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(raw = true, text = t.ifEmpty { Lang.tr("Für dich") }, color = Accent2, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (x.isNotEmpty()) Text(raw = true, text = x, color = Color.White, fontSize = 15.sp, lineHeight = 20.sp, maxLines = 5, overflow = TextOverflow.Ellipsis)
+            }
         }
         if (hasNews && n != null) Row(card.weight(1f), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
             if (n.image != null) AsyncImage(n.image, null, Modifier.fillMaxHeight().aspectRatio(16f / 9f).clip(RoundedCornerShape(DS.RadiusS)), contentScale = ContentScale.Crop)

@@ -250,8 +250,17 @@ object Member {
         val o = post(c, JSONObject().put("action", "messages").put("name", n))
         val seen = prefs(c).getStringSet("seen", emptySet()).orEmpty()
         val list = MemberLogic.parseMessages(o.toString()).filter { it.id !in seen }.sortedBy { it.ts }
-        withContext(Dispatchers.Main) { inbox = list }
+        // Persönlicher Hinweis für die Startseite (Kachel neben der Laufzeit), z. B. „Dein Paket: Sport“
+        val nt = o.optJSONObject("note")?.let { j ->
+            val t = j.optString("title", "").trim().take(80); val x = j.optString("text", "").trim().take(500)
+            if (t.isEmpty() && x.isEmpty()) null else t to x
+        }
+        withContext(Dispatchers.Main) { inbox = list; note = nt }
     }
+
+    /** Persönliche Kachel auf der Startseite (Titel, Text) aus dem Panel, null = keine. */
+    var note by mutableStateOf<Pair<String, String>?>(null)
+        private set
 
     /** Nachricht gelesen: lokal merken und dem Panel melden (dort „gelesen“). */
     fun markRead(c: Context, m: MemberMsg) {

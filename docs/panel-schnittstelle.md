@@ -163,3 +163,12 @@ Panel: liest einen Element-Raum (Raum-ID im Admin einstellbar) über die Matrix-
 - Bearbeitete Nachrichten: neueste Fassung; gelöschte (redacted) nicht anzeigen. Formatierung entfernen, max. 400 Zeichen.
 - Antwort zwischenspeichern (z. B. 60 s), damit nicht jede App die Matrix-API anfragt.
 - Admin-Seite „Laufband“: Vorschau der aktuellen Meldungen, Raum-ID, Dauer, Knopf „Band leeren“.
+
+## 8. Kacheln auf der Startseite: für alle und für einen Nutzer
+
+- **Für alle:** `news` in der Konfiguration (Abschnitt 1), z. B. `{"title": "Willkommen", "text": "Willkommen bei der neuen TV App!"}`.
+  Erscheint als breite Kachel neben der Laufzeit.
+- **Nur für einen Nutzer:** `messages` (Abschnitt 4) liefert zusätzlich `"note": {"title": "…", "text": "…"}` für diesen
+  Element-Nutzer (fehlt oder leer = keine Kachel). Erscheint als eigene Kachel neben der Laufzeit; Titel optional
+  (sonst „Für dich“), Text max. 500 Zeichen. Die App holt sie beim Start und alle 5 Minuten (nur mit bestätigtem Element-Namen).
+  Panel: im Reiter „TV App“ beim Nutzer ein Feld „Kachel auf der Startseite“ (Titel, Text, leeren).
