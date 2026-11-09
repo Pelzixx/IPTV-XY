@@ -90,6 +90,8 @@ fun FavPhoneDialog(onClose: () -> Unit) {
     BackHandler { onClose() }
     val fr = remember { FocusRequester() }
     LaunchedEffect(Unit) { kotlinx.coroutines.delay(150); runCatching { fr.requestFocus() } }
+    // Eigenes Fenster über dem ganzen Bild (sonst nur so breit wie die Einstellungsleiste)
+    androidx.compose.ui.window.Dialog(onDismissRequest = onClose, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
     Box(Modifier.fillMaxSize().background(Color(0xCC000000)), contentAlignment = Alignment.Center) {
         val shape = RoundedCornerShape(DS.RadiusL)
         Column(
@@ -116,5 +118,6 @@ fun FavPhoneDialog(onClose: () -> Unit) {
                 color = Muted, fontSize = 14.sp, maxLines = 3)
             PillButton("Fertig", Modifier.focusRequester(fr), light = true) { onClose() }
         }
+    }
     }
 }
