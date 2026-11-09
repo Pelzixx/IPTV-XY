@@ -225,7 +225,7 @@ fun HomeInfoRow(modifier: Modifier = Modifier) {
         }
         // Persönliche Kachel nur für diesen Nutzer (im Panel beim Nutzer eingetragen)
         myNote?.let { nt -> val t = nt.title; val x = nt.text
-            Column(card.width(360.dp).border(1.dp, Accent2.copy(alpha = 0.5f), shape), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(Modifier.fillMaxHeight().width(360.dp).clip(shape).background(Color(0x14FFFFFF)).border(1.dp, Accent2.copy(alpha = 0.6f), shape).padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(raw = true, text = t.ifEmpty { Lang.tr("Für dich") }, color = Accent2, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (x.isNotEmpty()) Text(raw = true, text = x, color = Color.White, fontSize = 15.sp, lineHeight = 20.sp, maxLines = 5, overflow = TextOverflow.Ellipsis)
             }
