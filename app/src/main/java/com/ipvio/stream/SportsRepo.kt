@@ -32,12 +32,58 @@ object SportsRepo {
     @Volatile private var logged = false
 
     private val client by lazy { Net.withTimeouts(10, 15) }
-    private val OLDB = listOf("bl1" to "Bundesliga", "bl2" to "2. Bundesliga", "bl3" to "3. Liga", "dfb" to "DFB-Pokal")
+    // Weitere bei OpenLigaDB gepflegte Wettbewerbe (mit Ergebnissen und Toren, geprüft 2026-11-09). Wichtig laut Nutzer:
+    // Bundesliga, 2. und 3. Liga, DFB-Pokal, Nationalmannschaft. Kürzel mit Jahreszahl gelten nur für die Saison 2026/27.
+    private val OLDB = listOf("bl1" to "Bundesliga", "bl2" to "2. Bundesliga", "bl3" to "3. Liga", "dfb" to "DFB-Pokal",
+        "DFBN" to "Länderspiele", "ucl" to "Champions League", "uel2026" to "Europa League", "uecl2026" to "Conference League",
+        "ffb1" to "Frauen-Bundesliga", "del" to "Eishockey")
+
+    /** Tabellen (Wunsch des Nutzers): Liga → Zeilen, alle 10 Minuten neu. */
+    var tables by mutableStateOf<Map<String, List<TableRow>>>(emptyMap())
+        private set
+    @Volatile private var tablesAt = 0L
+    private val TABLES = listOf("bl1" to "Bundesliga", "bl2" to "2. Bundesliga", "bl3" to "3. Liga", "ffb1" to "Frauen-Bundesliga", "del" to "Eishockey")
+
+    private suspend fun loadTables() {
+        if (System.currentTimeMillis() - tablesAt < 10 * 60_000) return
+        val cal = java.util.Calendar.getInstance()
+        // Saison beginnt im Sommer: ab Juli das laufende Jahr, sonst das Vorjahr
+        val season = cal.get(java.util.Calendar.YEAR) - if (cal.get(java.util.Calendar.MONTH) >= java.util.Calendar.JULY) 0 else 1
+        val res = kotlinx.coroutines.coroutineScope {
+            TABLES.map { (s, n) -> async(Dispatchers.IO) { n to runCatching { table(s, season) }.getOrDefault(emptyList()) } }.awaitAll()
+        }.filter { it.second.isNotEmpty() }.toMap()
+        if (res.isNotEmpty()) { tables = res; tablesAt = System.currentTimeMillis() }
+    }
+
+    private fun table(shortcut: String, season: Int): List<TableRow> {
+        val body = client.newCall(Request.Builder().url("https://api.openligadb.de/getbltable/$shortcut/$season").header("User-Agent", "IPTV-XY").build())
+            .execute().use { if (it.isSuccessful) it.body?.string() else null } ?: return emptyList()
+        return SportsLogic.parseTable(body)
+    }
+
+    /** Was gerade auf den Sportsendern läuft (Rubrik „Live“), ohne die Sender laufender Spiele aus [events]. */
+    var airing by mutableStateOf<List<SportEvent>>(emptyList())
+        private set
+
+    /** Laufende Sendungen der Sportsender: gleiche Sendung auf mehreren Sendern zusammengefasst, beste Qualität zuerst. */
+    private fun airingNow(sc: Scan, ev: List<SportEvent>): List<SportEvent> {
+        val now = System.currentTimeMillis() / 1000
+        val busy = ev.filter { it.live(now) }.flatMap { it.channels }.toHashSet()
+        return sc.entries.filter { (ch, e) -> e.start <= now && e.end > now && ch.id !in busy && e.title.isNotBlank() && SportsLogic.liveBroadcast(e.title, e.desc) }
+            .groupBy { (_, e) -> e.title.trim().lowercase() + "|" + e.start }
+            .map { (k, l) ->
+                val e = l.first().second
+                SportEvent("air|$k", SportsLogic.FOOTBALL, "Jetzt im TV", null, null, e.title.trim(), e.desc, e.start, e.end, bestFirst(l.map { it.first }).map { it.id })
+            }
+            .sortedWith(compareByDescending<SportEvent> { it.channels.size }.thenBy { it.title })
+            .take(60)
+    }
 
     suspend fun refresh(live: List<Item>) {
         if (loading) return
         loading = true
         try {
+            runCatching { loadTables() }
             // Spielstände parallel laden, während das TV-Programm durchsucht wird
             kotlinx.coroutines.coroutineScope {
                 val jobs = OLDB.map { (s, n) -> async(Dispatchers.IO) { runCatching { openLiga(s, n) }.getOrDefault(emptyList()) } }
@@ -62,6 +108,7 @@ object SportsRepo {
             }
             val sc = scan ?: return
             events = withContext(Dispatchers.Default) { merge(sc, lastOldb) }
+            airing = withContext(Dispatchers.Default) { airingNow(sc, events) }
             updatedAt = System.currentTimeMillis()
         } finally { loading = false }
     }
@@ -156,10 +203,21 @@ object SportsRepo {
     private fun bestFirst(chans: Collection<Item>): List<Item> =
         chans.distinctBy { it.id }.sortedWith(compareByDescending<Item> { SportsLogic.channelRank(ChannelEdit.title(it)) }.thenByDescending { Catchup.has(it) })
 
+    private fun oldbGet(path: String): JSONArray? =
+        client.newCall(Request.Builder().url("https://api.openligadb.de/getmatchdata/$path").header("User-Agent", "IPTV-XY").build())
+            .execute().use { if (it.isSuccessful) it.body?.string() else null }?.let { runCatching { JSONArray(it) }.getOrNull() }
+
     private fun openLiga(shortcut: String, league: String): List<SportEvent> {
-        val body = client.newCall(Request.Builder().url("https://api.openligadb.de/getmatchdata/$shortcut").header("User-Agent", "IPTV-XY").build())
-            .execute().use { if (it.isSuccessful) it.body?.string() else null } ?: return emptyList()
-        val a = JSONArray(body)
+        val cur = oldbGet(shortcut) ?: return emptyList()
+        // OpenLigaDB liefert den „aktuellen“ Spieltag; ist der komplett vorbei, schaltet er manchmal erst spät um.
+        // Dann den nächsten Spieltag dazu holen, sonst fehlen am neuen Spieltag die Live-Stände.
+        val a = JSONArray()
+        for (i in 0 until cur.length()) a.put(cur.get(i))
+        val allDone = cur.length() > 0 && (0 until cur.length()).all { cur.optJSONObject(it)?.optBoolean("matchIsFinished") == true }
+        if (allDone) cur.optJSONObject(0)?.let { m ->
+            val season = m.optInt("leagueSeason"); val grp = m.optJSONObject("group")?.optInt("groupOrderID") ?: 0
+            if (season > 0 && grp > 0) oldbGet("$shortcut/$season/${grp + 1}")?.let { n -> for (i in 0 until n.length()) a.put(n.get(i)) }
+        }
         val fmt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
         val out = ArrayList<SportEvent>()
         for (i in 0 until a.length()) {
@@ -178,8 +236,9 @@ object SportsRepo {
             val now = System.currentTimeMillis() / 1000
             if (sh == null && now >= start && !finished) { sh = 0; sa = 0 }
             val group = m.optJSONObject("group")?.optString("groupName").orEmpty()
-            out.add(SportEvent("oldb|$shortcut|${m.optInt("matchID")}", SportsLogic.FOOTBALL, league, home, away, "$home – $away",
-                group, start, start + 115 * 60, emptyList(), sh, sa, finished, "OpenLigaDB"))
+            val hockey = league == "Eishockey"
+            out.add(SportEvent("oldb|$shortcut|${m.optInt("matchID")}", if (hockey) SportsLogic.ICE else SportsLogic.FOOTBALL, league, home, away, "$home – $away",
+                group, start, start + (if (hockey) 150 else 115) * 60, emptyList(), sh, sa, finished, "OpenLigaDB"))
         }
         return out
     }
@@ -211,7 +270,11 @@ object SportsRepo {
                 .forEach { chans.addAll(it.channels) }
             res.add(o.copy(desc = desc, channels = chans.toList()))
         }
-        epg.filter { it.key !in used }.forEach { res.add(it) }
+        // Wiederholungen: dieselbe Paarung ist laut OpenLigaDB schon gespielt (z. B. „VFB – SVW“ nachts) → nicht als Spiel zeigen
+        fun replay(e: SportEvent) = e.home != null && e.away != null && oldb.any { o ->
+            o.finished && o.start < e.start - 3 * 3600 && SportsLogic.sameTeam(e.home, o.home!!) && SportsLogic.sameTeam(e.away, o.away!!)
+        }
+        epg.filter { it.key !in used && !replay(it) && !SportsLogic.nightReplay(it.league, it.start, endSec = it.end) }.forEach { res.add(it) }
         // Laufende zuerst, dann kommende, zuletzt beendete; darin Bundesliga & Co. vor den übrigen Wettbewerben
         return res.sortedWith(compareBy<SportEvent> { if (it.live(now)) 0 else if (it.end > now) 1 else 2 }
             .thenBy { SportsLogic.prio(it.league) }.thenBy { it.start })

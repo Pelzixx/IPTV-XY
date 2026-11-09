@@ -171,26 +171,50 @@ object SportsLogic {
         if (LEAGUE_PREFIX.containsMatchIn(core) && league(core.substringBeforeLast(':')) != null) core = core.substringAfterLast(':').trim()
         core = TRAILING.replace(core, "").trim()
         val parts = VS.split(core, 2)
-        if (parts.size == 2) {
+        // Motorsport hat keine Paarungen („SS17 Sassari - Argentiera“ ist eine Wertungsprüfung)
+        if (parts.size == 2 && lg?.first != MOTOR) {
             // „… - FC St. Pauli, 11. Spieltag“: Zusatz nach dem Komma gehört nicht zum Teamnamen
             val home = clean(parts[0].substringBefore(',')); val away = clean(parts[1].substringBefore(','))
             val ok = home.length in 2..40 && away.length in 2..40 && !TIME.containsMatchIn(home) && home.count { it == ' ' } <= 4 && away.count { it == ' ' } <= 4 &&
                 teamLike(home) && teamLike(away)
-            if (ok && (sportCh || lg != null)) {
+            // Liga nur aus der Beschreibung reicht auf normalen Sendern nicht („bei Del, Alice …“ ist keine Eishockey-Liga)
+            if (ok && (sportCh || lgTitle != null)) {
                 val (sport, league) = lg ?: (FOOTBALL to "Fußball")
                 return SportHit(sport, league, home, away, "$home – $away")
             }
         }
         // Ohne Paarung: nur eindeutige Ereignisse (Rennen, Turniere) auf erkannter Liga
         if (lg != null && (lg.first == MOTOR || lg.first == TENNIS || lg.second == "Darts" || lg.first == FIGHT) &&
-            Regex("""\b(rennen|race|qualifying|training|sprint|finale?|halbfinale|runde|match|kampf|fight|live)\b""", RegexOption.IGNORE_CASE).containsMatchIn(t)
+            Regex("""\b(rennen|race|qualifying|training|sprint|finale?|halbfinale|runde|match|kampf|fight|live)\b""", RegexOption.IGNORE_CASE).containsMatchIn(t) &&
+            // Liga nur vom Sendernamen (z. B. Sky Sport F1): die Sendung muss die Serie selbst nennen (sonst Rallye, MotoGP …)
+            (lgTitle != null || lg.second != "Formel 1" || F1_WORDS.containsMatchIn(t + " " + desc.take(300)))
         ) return SportHit(lg.first, lg.second, null, null, t)
         return null
     }
 
+    /** Im Programm ausdrücklich als Live-Übertragung gekennzeichnet (nicht Re-Live, Highlights, Magazin …). */
+    fun liveBroadcast(title: String, desc: String): Boolean =
+        LIVE_MARK.containsMatchIn(title + " " + desc.take(200)) && !NOISE.containsMatchIn(title)
+    private val LIVE_MARK = Regex("""(?i)(?<!re-)(?<!re)\blive\b|\(l\)|live-?übertragung|direktübertragung""")
+
+    private val F1_WORDS = Regex("""(?i)formel ?1|\bf1\b|grand prix|großer preis""")
+
+    /**
+     * Deutsche Liga-/Pokalspiele beginnen nie mitten in der Nacht oder früh morgens: Sendungen mit Paarung zwischen
+     * 23 und 11 Uhr sind Wiederholungen (z. B. „VFB – SVW“ um 00:30).
+     */
+    fun nightReplay(league: String, startSec: Long, zone: java.util.TimeZone = java.util.TimeZone.getTimeZone("Europe/Berlin"), endSec: Long = 0): Boolean {
+        if (league !in DOMESTIC) return false
+        // Unter 75 Minuten ist es kein ganzes Spiel, sondern eine Zusammenfassung/Wiederholung
+        if (endSec > startSec && endSec - startSec < 75 * 60) return true
+        val h = java.util.Calendar.getInstance(zone).apply { timeInMillis = startSec * 1000 }.get(java.util.Calendar.HOUR_OF_DAY)
+        return h >= 23 || h < 11
+    }
+    private val DOMESTIC = setOf("Bundesliga", "2. Bundesliga", "3. Liga", "DFB-Pokal", "Frauen-Bundesliga")
+
     /** Sieht wie ein Teamname aus? (Buchstaben, kein „2026/27“, kein Liganame wie „Bundesliga der Frauen“) */
     /** Sendungen statt Spiele („Glanzparade – Die Show mit Buschmann“, „Doppelpass – Talk“): kein Teamname. */
-    private val NOT_TEAM = Regex("""(?i)\b(show|magazin|talk|studio|highlights?|zusammenfassung|glanzparade|doppelpass|sportschau|analyse|vorbericht|vorschau|r(ü|ue)ckblick|reportage|dokumentation|doku|news|nachrichten)\b|\smit\s""")
+    private val NOT_TEAM = Regex("""(?i)\b(show|magazin|talk|studio|highlights?|zusammenfassung|glanzparade|doppelpass|sportschau|analyse|vorbericht|vorschau|r(ü|ue)ckblick|reportage|dokumentation|doku|news|nachrichten|alle spiele|super league|spieltag|nachwuchsliga|u1[5-9])\b|\smit\s""")
     private fun teamLike(s: String): Boolean = Regex("""\p{L}{3,}""").containsMatchIn(s) && '/' !in s && league(s) == null && !NOT_TEAM.containsMatchIn(s)
 
     private fun clean(s: String): String = s.replace(Regex("""\s{2,}"""), " ").trim().trim('-', '–', ':', ',').trim()
@@ -232,4 +256,31 @@ object SportsLogic {
             else -> team.take(2).uppercase()
         }
     }
+}
+
+/** Eine Zeile der Tabelle (OpenLigaDB getbltable, bereits sortiert). */
+data class TableRow(val pos: Int, val team: String, val games: Int, val won: Int, val draw: Int, val lost: Int, val goals: Int, val against: Int, val diff: Int, val points: Int, val icon: String? = null)
+
+fun SportsLogic.parseTable(body: String): List<TableRow> = runCatching {
+    val a = org.json.JSONArray(body)
+    (0 until a.length()).mapNotNull { i ->
+        val o = a.optJSONObject(i) ?: return@mapNotNull null
+        val name = o.optString("teamName", "").trim().ifEmpty { return@mapNotNull null }
+        TableRow(i + 1, name, o.optInt("matches"), o.optInt("won"), o.optInt("draw"), o.optInt("lost"),
+            o.optInt("goals"), o.optInt("opponentGoals"), o.optInt("goalDiff"), o.optInt("points"), SportsLogic.logoUrl(o.optString("teamIconUrl", "")))
+    }
+}.getOrDefault(emptyList())
+
+/**
+ * Vereinslogo als Rasterbild: SVG von Wikimedia als kleines PNG-Vorschaubild (Coil liest hier kein SVG),
+ * andere SVGs gar nicht (dann bleibt der Platz leer). PNG/JPG unverändert.
+ */
+fun SportsLogic.logoUrl(raw: String): String? {
+    val u = raw.trim().substringBefore('?')
+    if (!u.startsWith("http")) return null
+    if (!u.endsWith(".svg", true)) return raw.trim().takeIf { it.isNotEmpty() }
+    val m = Regex("""^(https://upload\.wikimedia\.org/wikipedia/[^/]+)/(?!thumb/)([0-9a-f]/[0-9a-f]{2})/([^/]+\.svg)$""", RegexOption.IGNORE_CASE).find(u) ?: return null
+    val (base, dir, file) = m.destructured
+    // Wikimedia liefert nur feste Größen (z. B. 120px) und verlangt eine eigene Kennung (User-Agent), siehe LeagueTable
+    return "$base/thumb/$dir/$file/120px-$file.png"
 }

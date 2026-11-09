@@ -3,6 +3,7 @@ package com.ipvio.stream
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -38,6 +39,9 @@ private val CardBg = Color(0xFF1C2230)
 private val CardFocus = Color(0xFF2A3346)
 private val LiveRed = Color(0xFFE5484D)
 
+/** Interner Schlüssel der Rubrik „Live“ (kein echter Wettbewerb). */
+private const val LIVE_TAB = "#live"
+
 @Composable
 fun SportsScreen(tab: Int, onTab: (Int) -> Unit, onPlay: (Item) -> Unit) {
     val ctx = LocalContext.current
@@ -64,8 +68,12 @@ fun SportsScreen(tab: Int, onTab: (Int) -> Unit, onPlay: (Item) -> Unit) {
     val events = SportsRepo.events
     // Wenig Auswahl (Wunsch des Nutzers): „Alle“ und die Wettbewerbe in fester Reihenfolge, Bundesliga zuerst
     var league by remember { mutableStateOf<String?>(null) }
-    val leagues = remember(events) { events.map { it.league }.distinct().sortedBy { SportsLogic.prio(it) } }
-    val shown = if (league == null) events else events.filter { it.league == league }
+    // Ligen mit Tabelle auch ohne Spiele im Programm anbieten (Tabelle steht dann unter der Liga)
+    val tables = SportsRepo.tables
+    val leagues = remember(events, tables) { (events.map { it.league } + tables.keys).distinct().sortedBy { SportsLogic.prio(it) } }
+    // Rubrik „Live“ (Wunsch des Nutzers, 2026-11-09): laufende Spiele und alles, was gerade auf den Sportsendern läuft
+    val liveNow = events.filter { it.live(nowSec) } + SportsRepo.airing.filter { it.end > nowSec }
+    val shown = when (league) { null -> events; LIVE_TAB -> liveNow; else -> events.filter { it.league == league } }
     var focused by remember { mutableStateOf<SportEvent?>(null) }
     val hero = focused?.takeIf { f -> shown.any { it.key == f.key } }?.let { f -> shown.first { it.key == f.key } } ?: shown.firstOrNull()
     var chanMenu by remember { mutableStateOf<SportEvent?>(null) }
@@ -91,6 +99,7 @@ fun SportsScreen(tab: Int, onTab: (Int) -> Unit, onPlay: (Item) -> Unit) {
             item(key = "chips1") {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     item { SportChip(Lang.tr("Alle"), league == null, Modifier.focusRequester(ContentFocus.req)) { league = null } }
+                    item { SportChip(Lang.tr("Live") + if (liveNow.isNotEmpty()) " (${liveNow.size})" else "", league == LIVE_TAB, raw = true) { league = if (league == LIVE_TAB) null else LIVE_TAB } }
                     if (leagues.size > 1) items(leagues) { l -> SportChip(l, league == l, raw = true) { league = if (league == l) null else l } }
                 }
             }
@@ -111,7 +120,8 @@ fun SportsScreen(tab: Int, onTab: (Int) -> Unit, onPlay: (Item) -> Unit) {
                     }
                 }
             }
-            if (events.any { it.source == "OpenLigaDB" }) item(key = "credit") {
+            league?.let { lg -> tables[lg] }?.let { rows -> leagueTable(league!!, rows) }
+            if (events.any { it.source == "OpenLigaDB" } || tables.isNotEmpty()) item(key = "credit") {
                 Text("Spielstände: OpenLigaDB (ODbL 1.0)", color = Tok.TextLow, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
             }
         }
@@ -265,5 +275,46 @@ private fun HomeSportCard(e: SportEvent, now: Long, onClick: () -> Unit) {
             Text(raw = true, text = team, color = Color.White, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             Text(raw = true, text = score?.toString() ?: "", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         }
+    }
+}
+
+/** Aktuelle Tabelle einer Liga (OpenLigaDB) als ein Block; jede Zeile ist mit der Fernbedienung erreichbar (scrollt mit). */
+private fun androidx.compose.foundation.lazy.LazyListScope.leagueTable(league: String, rows: List<TableRow>) {
+    item(key = "table") {
+        Column(Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(14.dp)).background(CardBg).padding(horizontal = 20.dp, vertical = 14.dp)) {
+            Text(raw = true, text = Lang.tr("Tabelle") + " · " + league, color = Tok.TextHi, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(8.dp))
+            TableLine("#", Lang.tr("Verein"), listOf("Sp", "S", "U", "N", Lang.tr("Tore"), "Diff"), "Pkt", true, Color.Transparent)
+            val n = rows.size
+            rows.forEach { r ->
+                // Farbstreifen: oben grün, Relegation gelb, Abstieg rot – nur zur Orientierung
+                val tint = when { r.pos <= 4 -> Color(0xFF2E9E5B); r.pos > n - 2 -> Color(0xFFC0392B); r.pos == n - 2 -> Color(0xFFE6A23C); else -> Color.Transparent }
+                TableLine("${r.pos}.", r.team, listOf("${r.games}", "${r.won}", "${r.draw}", "${r.lost}", "${r.goals}:${r.against}", (if (r.diff > 0) "+" else "") + r.diff), "${r.points}", false, tint, r.icon)
+            }
+        }
+    }
+}
+
+@Composable
+private fun TableLine(p: String, t: String, cols: List<String>, pts: String, head: Boolean, tint: Color, icon: String? = null) {
+    var fz by remember { mutableStateOf(false) }
+    val c = if (head) Tok.TextMid else Color.White
+    val fs = if (head) 13.sp else 16.sp
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(if (fz) Color(0x22FFFFFF) else Color.Transparent)
+        .onFocusChanged { fz = it.isFocused }.then(if (head) Modifier else Modifier.focusable()).padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.width(4.dp).height(20.dp).background(tint))
+        Text(raw = true, text = p, color = c, fontSize = fs, modifier = Modifier.width(44.dp).padding(start = 8.dp), style = TNUM)
+        // Vereinslogo (OpenLigaDB bzw. Wikimedia); Platz bleibt frei, wenn keins da ist
+        Box(Modifier.width(36.dp), contentAlignment = Alignment.CenterStart) {
+            if (!head && icon != null) {
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                val req = remember(icon) { coil.request.ImageRequest.Builder(ctx).data(icon).addHeader("User-Agent", "IPTV-XY/" + BuildConfig.VERSION_NAME + " (Android TV)").build() }
+                coil.compose.AsyncImage(req, null, Modifier.size(24.dp), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
+            }
+        }
+        Text(raw = true, text = t, color = c, fontSize = fs, fontWeight = if (head) FontWeight.Normal else FontWeight.SemiBold,
+            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        cols.forEachIndexed { i, v -> Text(raw = true, text = v, color = c, fontSize = fs, modifier = Modifier.width(listOf(44, 40, 40, 40, 80, 56)[i].dp), style = TNUM) }
+        Text(raw = true, text = pts, color = if (head) c else Accent2, fontSize = fs, fontWeight = FontWeight.Bold, modifier = Modifier.width(48.dp), style = TNUM)
     }
 }

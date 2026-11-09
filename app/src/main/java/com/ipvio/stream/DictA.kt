@@ -166,4 +166,7 @@ Bitte hier mit deinem Element-Namen anmelden.¦Please sign in here with your Ele
 z. B. name_xy¦e.g. name_xy¦örn. name_xy¦npr. name_xy¦npr. name_xy¦npr. name_xy¦p. ej. name_xy¦p. ex. name_xy¦ad es. name_xy
 Element-Benutzername (z. B. name_xy)¦Element username (e.g. name_xy)¦Element kullanıcı adı (örn. name_xy)¦Element korisničko ime (npr. name_xy)¦Element korisničko ime (npr. name_xy)¦Element korisničko ime (npr. name_xy)¦Usuario de Element (p. ej. name_xy)¦Nom d'utilisateur Element (p. ex. name_xy)¦Nome utente Element (ad es. name_xy)
 Für dich¦For you¦Senin için¦Za tebe¦Za tebe¦Za tebe¦Para ti¦Pour toi¦Per te
+Tabelle¦Table¦Puan durumu¦Tabela¦Tablica¦Tabela¦Clasificación¦Classement¦Classifica
+Verein¦Club¦Kulüp¦Klub¦Klub¦Klub¦Club¦Club¦Squadra
+Tore¦Goals¦Goller¦Golovi¦Golovi¦Golovi¦Goles¦Buts¦Gol
 """

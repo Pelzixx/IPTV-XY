@@ -71,4 +71,25 @@ class SportsLogicTest {
         val real = SportsLogic.parse("Bundesliga: Hertha BSC - VfL Wolfsburg", "", "Sky Sport Bundesliga 2 HD")!!
         assertEquals("Hertha BSC", real.home)
     }
+
+    @Test fun rallye_auf_f1_sender_ist_kein_f1() {
+        val h = SportsLogic.parse("WRC: Rally Italia Sardegna", "SS17 Sassari - Argentiera 2", "Sky Sport F1 HD")
+        assertTrue(h == null || (h.league != "Formel 1" && h.home == null))
+        val r = SportsLogic.parse("WRC Live: SS17 Sassari - Argentiera 2", "", "Sky Sport F1 HD")
+        assertTrue(r == null || r.home == null)
+    }
+
+    @Test fun nacht_wiederholung() {
+        val z = java.util.TimeZone.getTimeZone("Europe/Berlin")
+        // 10.11.2026 00:30 MEZ = 09.11. 23:30 UTC
+        assertTrue(SportsLogic.nightReplay("Bundesliga", 1794267000L, z))
+        // Samstag 15:30 MEZ
+        assertTrue(!SportsLogic.nightReplay("Bundesliga", 1794583800L, z))
+        assertTrue(!SportsLogic.nightReplay("Champions League", 1794267000L, z))
+    }
+
+    @Test fun alle_spiele_ist_kein_spiel() {
+        val h = SportsLogic.parse("Alle Spiele, Brack Super League", "Brack Super League, 13. Spieltag", "Blue Sport D1")
+        assertTrue(h == null || h.home == null)
+    }
 }
