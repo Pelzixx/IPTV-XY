@@ -159,15 +159,21 @@ fun HomeInfoRow(modifier: Modifier = Modifier) {
     val hasNews = n != null && (n.title.isNotEmpty() || n.text.isNotEmpty() || n.image != null)
     val qr = n?.qr
     if (a == null && !isXtream && !hasNews && qr == null) return
+    // Benutzername (Xtream) und Element-Name unter der Überschrift (Wunsch des Nutzers, 2026-11-09)
+    val xUser = url?.let { LoadLogic.xtreamParts(it)?.second }.orEmpty()
+    val elem = Member.name
+    val idLine = listOfNotNull(xUser.takeIf { it.isNotEmpty() }?.let { Lang.tr("Benutzer") + ": " + it }, elem.takeIf { it.isNotEmpty() }?.let { "Element: $it" }).joinToString("  ·  ")
     val shape = RoundedCornerShape(DS.RadiusM)
     val card = Modifier.fillMaxHeight().clip(shape).background(Color(0x14FFFFFF)).padding(16.dp)
-    Row(modifier.fillMaxWidth().height(150.dp).padding(horizontal = DS.PageX), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+    Row(modifier.fillMaxWidth().height(if (idLine.isNotEmpty()) 172.dp else 150.dp).padding(horizontal = DS.PageX), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         if (xtLists.size >= 2) Column(card.width(380.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Text("Meine Zugänge", color = Muted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            if (elem.isNotEmpty()) Text(raw = true, text = "Element: $elem", color = Tok.TextMid, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             val nowSec = System.currentTimeMillis() / 1000
-            multi.take(4).forEach { (name, ai) ->
+            multi.take(4).forEachIndexed { i, (name, ai) ->
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(raw = true, text = name, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                    val u = LoadLogic.xtreamParts(xtLists.getOrNull(i)?.url ?: "")?.second.orEmpty()
+                    Text(raw = true, text = if (u.isNotEmpty()) "$name · $u" else name, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
                         maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     val (txt, col) = AccountLine.short(ai, nowSec)
                     Text(raw = true, text = txt, color = col, fontSize = 14.sp, maxLines = 1)
@@ -178,12 +184,14 @@ fun HomeInfoRow(modifier: Modifier = Modifier) {
         // Xtream-Zugang, aber (noch) keine Angaben vom Server: Karte trotzdem zeigen, mit Grund
         else if (a == null && isXtream) Column(card.width(300.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("Mein Zugang", color = Muted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            if (idLine.isNotEmpty()) Text(raw = true, text = idLine, color = Tok.TextMid, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             val err = HomeInfo.accountError
             Text(if (err == null) "Wird abgefragt …" else "Keine Angaben vom Server", color = Tok.TextMid, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             if (err != null) Text(raw = true, text = err, color = Muted, fontSize = 13.sp)
         }
         if (xtLists.size < 2 && a != null) Column(card.width(300.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(if (a.trial) "Testzugang" else "Mein Zugang", color = Muted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            if (idLine.isNotEmpty()) Text(raw = true, text = idLine, color = Tok.TextMid, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             val days = HomeInfoLogic.daysLeft(a.expSec, System.currentTimeMillis() / 1000)
             val active = a.status.equals("Active", true) && (days == null || days >= 0)
             when {

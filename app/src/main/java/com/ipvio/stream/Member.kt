@@ -170,8 +170,8 @@ object Member {
         while (!required() && waited < 30) { delay(1000); waited++ }
         if (!required()) return
         if (name.isEmpty()) {
-            if (!mandatory(c) && !shownToday(c)) markShown(c)
-            asking = true
+            // Vor dem Stichtag einmal am Tag, danach bei jedem Start
+            if (mandatory(c) || !shownToday(c)) { markShown(c); asking = true }
         } else withContext(Dispatchers.IO) {
             runCatching { post(c, JSONObject().put("action", "check").put("name", name).put("user", xtreamUser())) }
                 .onFailure { e ->
