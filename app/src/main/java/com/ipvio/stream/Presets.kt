@@ -35,6 +35,8 @@ object Presets {
     val memberFrom: String? get() = remote?.memberFrom
     /** Pflicht-Update an (Standard) oder aus – im Panel schaltbar ("forceUpdate": false). */
     val forceUpdate: Boolean get() = remote?.forceUpdate ?: true
+    /** Laufband (News/Störungen aus dem Element-Raum des Betreibers), null = keins. */
+    val tickerUrl: String? get() = remote?.ticker
 
     private fun prefs(c: Context) = c.getSharedPreferences("ipvio_config", Context.MODE_PRIVATE)
 
@@ -72,7 +74,7 @@ object Presets {
 /** Inhalt von config.json: {"servers":[{"name":"XY TV","url":"http://…:8080"}], "epg":["https://…/epg.xml.gz"]} */
 /** [news] = Mitteilung für die Startseite (JSON wie news.json), [diag]/[backup] = Adressen der Panel-Endpunkte (docs/panel-schnittstelle.md). */
 data class RemoteConfig(val servers: List<PresetServer>, val epg: List<String>, val news: String? = null, val diag: String? = null, val backup: String? = null,
-    val member: String? = null, val memberFrom: String? = null, val forceUpdate: Boolean = true)
+    val member: String? = null, val memberFrom: String? = null, val forceUpdate: Boolean = true, val ticker: String? = null)
 
 /** Reine Logik ohne Android (Unit-Tests). */
 object PresetLogic {
@@ -129,7 +131,7 @@ object PresetLogic {
         o.optJSONArray("epg")?.let { a -> for (i in 0 until a.length()) epg.add(a.optString(i, "")) }
         fun url(k: String) = o.optString(k, "").trim().takeIf { it.startsWith("https://") || it.startsWith("http://") }
         RemoteConfig(servers, parseUrls(epg.joinToString("\n")), o.optJSONObject("news")?.toString(), url("diag"), url("backup"),
-            url("member"), o.optString("memberFrom", "").trim().ifEmpty { null }, o.optBoolean("forceUpdate", true))
+            url("member"), o.optString("memberFrom", "").trim().ifEmpty { null }, o.optBoolean("forceUpdate", true), url("ticker"))
     }.getOrNull()
 
     /**

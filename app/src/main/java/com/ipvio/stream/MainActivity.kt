@@ -369,6 +369,8 @@ private fun AppContent() {
     LaunchedEffect(Unit) { GoalAlert.watch(ctx) }
     // Element-Name (XY TV/Township): Abfrage und Nachrichten des Betreibers
     LaunchedEffect(Unit) { Member.watch(ctx) }
+    // Laufband mit News/Störungen des Betreibers (XY TV/Township)
+    LaunchedEffect(Unit) { Ticker.watch() }
     // Nutzung an das Panel melden (XY TV/Township): beim Start und sobald sich die Zugänge ändern (Anmeldung)
     LaunchedEffect(PlaylistStore.lists.size, PlaylistStore.active, Presets.memberUrl) { Member.seen(ctx) }
     // Pflicht-Update (XY TV/Township): laufende Wiedergabe beenden, solange gesperrt ist
@@ -523,6 +525,8 @@ private fun AppContent() {
             if (UpdateNotice.forced) UpdateGate(u)
             else if (p == null && !adding && remindNow == null && pinAsk == null) UpdateCard(u, Modifier.align(Alignment.TopCenter).padding(top = 24.dp))
         }
+        // Laufband unten, nicht im Vollbild-Player
+        if (p == null) TickerBar(Modifier.align(Alignment.BottomCenter))
         // Nachricht des Betreibers an diesen Nutzer (nicht mitten im Film/Sender)
         Member.inbox.firstOrNull()?.let { m ->
             if (p == null && remindNow == null && pinAsk == null && UpdateNotice.pending == null && !Member.asking) MemberMsgCard(m, Modifier.align(Alignment.TopCenter).padding(top = 24.dp))

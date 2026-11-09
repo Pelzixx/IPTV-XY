@@ -142,3 +142,24 @@ Die App zeigt dann genau diesen Text statt ihres Standardtexts, z. B.
 `{"ok": false, "error": "unknown", "message": "Diesen Element-Namen gibt es nicht. Bitte wende dich an deinen Verkäufer."}`.
 
 **Testname:** nur `clown` (Groß-/Kleinschreibung egal, die App schickt klein).
+
+## 7. Laufband aus einem Element-Raum (`ticker`, GET, JSON)
+
+In der Konfiguration: `"ticker": "https://panel/…/ticker.php?key=…"`. Die App ruft die Adresse beim Start und alle
+2 Minuten ab und zeigt die Meldungen als Laufband unten am Bildschirm (nicht im Vollbild-Player). Leere Liste = kein Band.
+
+```json
+{"ok": true, "items": [
+  {"id": "$eventid", "text": "Server XY TV gestört, wir arbeiten dran", "level": "error", "ts": 1762700000},
+  {"id": "$eventid2", "text": "Neue Sender im Sportpaket", "level": "info", "ts": 1762690000}]}
+```
+
+Panel: liest einen Element-Raum (Raum-ID im Admin einstellbar) über die Matrix-API mit einem Bot-/Admin-Zugang.
+- Nur Nachrichten von berechtigten Absendern (Power-Level ≥ 50 im Raum oder Liste im Admin) – sonst könnte jeder
+  Raummitglied ins Band schreiben.
+- Höchstens die letzten 5 Textnachrichten der letzten 24 Stunden (Dauer im Admin einstellbar).
+- `level: "error"`, wenn die Nachricht mit `!`, „Störung“ oder „Fehler“ beginnt (das `!` wird entfernt).
+- Eine Nachricht „/clear“ bzw. „leeren“ beendet die Anzeige: nur Nachrichten danach zählen.
+- Bearbeitete Nachrichten: neueste Fassung; gelöschte (redacted) nicht anzeigen. Formatierung entfernen, max. 400 Zeichen.
+- Antwort zwischenspeichern (z. B. 60 s), damit nicht jede App die Matrix-API anfragt.
+- Admin-Seite „Laufband“: Vorschau der aktuellen Meldungen, Raum-ID, Dauer, Knopf „Band leeren“.
