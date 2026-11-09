@@ -202,7 +202,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     // Bildrate aus den Zeitstempeln der ersten Bilder (schnell, auch ohne Angabe im Stream); dazu AFR wie TiviMate
     val fpsProbe = remember { FpsProbe() }
     fpsProbe.onFps = { f ->
-        measuredFps = f
+        measuredFps = f; DiagSend.lastFps = f
         if (AppSettings.autoFps && Tm.i(Tm.PB_AFR_MODE, 1) == 1) findActivity(ctx)?.let { DisplayAfr.apply(it, f.toFloat()) }
     }
     DisposableEffect(player) {

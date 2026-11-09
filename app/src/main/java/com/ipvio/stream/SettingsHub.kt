@@ -1519,6 +1519,25 @@ private fun ApiKeysPage(ctx: Context) {
     Hint("Die Schlüssel bleiben nur auf diesem Gerät. Nach dem Eintragen die App einmal neu starten, damit alle Bereiche die Infos laden. Intro- und Abspann-Zeiten kommen von TheIntroDB und brauchen keinen Schlüssel.")
 }
 
+/** „Diagnose an Betreiber senden“ (nur wenn das Panel eine Diagnose-Adresse liefert, also XY und Township). */
+@Composable
+private fun DiagSendRow(ctx: Context) {
+    if (!DiagSend.available()) return
+    val scope = rememberCoroutineScope()
+    var status by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    SettingRow("Diagnose an Betreiber senden", status.ifBlank { Lang.tr("Gerät, Bildrate und Fehler – ohne Passwort und Adressen") }, rawValue = true, onClick = {
+        if (busy) return@SettingRow
+        busy = true; status = Lang.tr("Sende …")
+        scope.launch {
+            DiagSend.send(ctx)
+                .onSuccess { id -> status = Lang.tr("Gesendet. Nummer für den Betreiber:") + " " + id }
+                .onFailure { status = Lang.tr("Senden fehlgeschlagen") + ": " + (it.message ?: "") }
+            busy = false
+        }
+    })
+}
+
 @Composable
 private fun AboutPage(ctx: Context, open: (String, String) -> Unit) {
     // TiviMate-Aufbau: schlichte Zeilen (Titel, darunter klein der Wert), Info-Zeilen grau und nicht wählbar, kurzer Hinweis unten
@@ -1557,6 +1576,7 @@ private fun AboutPage(ctx: Context, open: (String, String) -> Unit) {
             busy = false
         }
     })
+    DiagSendRow(ctx)
     SettingRow("Systemeinstellungen der App", null, onClick = {
         runCatching {
             ctx.startActivity(
