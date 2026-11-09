@@ -124,7 +124,8 @@ object Member {
         return p.getString("device", null) ?: java.util.UUID.randomUUID().toString().also { p.edit().putString("device", it).apply() }
     }
 
-    private class Rejected(msg: String) : Exception(msg)
+    /** Ablehnung des Panels: [code] (unknown, mismatch, bound, trial_expired, auth) und optional eigener Hinweistext. */
+    private class Rejected(val code: String, val text: String = "") : Exception(code)
 
     private fun post(c: Context, j: JSONObject): JSONObject {
         val url = Presets.memberUrl ?: error("Nicht eingerichtet")
@@ -138,7 +139,7 @@ object Member {
             if (r.code == 429) error("Zu viele Versuche, später erneut")
             if (!r.isSuccessful) error("Fehler ${r.code}")
             val o = runCatching { JSONObject(txt) }.getOrNull() ?: error("Antwort unlesbar")
-            if (!o.optBoolean("ok")) throw Rejected(o.optString("error", "unknown"))
+            if (!o.optBoolean("ok")) throw Rejected(o.optString("error", "unknown"), o.optString("message", "").trim().take(300))
             return o
         }
     }
@@ -162,13 +163,13 @@ object Member {
         return null
     }
 
-    /** Ablehnungsgrund des Panels als Text für den Nutzer. */
-    fun reason(code: String): String = Lang.tr(when (code) {
+    /** Ablehnungsgrund als Text für den Nutzer: Hinweis aus dem Panel ([text], z. B. „an den Verkäufer wenden“), sonst Standard. */
+    fun reason(code: String, text: String = ""): String = text.ifBlank { Lang.tr(when (code) {
         "mismatch", "bound" -> "Dieser Element-Name gehört zu einem anderen Zugang. Bitte deinen eigenen Element-Namen eingeben."
         "trial_expired" -> "Der Testzeitraum ist abgelaufen. Bitte melde dich bei deinem Anbieter."
         "auth" -> "Benutzername oder Passwort stimmen nicht."
         else -> "Diesen Element-Namen kennt der Anbieter nicht. Bitte genau so eingeben, wie er in Element steht."
-    })
+    }) }
 
     /** Gründe, bei denen die App sofort gesperrt bleibt (kein „Später“). */
     private fun hard(code: String) = code == "mismatch" || code == "bound" || code == "trial_expired"
@@ -194,7 +195,7 @@ object Member {
                 null
             },
             onFailure = { e ->
-                if (e is Rejected) reason(e.message.orEmpty())
+                if (e is Rejected) reason(e.code, e.text)
                 else Lang.tr("Anbieter gerade nicht erreichbar.") + " " + (e.message ?: "")
             }
         )
@@ -232,10 +233,10 @@ object Member {
     /** Gespeicherten Namen still nachprüfen: abgelehnt → Name weg, wieder fragen (bei fremdem Namen/Testende sofort Pflicht). */
     private suspend fun recheck(c: Context) = withContext(Dispatchers.IO) {
         runCatching { post(c, checkJson(name, presetCreds())) }.onFailure { e ->
-            if (e is Rejected && e.message != "auth") {
-                val code = e.message.orEmpty()
-                prefs(c).edit().remove("name").putBoolean("blocked", hard(code)).putString("lastError", reason(code)).apply()
-                withContext(Dispatchers.Main) { name = ""; lastError = reason(code); blocked = hard(code); asking = true }
+            if (e is Rejected && e.code != "auth") {
+                val code = e.code; val msg = reason(code, e.text)
+                prefs(c).edit().remove("name").putBoolean("blocked", hard(code)).putString("lastError", msg).apply()
+                withContext(Dispatchers.Main) { name = ""; lastError = msg; blocked = hard(code); asking = true }
             }
         }
     }

@@ -136,3 +136,9 @@ Ablauf im Panel bei `check` mit `pass`:
 
 Die App zeigt je `error` einen eigenen Text. Bei `mismatch`, `bound` und `trial_expired` sperrt sie sofort (kein „Später“),
 bei `auth` bleibt der gespeicherte Name (Passwort vielleicht nur kurz falsch).
+
+**Eigener Hinweistext:** Jede Ablehnung darf zusätzlich `"message": "…"` enthalten (max. 300 Zeichen, Deutsch).
+Die App zeigt dann genau diesen Text statt ihres Standardtexts, z. B.
+`{"ok": false, "error": "unknown", "message": "Diesen Element-Namen gibt es nicht. Bitte wende dich an deinen Verkäufer."}`.
+
+**Testname:** nur `clown` (Groß-/Kleinschreibung egal, die App schickt klein).
