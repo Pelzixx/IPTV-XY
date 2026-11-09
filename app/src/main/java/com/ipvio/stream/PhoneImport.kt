@@ -116,6 +116,23 @@ $preset<form method="post" action="/send"><h2>${t("M3U-Link", "M3U link")}</h2>
 <button type="submit">${t("An den Fernseher senden", "Send to TV")}</button></form></body></html>"""
     }
 
+    /** Handy-Seite für „Favoriten vom Handy“: ein großes Textfeld, ein Sender pro Zeile. */
+    fun favPage(li: Int, title: String = "IPTV-XY", code: String = ""): String {
+        fun t(a: String, b: String) = tr(li, a, b)
+        fun esc(s: String) = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
+        return """<!doctype html><html lang="${I18nCore.CODES.getOrElse(li) { "en" }}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(title)}</title><style>
+body{font-family:system-ui,sans-serif;background:#0B0F19;color:#fff;margin:0;padding:20px;max-width:560px}
+h1{font-size:22px}input,textarea{width:100%;box-sizing:border-box;padding:14px;margin:6px 0;border-radius:10px;border:1px solid #333;background:#171a26;color:#fff;font-size:16px}
+button{width:100%;padding:14px;margin-top:10px;border:0;border-radius:10px;background:#4ADE80;color:#0B0F19;font-size:17px;font-weight:700}
+</style></head><body><h1>${esc(title)} · ${t("Favoriten", "Favourites")}</h1>
+<p>${t("Sendernamen eintragen oder einfügen, einen pro Zeile. Zusätze wie HD, raw oder DE: sind egal.", "Enter or paste channel names, one per line. Suffixes like HD, raw or DE: don't matter.")}</p>
+<form method="post" action="/send">
+<input name="code" inputmode="numeric" maxlength="4" placeholder="${t("Code vom Fernseher", "Code from the TV")}" value="${esc(code.filter { it.isDigit() }.take(4))}" required>
+<textarea name="favs" rows="14" placeholder="Das Erste&#10;ZDF&#10;Sky Bundesliga 1&#10;DAZN 1" required></textarea>
+<button type="submit">${t("An den Fernseher senden", "Send to TV")}</button></form></body></html>"""
+    }
+
     fun message(li: Int, kind: String): String {
         val txt = when (kind) {
             "ok" -> tr(li, "Gesendet. Schau jetzt auf den Fernseher.", "Sent. Now look at the TV.")
@@ -133,7 +150,8 @@ $preset<form method="post" action="/send"><h2>${t("M3U-Link", "M3U link")}</h2>
  * damit auf dem Fernseher nichts getippt werden muss. Läuft nur, solange der Hinzufügen-Bildschirm offen ist.
  * Geschützt durch einen vierstelligen Code und eine Sperre nach 5 Fehlversuchen.
  */
-class PhoneImport(private val onReceive: (PhoneInput) -> Unit) {
+/** [favMode]: statt Playlist eine Favoriten-Liste (Sendernamen) annehmen, siehe FavImport.kt. */
+class PhoneImport(private val favMode: Boolean = false, private val onFavs: ((String) -> Unit)? = null, private val onReceive: (PhoneInput) -> Unit) {
     @Volatile private var server: ServerSocket? = null
     @Volatile private var fails = 0
     val code: String = PhoneImportLogic.newCode(SecureRandom())
@@ -173,7 +191,7 @@ class PhoneImport(private val onReceive: (PhoneInput) -> Unit) {
         if (first.size < 2) return null
         val len = lines.firstOrNull { it.startsWith("Content-Length:", true) }?.substringAfter(':')?.trim()?.toIntOrNull() ?: 0
         val lang = lines.firstOrNull { it.startsWith("Accept-Language:", true) }?.substringAfter(':')?.trim().orEmpty()
-        if (len > 8192) return null
+        if (len > 65536) return null   // Favoriten-Listen können größer sein
         val body = ByteArray(len)
         var n = 0
         while (n < len) { val r = ins.read(body, n, len - n); if (r < 0) break; n += r }
@@ -187,12 +205,16 @@ class PhoneImport(private val onReceive: (PhoneInput) -> Unit) {
         val pre = PhoneImportLogic.parseForm(query)["c"]?.takeIf { it == code }.orEmpty()
         val de = PhoneImportLogic.langIndex(lang)
         val (status, html) = when (req) {
-            "GET /" -> 200 to PhoneImportLogic.page(de, Presets.servers.map { it.name }, BuildConfig.APP_NAME, BuildConfig.PROVIDER, pre)
+            "GET /" -> 200 to (if (favMode) PhoneImportLogic.favPage(de, BuildConfig.APP_NAME, pre) else PhoneImportLogic.page(de, Presets.servers.map { it.name }, BuildConfig.APP_NAME, BuildConfig.PROVIDER, pre))
             "POST /send" -> {
                 val f = PhoneImportLogic.parseForm(body)
                 when {
                     fails >= 5 -> 429 to PhoneImportLogic.message(de, "lock")
                     f["code"].orEmpty().trim() != code -> { fails++; 403 to PhoneImportLogic.message(de, "code") }
+                    favMode -> {
+                        val t = f["favs"].orEmpty().take(60_000)
+                        if (t.isBlank()) 400 to PhoneImportLogic.message(de, "bad") else { onFavs?.invoke(t); 200 to PhoneImportLogic.message(de, "ok") }
+                    }
                     else -> {
                         val input = PhoneImportLogic.toInput(f, noHostOk = Presets.servers.isNotEmpty(), presetUrls = Presets.servers.map { it.url })
                         if (input == null) 400 to PhoneImportLogic.message(de, "bad")

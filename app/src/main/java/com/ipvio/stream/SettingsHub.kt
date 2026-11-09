@@ -1860,6 +1860,10 @@ private fun TmGeneral(ctx: Context) {
     ask?.let { a -> TextAskDialog(Lang.tr(a.title), a.initial, a.hint, a.password, onDismiss = { ask = null }) { ask = null; a.onSave(it) } }
     // TiviMate: Sichern auf Gerät oder SMB-Freigabe, Wiederherstellen auch aus einem Link (Dropbox, Google Drive)
     var backupMenu by remember { mutableIntStateOf(0) }   // 1 = sichern, 2 = wiederherstellen
+    // Statt TiviMate-Backup (verschlüsselt): Sendernamen vom Handy als Favoriten übernehmen
+    var favDlg by remember { mutableStateOf(false) }
+    SettingRow("Favoriten vom Handy übernehmen", Lang.tr("Sendernamen einfügen, z. B. aus TiviMate"), rawValue = true, onClick = { favDlg = true })
+    if (favDlg) FavPhoneDialog { favDlg = false }
     SettingRow("Daten sichern", msg, rawValue = true, onClick = { backupMenu = 1 })
     SettingRow("Daten wiederherstellen", null, onClick = { backupMenu = 2 })
     if (backupMenu != 0) {
