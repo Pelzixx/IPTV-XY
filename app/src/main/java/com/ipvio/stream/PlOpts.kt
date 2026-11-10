@@ -189,4 +189,21 @@ object GroupOpts {
     /** Sortierung der Sender in dieser Gruppe; -1 = wie unter Optik > EPG. */
     fun sort(group: String): Int = Tm.i(k("sort", group), -1)
     fun setSort(c: android.content.Context, group: String, v: Int) = Tm.set(c, k("sort", group), v)
+
+    // Weitere Gruppenoptionen wie TiviMate (Wunsch des Nutzers, 2026-11-10)
+    var version by androidx.compose.runtime.mutableIntStateOf(0)
+        private set
+    /** Nur Favoriten dieser Gruppe zeigen. */
+    fun favOnly(group: String): Boolean = Tm.b(k("favonly", group), false)
+    fun setFavOnly(c: android.content.Context, group: String, v: Boolean) { Tm.set(c, k("favonly", group), v); version++ }
+    /** Sender dieser Gruppe im externen Player öffnen. */
+    fun external(group: String): Boolean = Tm.b(k("ext", group), false)
+    fun setExternal(c: android.content.Context, group: String, v: Boolean) { Tm.set(c, k("ext", group), v); version++ }
+    /** EPG-Zeitversatz der Gruppe in Minuten (−12:00 … +12:00). */
+    fun epgShift(group: String): Int = if (!Tm.b("grp_anyshift", false)) 0 else Tm.i(k("shift", group), 0)
+    fun setEpgShift(c: android.content.Context, group: String, min: Int) {
+        Tm.set(c, k("shift", group), min)
+        if (min != 0) Tm.set(c, "grp_anyshift", true)
+        version++
+    }
 }

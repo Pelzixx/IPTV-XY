@@ -2655,3 +2655,43 @@ private fun PinWheel(title: String, hint: String?, error: String?, onSubmit: (St
         if (error != null) Text(error, color = DS.Danger, fontSize = 15.sp)
     }
 }
+
+/**
+ * Optionsleiste am rechten Rand im Stil der Einstellungen (TiviMate: Gruppenoptionen): heller Kopf mit Titel, darunter
+ * Zeilen mit Wert. Öffnet sich auch beim Festhalten von OK – das Loslassen davon wird ignoriert (wie im [SideMenu]).
+ */
+@Composable
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+internal fun SidePanel(title: String, onDismiss: () -> Unit, content: @Composable () -> Unit) {
+    androidx.compose.ui.window.Popup(
+        popupPositionProvider = PanelRight, onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.PopupProperties(focusable = true)
+    ) {
+        val w = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp * 0.34f
+        var sawDown by remember { mutableStateOf(false) }
+        val pfm = LocalFocusManager.current
+        LaunchedEffect(Unit) { repeat(15) { kotlinx.coroutines.delay(60); if (pfm.moveFocus(FocusDirection.Down)) return@LaunchedEffect } }
+        Column(
+            Modifier.fillMaxHeight().width(w).background(Surf).onPreviewKeyEvent { ev ->
+                val ok = ev.key == Key.DirectionCenter || ev.key == Key.Enter || ev.key == Key.NumPadEnter
+                if (ok && ev.type == KeyEventType.KeyDown) { if (ev.nativeKeyEvent.repeatCount == 0) { sawDown = true; false } else !sawDown }
+                else ok && ev.type == KeyEventType.KeyUp && !sawDown
+            }
+        ) {
+            Box(Modifier.fillMaxWidth().height(72.dp).background(androidx.compose.ui.graphics.lerp(Surf, Color.White, 0.06f)).padding(start = 28.dp, end = 20.dp),
+                contentAlignment = Alignment.CenterStart) {
+                Text(raw = true, text = title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            val dens = androidx.compose.ui.platform.LocalDensity.current
+            androidx.compose.runtime.CompositionLocalProvider(
+                androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides InstantSpec,
+                androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(dens.density * PANEL_SCALE, dens.fontScale)
+            ) {
+                Column(
+                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).focusGroup().padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) { content(); Spacer(Modifier.height(30.dp)) }
+            }
+        }
+    }
+}

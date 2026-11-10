@@ -117,7 +117,12 @@ object Xmltv {
     val icons = java.util.concurrent.ConcurrentHashMap<String, String>()
     fun iconFor(item: Item): String? = EpgNames.keys(item).firstNotNullOfOrNull { icons[it] }
 
-    fun forItem(item: Item): List<EpgEntry> = EpgNames.keys(item).firstNotNullOfOrNull { progs[it] } ?: emptyList()
+    fun forItem(item: Item): List<EpgEntry> {
+        val l = EpgNames.keys(item).firstNotNullOfOrNull { progs[it] } ?: return emptyList()
+        // Gruppenoption „EPG-Zeitversatz“ (TiviMate)
+        val s = GroupOpts.epgShift(item.group) * 60L
+        return if (s == 0L) l else l.map { it.copy(start = it.start + s, end = it.end + s) }
+    }
     fun hasItem(item: Item): Boolean = EpgNames.keys(item).any { progs.containsKey(it) }
     fun forChannel(id: String?): List<EpgEntry> = if (id == null) emptyList() else progs[id.lowercase()] ?: emptyList()
 

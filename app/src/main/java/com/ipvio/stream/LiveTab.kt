@@ -109,13 +109,14 @@ fun LiveTab(live: List<Item>, groups0: Map<String, List<Item>>, favs: List<Item>
     // Nur neu filtern, wenn sich Auswahl oder Daten ändern – nicht bei jedem Fokuswechsel (tausende Sender)
     // Gruppenoptionen (TiviMate): eigene Sortierung je Gruppe, sonst die allgemeine
     val chSort = GroupOpts.sort(sel).takeIf { it >= 0 } ?: Tm.i(Tm.EPG_CH_SORT, 0)
-    val list = remember(sel, live, favs, groups, curList, editVersion, showHidden, multi, chSort, manage, ChOrder.version) { ChannelEditLogic.visible(
+    val list = remember(sel, live, favs, groups, curList, editVersion, showHidden, multi, chSort, manage, ChOrder.version, GroupOpts.version) { ChannelEditLogic.visible(
         when {
             sel == FAV_CAT -> favs
             sel == "ALL" || showHidden -> live
             curList != null -> ChannelListLogic.resolve(curList, byId)
             PlGroups.isPl(sel) -> PlGroups.resolve(sel, live).orEmpty()
-            else -> groups[sel].orEmpty()
+            // Gruppenoption „Nur Favoriten zeigen“ (TiviMate)
+            else -> groups[sel].orEmpty().let { g -> if (GroupOpts.favOnly(sel)) g.filter { Library.isFav(it.id) } else g }
         },
         { it.id }, ChannelEdit::isHidden, showHidden || manage == 1
     ).let { l -> if (curList != null) l else (when (chSort) { 3 -> l.sortedByDescending { WatchTime.sec(it.id) }; 4 -> ChOrder.apply(sel, l); else -> Tm.sorted(l, chSort) { ChannelEdit.title(it) } }) } }
@@ -234,7 +235,11 @@ fun LiveTab(live: List<Item>, groups0: Map<String, List<Item>>, favs: List<Item>
     val preview = remember { PreviewHolder.player(ctx) }
     DisposableEffect(Unit) { onDispose { preview.stop() } }
     // Läuft der Sender schon in der Vorschau, bleibt sie an: der Vollbild-Player übernimmt sie (TiviMate)
-    fun open(ch: Item) { if (!preview.isOn(ch.url)) preview.stop(); ZapContext.list = list; ZapContext.key = sel; LiveMemory.setSel(ctx, sel); onOpen(ch) }
+    fun open(ch: Item) {
+        // Gruppenoption „Externen Player nutzen“ (TiviMate)
+        if (GroupOpts.external(sel)) { preview.stop(); openExternal(ctx, ch.url, ChannelEdit.title(ch)); return }
+        if (!preview.isOn(ch.url)) preview.stop(); ZapContext.list = list; ZapContext.key = sel; LiveMemory.setSel(ctx, sel); onOpen(ch)
+    }
     // Sender, der gerade läuft (zuletzt gesehen) – für Vorschau und ▶
     val playingCh = History.ids.firstOrNull()?.let { id -> list.firstOrNull { it.id == id } ?: PlaylistStore.channels.firstOrNull { it.id == id && it.kind == Kind.LIVE } }
     // Fernbedienung > EPG: Aktionen, die die ganze Liste betreffen
@@ -338,26 +343,40 @@ fun LiveTab(live: List<Item>, groups0: Map<String, List<Item>>, favs: List<Item>
                             else toChannels()
                         }
                         // Menü einer Gruppe (OK gedrückt halten, TiviMate): Favorit, sperren, ausblenden
+                        // Gruppenoptionen (OK gedrückt halten) wie TiviMate (Wunsch des Nutzers, 2026-11-10): Leiste mit Titel und Werten
                         if (grpMenu) {
                             val gName = PlGroups.label(n) ?: n
                             val plName = PlGroups.playlistOfKey(n) ?: PlaylistStore.lists.getOrNull(PlaylistStore.active)?.name.orEmpty()
+                            @Suppress("UNUSED_VARIABLE") val gv = GroupOpts.version
                             val isFav = n in CatFavs.list
                             val locked = ChLock.isGroupLocked(gName)
-                            SideMenu(listOf(SideSection(gName, listOf(
-                                SideEntry(if (isFav) "Aus den Favoriten entfernen" else "Zu den Favoriten hinzufügen", AIcon.Star) { CatFavs.toggle(ctx, n) },
-                                SideEntry(if (locked) "Gruppe entsperren" else "Gruppe sperren", AIcon.Lock) {
+                            val sorts = listOf("Wie allgemein eingestellt", "Reihenfolge in der Playlist", "Name A–Z", "Name Z–A", "nach Häufigkeit der Sehdauer", "Manuell")
+                            val shifts = (-24..24).map { it * 30 }
+                            fun fmtShift(m: Int) = (if (m > 0) "+" else if (m < 0) "−" else "") + (kotlin.math.abs(m) / 60) + ":" + "%02d".format(kotlin.math.abs(m) % 60)
+                            SidePanel(plName.ifEmpty { "" }.let { if (it.isEmpty()) GroupOpts.show(gName) else "$it  •  " + GroupOpts.show(gName) }, { grpMenu = false }) {
+                                SettingRow("Gruppenname", GroupOpts.show(gName), rawValue = true, onClick = {
+                                    grpMenu = false
+                                    ask = NameAsk("Gruppe umbenennen", GroupOpts.show(gName)) { GroupOpts.rename(ctx, gName, if (it.trim() == gName) "" else it) }
+                                })
+                                if (GroupOpts.isRenamed(gName)) SettingRow("Gruppennamen wiederherstellen", gName, rawValue = true, onClick = { GroupOpts.rename(ctx, gName, "") })
+                                SettingRow("Sender Sortierung", Lang.tr(sorts[(GroupOpts.sort(n) + 1).coerceIn(0, sorts.lastIndex)]), rawValue = true, onClick = { grpMenu = false; grpSortFor = n })
+                                SettingRow("Sender neu anordnen", null, onClick = { grpMenu = false; sel = n; GroupOpts.setSort(ctx, n, 4); manage = 4 })
+                                ToggleRow("Nur Favoriten zeigen", null, GroupOpts.favOnly(n)) { GroupOpts.setFavOnly(ctx, n, it) }
+                                val ext = GroupOpts.external(n)
+                                SelectRow("Externen Player nutzen", Lang.tr(if (ext) "Ja" else "Nein"), listOf(Lang.tr("Nein"), Lang.tr("Ja")), if (ext) 1 else 0) { GroupOpts.setExternal(ctx, n, it == 1) }
+                                val sh = GroupOpts.epgShift(gName)
+                                SelectRow("EPG-Zeitversatz (Stunden:Minuten)", fmtShift(sh), shifts.map { fmtShift(it) }, shifts.indexOf(sh).coerceAtLeast(0)) { GroupOpts.setEpgShift(ctx, gName, shifts[it]) }
+                                SettingRow(if (isFav) "Aus den Favoriten entfernen" else "Zu den Favoriten hinzufügen", null, onClick = { CatFavs.toggle(ctx, n) })
+                                SettingRow(if (locked) "Gruppe entsperren" else "Gruppe sperren", null, onClick = {
                                     if (!Parental.pinSet) Toast.makeText(ctx, Lang.tr("Bitte zuerst unter Einstellungen > Kindersicherung eine PIN festlegen."), Toast.LENGTH_LONG).show()
                                     else Toast.makeText(ctx, Lang.tr(if (ChLock.toggleGroup(ctx, gName)) "Gruppe gesperrt" else "Gruppe entsperrt"), Toast.LENGTH_SHORT).show()
-                                },
-                                SideEntry("Gruppe ausblenden", AIcon.EyeOff) {
+                                })
+                                SettingRow("Gruppe ausblenden", null, onClick = {
+                                    grpMenu = false
                                     PlOpts.setHidden(ctx, plName, gName, true)
                                     Toast.makeText(ctx, Lang.tr("Gruppe ausgeblendet. Zurückholen: Wiedergabeliste > Gruppen verwalten."), Toast.LENGTH_LONG).show()
-                                }
-                            )), SideSection(Lang.tr("Gruppenoptionen"), listOfNotNull(
-                                SideEntry("Umbenennen …", AIcon.Edit) { ask = NameAsk("Gruppe umbenennen", GroupOpts.show(gName)) { GroupOpts.rename(ctx, gName, if (it.trim() == gName) "" else it) } },
-                                if (GroupOpts.isRenamed(gName)) SideEntry("Gruppennamen wiederherstellen") { GroupOpts.rename(ctx, gName, "") } else null,
-                                SideEntry("Sortierung", AIcon.Sliders) { grpSortFor = n }
-                            ))), { grpMenu = false })
+                                })
+                            }
                         }
                         // Sortierung nur für diese Gruppe (TiviMate: überschreibt die allgemeine Sortierung)
                         if (grpSortFor == n) {

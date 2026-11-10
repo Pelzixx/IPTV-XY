@@ -208,7 +208,8 @@ fun SideMenu(sections: List<SideSection>, onDismiss: () -> Unit) {
             Modifier.fillMaxHeight().width(340.dp).background(Surf.copy(alpha = 0.98f))
                 .onPreviewKeyEvent { ev ->
                     val ok = ev.key == Key.DirectionCenter || ev.key == Key.Enter || ev.key == Key.NumPadEnter
-                    if (ok && ev.type == KeyEventType.KeyDown) { sawDown = true; false }
+                    // Nur ein neuer Druck (repeatCount 0) zählt; Wiederholungen der noch gehaltenen Taste vom Öffnen schlucken
+                    if (ok && ev.type == KeyEventType.KeyDown) { if (ev.nativeKeyEvent.repeatCount == 0) { sawDown = true; false } else !sawDown }
                     else ok && ev.type == KeyEventType.KeyUp && !sawDown
                 },
             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 16.dp)

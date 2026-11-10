@@ -479,6 +479,10 @@ Ordner wählen¦Choose folder¦Klasör seç¦Odaberi mapu¦Odaberi mapu¦Izaberi
 Diesen Ordner verwenden¦Use this folder¦Bu klasörü kullan¦Koristi ovu mapu¦Koristi ovu mapu¦Koristi ovu fasciklu¦Usar esta carpeta¦Utiliser ce dossier¦Usa questa cartella
 Verbinde …¦Connecting …¦Bağlanıyor …¦Povezivanje …¦Povezivanje …¦Povezivanje …¦Conectando …¦Connexion …¦Connessione …
 Keine Unterordner¦No subfolders¦Alt klasör yok¦Nema podmapa¦Nema podmapa¦Nema podfascikli¦Sin subcarpetas¦Aucun sous-dossier¦Nessuna sottocartella
+Gruppenname¦Group name¦Grup adı¦Naziv grupe¦Naziv grupe¦Naziv grupe¦Nombre del grupo¦Nom du groupe¦Nome del gruppo
+Sender neu anordnen¦Reorder channels¦Kanalları yeniden sırala¦Preuredi kanale¦Preuredi kanale¦Preuredi kanale¦Reordenar canales¦Réorganiser les chaînes¦Riordina i canali
+Nur Favoriten zeigen¦Show favorites only¦Yalnızca favorileri göster¦Prikaži samo favorite¦Prikaži samo favorite¦Prikaži samo omiljene¦Mostrar solo favoritos¦Afficher uniquement les favoris¦Mostra solo i preferiti
+EPG-Zeitversatz (Stunden:Minuten)¦EPG time shift (hours:minutes)¦EPG zaman kayması (saat:dakika)¦EPG pomak vremena (sati:minute)¦EPG pomak vremena (sati:minute)¦EPG pomak vremena (sati:minuti)¦Desfase EPG (horas:minutos)¦Décalage EPG (heures:minutes)¦Sfasamento EPG (ore:minuti)
 Stand¦Status¦Durum¦Stanje¦Stanje¦Stanje¦Estado¦État¦Stato
 In die Zwischenablage kopiert¦Copied to clipboard¦Panoya kopyalandı¦Kopirano u međuspremnik¦Kopirano u međuspremnik¦Kopirano u međuspremnik¦Copiado al portapapeles¦Copié dans le presse-papiers¦Copiato negli appunti
 Beendet¦Finished¦Bitti¦Završeno¦Završeno¦Završeno¦Finalizado¦Terminé¦Terminata
