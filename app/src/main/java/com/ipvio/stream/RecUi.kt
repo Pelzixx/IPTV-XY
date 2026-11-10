@@ -274,18 +274,26 @@ private fun RecRow(r: Rec, modifier: Modifier, onFocus: () -> Unit, onOk: () -> 
 fun EpgAssignDialog(item: Item, onClose: () -> Unit) {
     val ctx = LocalContext.current
     var q by remember { mutableStateOf("") }
-    val all by produceState(emptyList<Pair<String, String>>(), Xmltv.channelCount, Xmltv.status) {
+    val all by produceState(emptyList<EpgChan>(), Xmltv.channelCount, Xmltv.status) {
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Xmltv.epgChannels(ctx) }
+    }
+    // Quelle vorher wählen (Wunsch des Nutzers, 2026-11-10): „Alle“ oder eine Quelle, Reihenfolge wie beim Laden
+    var srcSel by remember { mutableStateOf<String?>(null) }
+    val srcs = remember(all) {
+        val have = all.flatMap { it.src.split(SRC_SEP) }.filter { it.isNotEmpty() }.toSet()
+        // Alle eingerichteten Quellen anbieten, auch wenn eine gerade keine Kanäle geliefert hat
+        (Xmltv.sources.map { it.label } + have).distinct()
     }
     val cur = EpgAssign.get(item.id)
     val own = EpgNames.norm(ChannelEdit.title(item))
-    val shown = remember(all, q) {
+    val shown = remember(all, q, srcSel) {
+        val base = srcSel?.let { s -> all.filter { s in it.src.split(SRC_SEP) } } ?: all
         val n = EpgNames.norm(q)
-        if (n.isNotEmpty()) all.filter { EpgNames.norm(it.second).contains(n) || it.first.contains(q.trim().lowercase()) }.take(200)
+        if (n.isNotEmpty()) base.filter { EpgNames.norm(it.name).contains(n) || it.id.contains(q.trim().lowercase()) }.take(200)
         else {
             // Vorschläge: ähnlicher Name zuerst
-            val sug = if (own.length >= 2) all.filter { val x = EpgNames.norm(it.second); x.isNotEmpty() && (x.contains(own) || own.contains(x)) } else emptyList()
-            (sug + all.filter { it !in sug }).take(200)
+            val sug = if (own.length >= 2) base.filter { val x = EpgNames.norm(it.name); x.isNotEmpty() && (x.contains(own) || own.contains(x)) } else emptyList()
+            (sug + base.filter { it !in sug }).take(200)
         }
     }
     val fr = remember { FocusRequester() }
@@ -297,9 +305,16 @@ fun EpgAssignDialog(item: Item, onClose: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text("EPG zuweisen", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text(raw = true, text = ChannelEdit.title(item) + (cur?.let { "  ·  " + Lang.tr("Zugewiesen") + ": " + (all.firstOrNull { p -> p.first == it }?.second ?: it) + " (" + Xmltv.forChannel(it).size + ")" } ?: ""),
+            Text(raw = true, text = ChannelEdit.title(item) + (cur?.let { "  ·  " + Lang.tr("Zugewiesen") + ": " + (all.firstOrNull { p -> p.id == it }?.let { p -> p.name + (if (p.src.isNotEmpty()) " · " + p.src else "") } ?: it) + " (" + Xmltv.forChannel(it).size + ")" } ?: ""),
                 color = Accent2, fontSize = 16.sp)
             Field(q, { q = it }, "EPG-Kanal suchen …", Modifier.fillMaxWidth())
+            if (srcs.isNotEmpty()) androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                item { PillButton(Lang.tr("Alle Quellen") + " (" + all.size + ")", light = srcSel == null) { srcSel = null } }
+                items(srcs) { s ->
+                    val n = all.count { s in it.src.split(SRC_SEP) }
+                    PillButton("$s ($n)", light = srcSel == s) { srcSel = s }
+                }
+            }
             if (all.isEmpty()) {
                 Text(raw = true, text = Lang.tr("Noch keine EPG-Kanäle bekannt.") + "  " + Xmltv.status, color = Muted, fontSize = 15.sp)
                 PillButton("EPG jetzt aktualisieren", Modifier.focusRequester(fr), light = true) { reload() }
@@ -312,9 +327,10 @@ fun EpgAssignDialog(item: Item, onClose: () -> Unit) {
                         onClose()
                     }
                 }
-                items(shown, key = { it.first }) { (id, name) ->
+                items(shown, key = { it.id }) { ch ->
+                    val id = ch.id; val name = ch.name
                     var f by remember { mutableStateOf(false) }
-                    val first = cur == null && id == shown.firstOrNull()?.first
+                    val first = cur == null && id == shown.firstOrNull()?.id
                     Row(
                         Modifier.fillMaxWidth().then(if (first) Modifier.focusRequester(fr) else Modifier).clip(RoundedCornerShape(DS.RadiusS))
                             .background(if (f) TvFocusFill else Color.Transparent)
@@ -328,7 +344,11 @@ fun EpgAssignDialog(item: Item, onClose: () -> Unit) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(raw = true, text = name, color = if (f) DS.FocusInk else Color.White, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                        Text(raw = true, text = id, color = if (f) Color(0xFF3A3D42) else Muted, fontSize = 13.sp, maxLines = 1)
+                        // Woher das Programm kommt (Quelle), darunter die Kennung
+                        Column(horizontalAlignment = Alignment.End) {
+                            if (ch.src.isNotEmpty()) Text(raw = true, text = ch.src, color = if (f) DS.FocusInk else Accent2, fontSize = 13.sp, maxLines = 1)
+                            Text(raw = true, text = id, color = if (f) Color(0xFF3A3D42) else Muted, fontSize = 12.sp, maxLines = 1)
+                        }
                         if (id == cur) AppIcon(AIcon.Check, if (f) DS.FocusInk else Accent2, size = 18.dp, modifier = Modifier.padding(start = 8.dp))
                     }
                 }

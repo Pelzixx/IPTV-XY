@@ -479,6 +479,8 @@ Ordner wählen¦Choose folder¦Klasör seç¦Odaberi mapu¦Odaberi mapu¦Izaberi
 Diesen Ordner verwenden¦Use this folder¦Bu klasörü kullan¦Koristi ovu mapu¦Koristi ovu mapu¦Koristi ovu fasciklu¦Usar esta carpeta¦Utiliser ce dossier¦Usa questa cartella
 Verbinde …¦Connecting …¦Bağlanıyor …¦Povezivanje …¦Povezivanje …¦Povezivanje …¦Conectando …¦Connexion …¦Connessione …
 Keine Unterordner¦No subfolders¦Alt klasör yok¦Nema podmapa¦Nema podmapa¦Nema podfascikli¦Sin subcarpetas¦Aucun sous-dossier¦Nessuna sottocartella
+Keine Daten erhalten¦No data received¦Veri alınamadı¦Nema primljenih podataka¦Nema primljenih podataka¦Nema primljenih podataka¦No se recibieron datos¦Aucune donnée reçue¦Nessun dato ricevuto
+Alle Quellen¦All sources¦Tüm kaynaklar¦Svi izvori¦Svi izvori¦Svi izvori¦Todas las fuentes¦Toutes les sources¦Tutte le fonti
 Gruppenname¦Group name¦Grup adı¦Naziv grupe¦Naziv grupe¦Naziv grupe¦Nombre del grupo¦Nom du groupe¦Nome del gruppo
 Sender neu anordnen¦Reorder channels¦Kanalları yeniden sırala¦Preuredi kanale¦Preuredi kanale¦Preuredi kanale¦Reordenar canales¦Réorganiser les chaînes¦Riordina i canali
 Nur Favoriten zeigen¦Show favorites only¦Yalnızca favorileri göster¦Prikaži samo favorite¦Prikaži samo favorite¦Prikaži samo omiljene¦Mostrar solo favoritos¦Afficher uniquement les favoris¦Mostra solo i preferiti

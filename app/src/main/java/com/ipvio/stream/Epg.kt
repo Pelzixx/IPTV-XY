@@ -94,6 +94,8 @@ object Xmltv {
     private val progs = ConcurrentHashMap<String, List<EpgEntry>>()
     /** Alle Kanäle der EPG-Quellen (Kennung -> Anzeigename), für „EPG zuweisen“. */
     val chanNames = ConcurrentHashMap<String, String>()
+    /** Aus welcher Quelle ein EPG-Kanal kommt (Kennung -> Namen der Quellen, „ · “ getrennt), für „EPG zuweisen“. */
+    val chanSrc = ConcurrentHashMap<String, String>()
     /** Von Hand angestoßen: Meldung nach dem Einlesen (siehe MainActivity). */
     @Volatile var manual = false
     var doneSignal by mutableStateOf(0)
@@ -176,6 +178,8 @@ object Xmltv {
         val key = XmltvCache.key(all)
         job = scope.launch {
             val now = System.currentTimeMillis() / 1000
+            // Bekannte EPG-Kanäle (mit Quelle) aus dem letzten Stand laden, damit eine diesmal leere Quelle in „EPG zuweisen“ bleibt
+            if (chanNames.isEmpty()) runCatching { epgChannels(c) }
             var age = Long.MAX_VALUE
             sources = tagged.map { EpgSourceStat(EpgSources.label(it), it.kind, it.forName, EpgSourceStat.WAITING, url = it.url) }
             if (icons.isEmpty()) runCatching {
@@ -215,12 +219,14 @@ object Xmltv {
                 var mbNow = 0L
                 fresh[i] = fresh[i].copy(state = EpgSourceStat.LOADING); pub(fresh)
                 try {
-                    parse(u, wanted, map, past, hit, taken) { mb ->
+                    parse(u, wanted, map, past, hit, taken, fresh[i].label) { mb ->
                         mbNow = mb
                         if (!hadSaved) status = "Wird geladen … (" + listOf(src, "$mb MB").filter { it.isNotEmpty() }.joinToString(" · ") + ")"
                         fresh[i] = fresh[i].copy(mb = mb); pub(fresh)
                     }
-                    fresh[i] = fresh[i].copy(state = EpgSourceStat.DONE, channels = hit.size, mb = mbNow, at = now)
+                    // Leere Antwort (z. B. Anbieter blockt, solange die einzige Verbindung mit einem Sender belegt ist): als Fehler zeigen
+                    fresh[i] = if (mbNow == 0L && hit.isEmpty()) fresh[i].copy(state = EpgSourceStat.ERROR, mb = 0, at = now, error = Lang.tr("Keine Daten erhalten"))
+                        else fresh[i].copy(state = EpgSourceStat.DONE, channels = hit.size, mb = mbNow, at = now)
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
                     err = if (e is PlaylistError) e.message else e.javaClass.simpleName
@@ -233,11 +239,12 @@ object Xmltv {
             }
             if (map.isNotEmpty()) {
                 // Frischer Stand ersetzt den gespeicherten ganz (Sender ohne neue Daten fallen heraus)
-                progs.keys.retainAll(map.keys)
+                // Hat eine Quelle nichts geliefert (Fehler), behalten deren Sender den gespeicherten Stand
+                if (fresh.none { it.state == EpgSourceStat.ERROR }) progs.keys.retainAll(map.keys)
                 channelCount = progs.size
                 runCatching { XmltvCache.write(file, key, now, progs) }
                 runCatching { java.io.File(c.cacheDir, "xmltv_icons.txt").writeText(icons.entries.joinToString(ICON_NL) { it.key + ICON_TAB + it.value }) }
-                runCatching { java.io.File(c.cacheDir, "xmltv_channels.txt").writeText(chanNames.entries.joinToString(ICON_NL) { it.key + ICON_TAB + it.value }) }
+                runCatching { java.io.File(c.cacheDir, "xmltv_channels.txt").writeText(chanNames.entries.joinToString(ICON_NL) { it.key + ICON_TAB + it.value + ICON_TAB + (chanSrc[it.key] ?: "") }) }
                 saveStats(c, key, sources)
             }
             status = when {
@@ -286,7 +293,7 @@ object Xmltv {
 
     private fun parse(
         url: String, wanted: Set<String>, out: HashMap<String, MutableList<EpgEntry>>, past: Map<String, Int> = emptyMap(),
-        hit: MutableSet<String> = HashSet(), taken: Set<String> = emptySet(), onProgress: (Long) -> Unit = {}
+        hit: MutableSet<String> = HashSet(), taken: Set<String> = emptySet(), src: String = "", onProgress: (Long) -> Unit = {}
     ) {
         client.newCall(Request.Builder().url(url).build()).execute().use { r ->
             if (!r.isSuccessful) throw PlaylistError("HTTP ${r.code}")
@@ -333,6 +340,7 @@ object Xmltv {
                     }
                     // Kanäle der Quelle merken (für „EPG zuweisen“)
                     if (cid != null) chanNames.putIfAbsent(cid, dn?.takeIf { it.isNotEmpty() } ?: cid)
+                    if (cid != null && src.isNotEmpty()) chanSrc.merge(cid, src) { a, b -> if (b in a.split(SRC_SEP)) a else a + SRC_SEP + b }
                     // Auch die Kennung selbst (z. B. „DasErste.de“) als Name versuchen
                     if (names.isNotEmpty() && cid != null && cid !in wanted && cid !in alias) {
                         val n = EpgNames.norm(cid.substringBeforeLast('.'))
@@ -543,10 +551,19 @@ object EpgPrefs {
 private const val ICON_NL = "\n"
 private const val ICON_TAB = "\t"
 
+/** Trennt mehrere Quellen eines EPG-Kanals. */
+internal const val SRC_SEP = " · "
+
+/** EPG-Kanal für „EPG zuweisen“: Kennung, Anzeigename, Quellen (z. B. „XY EPG Fest · EPG XY TV“). */
+data class EpgChan(val id: String, val name: String, val src: String)
+
 /** Kanalliste der EPG-Quellen (aus dem letzten vollständigen Einlesen), sortiert nach Name. */
-fun Xmltv.epgChannels(c: Context): List<Pair<String, String>> {
+fun Xmltv.epgChannels(c: Context): List<EpgChan> {
     if (chanNames.isEmpty()) runCatching {
-        java.io.File(c.cacheDir, "xmltv_channels.txt").readLines().forEach { l -> val i = l.indexOf('\t'); if (i > 0) chanNames[l.substring(0, i)] = l.substring(i + 1) }
+        java.io.File(c.cacheDir, "xmltv_channels.txt").readLines().forEach { l ->
+            val p = l.split('\t')
+            if (p.size >= 2 && p[0].isNotEmpty()) { chanNames[p[0]] = p[1]; p.getOrNull(2)?.takeIf { it.isNotEmpty() }?.let { chanSrc[p[0]] = it } }
+        }
     }
-    return chanNames.entries.map { it.key to it.value }.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.second })
+    return chanNames.entries.map { EpgChan(it.key, it.value, chanSrc[it.key].orEmpty()) }.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
 }

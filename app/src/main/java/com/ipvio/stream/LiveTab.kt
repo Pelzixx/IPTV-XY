@@ -648,7 +648,9 @@ private fun ChannelLine(
     // TiviMate: Rechts/Links wählt einzelne Sendungen (auch über das Zeitfenster hinaus, die Zeitleiste läuft mit)
     // TiviMate: ohne EPG volle Stunden als Blöcke mit dem Sendernamen (anwählbar wie Sendungen)
     val all = remember(item.id, Xmltv.channelCount, Xmltv.status, nowSec / 300) {
-        Xmltv.forItem(item).filter { it.end > nowSec - (if (Catchup.has(item)) (Catchup.of(item)?.days ?: 0) * 86400L else 0L) }.ifEmpty { epg }.ifEmpty {
+        // Ab Beginn der laufenden halben Stunde (linker Rand des Zeitfensters): auch eben beendete Sendungen zeigen, sonst
+        // bleibt der Anfang der Zeile leer (Wunsch des Nutzers, 2026-11-10, wie TiviMate)
+        Xmltv.forItem(item).filter { it.end > nowSec / 1800 * 1800 - (if (Catchup.has(item)) (Catchup.of(item)?.days ?: 0) * 86400L else 0L) }.ifEmpty { epg }.ifEmpty {
             val h0 = nowSec / 3600 * 3600
             val t = ChannelEdit.title(item)
             (0 until 48).map { k -> EpgEntry(t, "", h0 + k * 3600L, h0 + (k + 1) * 3600L) }
@@ -818,7 +820,8 @@ private fun ChannelLine(
                         val frac = ((nowSec - vs).toFloat() / (ve - vs).coerceAtLeast(1)).coerceIn(0f, 1f)
                         Box(Modifier.fillMaxHeight().fillMaxWidth(frac).background(TvCellNow))
                     }
-                    Text(raw = true, text = e.title, color = if (lit) DS.FocusInk else if (f) Color.White else Color(0xFFC9CCD1), fontSize = 17.sp,
+                    // Zu schmale Felder (kurze Sendungen) ohne Text wie TiviMate: sonst bleibt nur ein Strich vom ersten Buchstaben
+                    if (w * (b - a) >= 40.dp) Text(raw = true, text = e.title, color = if (lit) DS.FocusInk else if (f) Color.White else Color(0xFFC9CCD1), fontSize = 17.sp,
                         maxLines = titleLines, lineHeight = 20.sp, overflow = TextOverflow.Clip, modifier = Modifier.padding(horizontal = 14.dp))
                 }
             }
