@@ -78,7 +78,9 @@ fun epgSane(start: Long, end: Long): Boolean {
 /** Stand einer EPG-Quelle für die Übersicht. [at] = Zeitpunkt (Sekunden) des letzten Ladens. */
 data class EpgSourceStat(
     val label: String, val kind: Int, val forName: String?, val state: Int,
-    val channels: Int = 0, val mb: Long = 0, val at: Long = 0, val error: String? = null
+    val channels: Int = 0, val mb: Long = 0, val at: Long = 0, val error: String? = null,
+    /** Nur im Speicher (enthält bei xmltv.php Zugangsdaten, wird nicht gespeichert); für [Xmltv.relabel]. */
+    val url: String = ""
 ) {
     companion object { const val WAITING = 0; const val LOADING = 1; const val DONE = 2; const val ERROR = 3 }
 }
@@ -132,6 +134,25 @@ object Xmltv {
      * Ablauf: gespeichertes Programm sofort zeigen; ist es älter als 6 h, im Hintergrund neu laden. Nach jeder fertigen
      * Quelle wird das bisher Gelesene angezeigt, damit man bei großen Dateien nicht bis zum Ende warten muss.
      */
+    /** Zwischenstand der Quellen zeigen, Namen aus [relabel] dabei behalten. */
+    private fun pub(fresh: List<EpgSourceStat>) {
+        val cur = sources
+        sources = fresh.mapIndexed { i, s -> cur.getOrNull(i)?.takeIf { it.url == s.url }?.let { c -> s.copy(label = c.label, forName = c.forName) } ?: s }
+    }
+
+    /** Namen der Quellen neu bilden, z. B. nachdem eine neu angemeldete Wiedergabeliste ihren Namen bekommen hat. */
+    fun relabel() {
+        val named = PlaylistStore.lists.map { it.name to it.url }
+        val act = PlaylistStore.lists.getOrNull(PlaylistStore.active)?.name
+        sources = sources.map { s ->
+            if (s.url.isEmpty()) s else {
+                val f = if (s.kind == EpgSrc.PROVIDER) EpgSources.ownerOf(s.url, named) ?: s.forName ?: act
+                    else if (s.kind == EpgSrc.SERVER || s.kind == EpgSrc.PL_EPG || s.kind == EpgSrc.PLAYLIST) s.forName ?: act else s.forName
+                s.copy(label = EpgSources.label(EpgSrc(s.url, s.kind, f)), forName = f)
+            }
+        }
+    }
+
     fun start(c: Context, urls: List<String>, items: List<Item>, force: Boolean = false) {
         val pl = PlaylistStore.lists.getOrNull(PlaylistStore.active)
         val plName = pl?.name
@@ -151,13 +172,13 @@ object Xmltv {
         job = scope.launch {
             val now = System.currentTimeMillis() / 1000
             var age = Long.MAX_VALUE
-            sources = tagged.map { EpgSourceStat(EpgSources.label(it), it.kind, it.forName, EpgSourceStat.WAITING) }
+            sources = tagged.map { EpgSourceStat(EpgSources.label(it), it.kind, it.forName, EpgSourceStat.WAITING, url = it.url) }
             if (icons.isEmpty()) runCatching {
                 java.io.File(c.cacheDir, "xmltv_icons.txt").readLines().forEach { l -> val i = l.indexOf(ICON_TAB); if (i > 0) icons[l.substring(0, i)] = l.substring(i + 1) }
             }
             if (!force) runCatching { XmltvCache.read(file, key, now) }.getOrNull()?.let { (savedAt, saved) ->
                 // Gespeicherter Stand mit den aktuellen Namen (ältere Stände hießen noch „Anbieter-EPG“ bzw. nach dem Rechner)
-                loadStats(c, key)?.let { st -> sources = if (st.size == tagged.size) st.mapIndexed { i, s -> s.copy(label = EpgSources.label(tagged[i]), forName = tagged[i].forName) } else st }
+                loadStats(c, key)?.let { st -> sources = if (st.size == tagged.size) st.mapIndexed { i, s -> s.copy(label = EpgSources.label(tagged[i]), forName = tagged[i].forName, url = tagged[i].url) } else st }
                 progs.clear()
                 // Ältere Speicherstände können doppelte Sendungen aus mehreren Quellen enthalten
                 for ((k, v) in saved) if (k in wanted) progs[k] = EpgMergeLogic.noOverlap(v)
@@ -187,12 +208,12 @@ object Xmltv {
                 // Sender, die eine frühere Quelle schon geliefert hat, nicht noch einmal (sonst liegen Sendungen übereinander)
                 val taken = HashSet(map.keys)
                 var mbNow = 0L
-                fresh[i] = fresh[i].copy(state = EpgSourceStat.LOADING); sources = fresh.toList()
+                fresh[i] = fresh[i].copy(state = EpgSourceStat.LOADING); pub(fresh)
                 try {
                     parse(u, wanted, map, past, hit, taken) { mb ->
                         mbNow = mb
                         if (!hadSaved) status = "Wird geladen … (" + listOf(src, "$mb MB").filter { it.isNotEmpty() }.joinToString(" · ") + ")"
-                        fresh[i] = fresh[i].copy(mb = mb); sources = fresh.toList()
+                        fresh[i] = fresh[i].copy(mb = mb); pub(fresh)
                     }
                     fresh[i] = fresh[i].copy(state = EpgSourceStat.DONE, channels = hit.size, mb = mbNow, at = now)
                 } catch (e: Exception) {
@@ -200,7 +221,7 @@ object Xmltv {
                     err = if (e is PlaylistError) e.message else e.javaClass.simpleName
                     fresh[i] = fresh[i].copy(state = EpgSourceStat.ERROR, channels = hit.size, mb = mbNow, at = now, error = err)
                 }
-                sources = fresh.toList()
+                pub(fresh)
                 // Zwischenstand zeigen: was bisher gelesen ist, steht sofort im Programm
                 for ((k, v) in map) progs[k] = EpgMergeLogic.noOverlap(v)
                 channelCount = progs.size

@@ -1038,6 +1038,8 @@ object PlaylistStore {
             active = lists.size - 1
         }
         persist(c)
+        // EPG lief schon, bevor die neue Liste einen Namen hatte: Quellen jetzt richtig benennen („EPG XY TV“)
+        Xmltv.relabel()
         clearPending(c)
     }
 

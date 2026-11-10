@@ -12,7 +12,8 @@ object EpgNames {
     private val TAGS = Regex("""\b(uhd|fhd|hd|sd|4k|8k|hevc|h265|h264|raw|backup|multi|\d{3,4}p|\d{2}fps)\b""")
 
     fun norm(s: String): String {
-        var t = s.lowercase().replace("&amp;", "&")
+        // Hochgestellte Kürzel (ʰᵈ, ᶠʰᵈ, ᵘʰᵈ, ʳᵃʷ) wie normale Buchstaben behandeln, damit sie als hd/fhd/uhd/raw wegfallen
+        var t = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFKC).lowercase().replace("&amp;", "&")
         t = BRACKETS.replace(t, " ").trim()
         t = PREFIX.replace(t, "")
         t = TAGS.replace(t, " ")
