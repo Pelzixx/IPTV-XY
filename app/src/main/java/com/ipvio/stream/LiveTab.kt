@@ -259,7 +259,7 @@ fun LiveTab(live: List<Item>, groups0: Map<String, List<Item>>, favs: List<Item>
     LaunchedEffect(idleTick, playingCh?.id, fsTo, manage, guideHasFocus) {
         // nur solange der Fokus im TV-Guide liegt (nicht in der Seitenleiste, in Menüs oder Dialogen)
         if (fsTo <= 0 || !AppSettings.livePreview || manage != 0 || !guideHasFocus) return@LaunchedEffect
-        val ch = (if (Tm.b(Tm.CV_AUTOPLAY, true)) focus.shown else null) ?: playingCh ?: return@LaunchedEffect
+        val ch = (if (Tm.b(Tm.CV_AUTOPLAY, false)) focus.shown else null) ?: playingCh ?: return@LaunchedEffect
         kotlinx.coroutines.delay(fsTo * 1000L)
         open(ch)
     }
@@ -458,7 +458,7 @@ fun LiveTab(live: List<Item>, groups0: Map<String, List<Item>>, favs: List<Item>
                                 val has = ch.id in addList.ids
                                 if (has) ChannelLists.remove(ctx, addList.id, ch.id) else ChannelLists.add(ctx, addList.id, ch.id)
                                 Toast.makeText(ctx, (if (has) Lang.tr("Entfernt: ") else Lang.tr("Hinzugefügt: ")) + ch.title, Toast.LENGTH_SHORT).show()
-                            } else if (Tm.b(Tm.CV_STAY, true) && AppSettings.livePreview && !Tm.b(Tm.CV_AUTOPLAY, true) && playingCh?.id != ch.id) {
+                            } else if (Tm.b(Tm.CV_STAY, true) && AppSettings.livePreview && !Tm.b(Tm.CV_AUTOPLAY, false) && playingCh?.id != ch.id) {
                                 // Vorschaumodus > „Bleib in der Liste beim Sender wechseln“: erst in der Vorschau, das zweite OK im Vollbild
                                 History.add(ctx, ch.id)
                             } else open(ch)
@@ -969,7 +969,7 @@ private fun RowScope.GuideTop(focus: GuideFocusState, first: Item?, preview: Liv
     // Optik > EPG > Vorschau: aus = kein Vorschaubild, die Sendung nutzt die ganze Breite
     // Optik > Player > Senderliste > Vorschaumodus (TiviMate): ohne „Kanäle automatisch abspielen“ zeigt die Vorschau
     // den laufenden Sender, nicht jeden markierten
-    val auto = Tm.b(Tm.CV_AUTOPLAY, true)
+    val auto = Tm.b(Tm.CV_AUTOPLAY, false)
     if (AppSettings.livePreview) LivePreview(preview, if (auto) focus.shown else (playingCh ?: focus.shown), Modifier.fillMaxHeight().aspectRatio(16f / 9f), fallback = if (auto) shown else (playingCh ?: shown))
     LiveInfo(shown, Modifier.weight(1f).fillMaxHeight(), prog = if (shown != null && shown.id == focus.target?.id) focus.prog else null)
 }
