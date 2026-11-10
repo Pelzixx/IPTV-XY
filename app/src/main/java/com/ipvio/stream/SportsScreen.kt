@@ -71,8 +71,8 @@ fun SportsScreen(tab: Int, onTab: (Int) -> Unit, onPlay: (Item) -> Unit) {
     // Ligen mit Tabelle auch ohne Spiele im Programm anbieten (Tabelle steht dann unter der Liga)
     val tables = SportsRepo.tables
     val leagues = remember(events, tables) { (events.map { it.league } + tables.keys).distinct().sortedBy { SportsLogic.prio(it) } }
-    // Rubrik „Live“ (Wunsch des Nutzers, 2026-11-09): laufende Spiele und alles, was gerade auf den Sportsendern läuft
-    val liveNow = events.filter { it.live(nowSec) } + SportsRepo.airing.filter { it.end > nowSec }
+    // Rubrik „Live“ (Wunsch des Nutzers, 2026-11-10): nur Spiele, die gerade laufen, mit Live-Stand – keine TV-Live-Sendungen
+    val liveNow = events.filter { it.liveScore(nowSec) }
     val shown = when (league) { null -> events; LIVE_TAB -> liveNow; else -> events.filter { it.league == league } }
     var focused by remember { mutableStateOf<SportEvent?>(null) }
     val hero = focused?.takeIf { f -> shown.any { it.key == f.key } }?.let { f -> shown.first { it.key == f.key } } ?: shown.firstOrNull()
@@ -107,7 +107,7 @@ fun SportsScreen(tab: Int, onTab: (Int) -> Unit, onPlay: (Item) -> Unit) {
                 if (hero != null) SportHero(hero, nowSec, byId, onWatch = { act(hero) }, onMore = { chanMenu = hero },
                     onGoal = if (GoalAlert.supported(hero)) ({ val on = GoalAlert.toggle(ctx, hero); Toast.makeText(ctx, Lang.tr(if (on) "Tor-Alarm an: Du bekommst Tore und Abpfiff angezeigt" else "Tor-Alarm aus"), Toast.LENGTH_SHORT).show() }) else null)
                 else Box(Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(14.dp)).background(CardBg), contentAlignment = Alignment.Center) {
-                    Text(if (SportsRepo.loading || SportsRepo.updatedAt == 0L) "Sportprogramm wird gesucht …" else "Gerade keine Sportereignisse im TV-Programm",
+                    Text(if (SportsRepo.loading || SportsRepo.updatedAt == 0L) "Sportprogramm wird gesucht …" else if (league == LIVE_TAB) "Gerade läuft kein Spiel" else "Gerade keine Sportereignisse im TV-Programm",
                         color = Tok.TextMid, fontSize = 17.sp)
                 }
             }

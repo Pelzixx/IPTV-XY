@@ -15,6 +15,8 @@ data class SportEvent(
     val scoreHome: Int? = null, val scoreAway: Int? = null, val finished: Boolean = false, val source: String = "EPG"
 ) {
     fun live(now: Long) = !finished && now in start until end
+    /** Spiel läuft gerade und hat einen Live-Stand (Rubrik „Live“); 45 Min. Puffer für Nachspielzeit/Verlängerung. */
+    fun liveScore(now: Long) = !finished && scoreHome != null && home != null && now >= start && now < end + 45 * 60
 }
 
 object SportsLogic {

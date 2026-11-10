@@ -48,3 +48,12 @@ class LogoUrlTest {
     @Test fun png_bleibt() = assertEquals("https://x.de/a.png", SportsLogic.logoUrl("https://x.de/a.png"))
     @Test fun fremdes_svg_nicht() = assertEquals(null, SportsLogic.logoUrl("https://x.de/a.svg"))
 }
+
+class LiveScoreTest {
+    private fun ev(score: Int?, fin: Boolean = false) = SportEvent("k", SportsLogic.FOOTBALL, "1. Bundesliga", "A", "B", "A – B", "", 1000, 1000 + 115 * 60, emptyList(), score, score, fin, "OpenLigaDB")
+    @Test fun laeuft_mit_stand() = assertTrue(ev(1).liveScore(2000))
+    @Test fun nachspielzeit() = assertTrue(ev(1).liveScore(1000 + 130 * 60))
+    @Test fun vor_anpfiff_nicht() = assertTrue(!ev(0).liveScore(999))
+    @Test fun beendet_nicht() = assertTrue(!ev(2, fin = true).liveScore(2000))
+    @Test fun ohne_stand_nicht() = assertTrue(!ev(null).liveScore(2000))
+}
