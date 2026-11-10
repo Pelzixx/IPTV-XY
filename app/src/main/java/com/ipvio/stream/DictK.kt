@@ -469,6 +469,11 @@ Kein Sender mit diesem Spiel gefunden¦No channel found for this match¦Bu maç 
 Sportprogramm wird gesucht …¦Searching sports schedule …¦Spor programı aranıyor …¦Traži se sportski program …¦Traži se sportski program …¦Traži se sportski program …¦Buscando programación deportiva …¦Recherche du programme sportif …¦Ricerca del programma sportivo …
 Gerade keine Sportereignisse im TV-Programm¦No sports events in the TV guide right now¦Şu anda TV rehberinde spor etkinliği yok¦Trenutno nema sportskih događaja u TV programu¦Trenutno nema sportskih događaja u TV programu¦Trenutno nema sportskih događaja u TV programu¦No hay eventos deportivos en la guía ahora¦Aucun événement sportif dans le guide pour le moment¦Nessun evento sportivo nella guida al momento
 Gerade läuft kein Spiel¦No match is being played right now¦Şu anda oynanan maç yok¦Trenutno se ne igra nijedna utakmica¦Trenutno se ne igra nijedna utakmica¦Trenutno se ne igra nijedna utakmica¦Ahora mismo no se juega ningún partido¦Aucun match en cours¦Nessuna partita in corso
+Aktionen¦Actions¦Eylemler¦Radnje¦Radnje¦Radnje¦Acciones¦Actions¦Azioni
+OK zum Leeren¦OK to clear¦Temizlemek için OK¦OK za brisanje¦OK za brisanje¦OK za brisanje¦OK para vaciar¦OK pour vider¦OK per svuotare
+Links/Rechts zum Ändern¦Left/right to change¦Değiştirmek için sol/sağ¦Lijevo/desno za promjenu¦Lijevo/desno za promjenu¦Levo/desno za promenu¦Izquierda/derecha para cambiar¦Gauche/droite pour modifier¦Sinistra/destra per cambiare
+Stand¦Status¦Durum¦Stanje¦Stanje¦Stanje¦Estado¦État¦Stato
+In die Zwischenablage kopiert¦Copied to clipboard¦Panoya kopyalandı¦Kopirano u međuspremnik¦Kopirano u međuspremnik¦Kopirano u međuspremnik¦Copiado al portapapeles¦Copié dans le presse-papiers¦Copiato negli appunti
 Beendet¦Finished¦Bitti¦Završeno¦Završeno¦Završeno¦Finalizado¦Terminé¦Terminata
 Weitere Sender¦More channels¦Diğer kanallar¦Ostali kanali¦Ostali programi¦Ostali kanali¦Más canales¦Autres chaînes¦Altri canali
 Verfügbare Sender¦Available channels¦Mevcut kanallar¦Dostupni kanali¦Dostupni programi¦Dostupni kanali¦Canales disponibles¦Chaînes disponibles¦Canali disponibili

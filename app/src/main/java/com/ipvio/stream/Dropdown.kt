@@ -1,5 +1,6 @@
 package com.ipvio.stream
 
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -154,11 +155,21 @@ fun StepButton(plus: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit
 
 @Composable
 fun StepRow(label: String, value: String, onMinus: () -> Unit, onPlus: () -> Unit, modifier: Modifier = Modifier) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(label, color = Color.White, fontSize = 16.sp, modifier = Modifier.width(150.dp))
-        StepButton(false, modifier) { onMinus() }
-        Text(value, color = Accent2, fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.widthIn(min = 40.dp))
-        StepButton(true) { onPlus() }
+    // Einstellungs-Zeile wie alle anderen (Wunsch des Nutzers, 2026-11-10): Links/Rechts ändert den Wert, OK erhöht
+    val keys = Modifier.onPreviewKeyEvent { e ->
+        val ne = e.nativeKeyEvent
+        when (ne.keyCode) {
+            android.view.KeyEvent.KEYCODE_DPAD_LEFT -> { if (ne.action == android.view.KeyEvent.ACTION_DOWN) onMinus(); true }
+            android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> { if (ne.action == android.view.KeyEvent.ACTION_DOWN) onPlus(); true }
+            else -> false
+        }
+    }
+    SettingRow(label, Lang.tr("Links/Rechts zum Ändern"), modifier = modifier.then(keys), rawValue = true, onClick = onPlus) { f ->
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            AppIcon(AIcon.Left, if (f) DS.FocusInk else Tok.TextLow, size = 18.dp)
+            Text(value, color = if (f) DS.FocusInk else Accent2, fontSize = 18.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.widthIn(min = 40.dp))
+            AppIcon(AIcon.Right, if (f) DS.FocusInk else Tok.TextLow, size = 18.dp)
+        }
     }
 }
 

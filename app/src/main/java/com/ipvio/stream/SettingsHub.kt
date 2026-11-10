@@ -280,13 +280,16 @@ internal fun ToggleRow(title: String, desc: String?, checked: Boolean, onChange:
 @Composable
 internal fun SettingRow(
     title: String, value: String? = null, modifier: Modifier = Modifier, rawValue: Boolean = false, rawTitle: Boolean = false,
-    onClick: () -> Unit, leading: (@Composable (Boolean) -> Unit)? = null, trailing: (@Composable (Boolean) -> Unit)? = null
+    valueLines: Int = 3, onClick: () -> Unit, leading: (@Composable (Boolean) -> Unit)? = null, trailing: (@Composable (Boolean) -> Unit)? = null
 ) {
     var f by remember { mutableStateOf(false) }
+    val memo = LocalPanelMemo.current
+    val mark = memo?.restore?.let { it == title } == true
     Row(
-        modifier.fillMaxWidth().widthIn(max = 900.dp).heightIn(min = 58.dp).clip(RoundedCornerShape(DS.RadiusS))
+        modifier.then(if (mark) Modifier.focusRequester(memo!!.req) else Modifier)
+            .fillMaxWidth().widthIn(max = 900.dp).heightIn(min = 58.dp).clip(RoundedCornerShape(DS.RadiusS))
             .background(if (f) TvFocusFill else Color.Transparent)
-            .onFocusChanged { f = it.isFocused }
+            .onFocusChanged { f = it.isFocused; if (it.isFocused && memo != null) memo.focusedAt[memo.depth] = title }
             .clickable(onClick = onClick)
             .padding(horizontal = 25.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)
@@ -295,11 +298,25 @@ internal fun SettingRow(
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, color = if (f) DS.FocusInk else Color.White, fontSize = 17.sp, raw = rawTitle, maxLines = 2, overflow = TextOverflow.Ellipsis)
             if (!value.isNullOrEmpty()) Text(value, color = if (f) DS.FocusInk.copy(alpha = .65f) else Tok.TextLow, fontSize = 13.sp,
-                lineHeight = 18.sp, raw = rawValue, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                lineHeight = 18.sp, raw = rawValue, maxLines = valueLines, overflow = TextOverflow.Ellipsis)
         }
         trailing?.invoke(f)
     }
 }
+
+/**
+ * Einstellungs-Panel (Wunsch des Nutzers, 2026-11-10): zuletzt markierte Zeile und Scrollstand je Ebene merken,
+ * damit Zurück aus einem Untermenü wieder auf dem geöffneten Eintrag steht statt ganz oben.
+ */
+internal class PanelMemo {
+    var depth = 0
+    var restore: String? = null
+    var returning = -1
+    val req = FocusRequester()
+    val focusedAt = HashMap<Int, String>()
+    val scrollAt = HashMap<Int, Int>()
+}
+internal val LocalPanelMemo = androidx.compose.runtime.staticCompositionLocalOf<PanelMemo?> { null }
 
 /** Gefährliche Aktion mit Rückfrage: erster Druck fragt nach, zweiter führt aus (nach 4 s verfällt die Rückfrage). */
 @Composable
@@ -313,6 +330,16 @@ internal fun ConfirmPill(label: String, onConfirm: () -> Unit) {
 
 private fun appVersion(ctx: Context): String =
     runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull() ?: "?"
+
+/** Wie [ConfirmPill], als Zeile: erster OK fragt nach („Wirklich? …“), zweiter führt aus; nach 4 s verfällt die Rückfrage. */
+@Composable
+internal fun ConfirmRow(title: String, value: String?, onConfirm: () -> Unit) {
+    var armed by remember { mutableStateOf(false) }
+    LaunchedEffect(armed) { if (armed) { kotlinx.coroutines.delay(4000); armed = false } }
+    SettingRow(title, if (armed) Lang.tr("Wirklich? OK zum Bestätigen") else value, rawValue = !armed, onClick = {
+        if (armed) { armed = false; onConfirm() } else armed = true
+    })
+}
 
 /** Auswahl-Zeile im selben Stil wie ToggleRow: Titel links, aktueller Wert rechts, OK öffnet die Liste. */
 @Composable
@@ -514,47 +541,38 @@ private fun openOverlaySettings(ctx: Context) {
 
 @Composable
 private fun StoragePage(ctx: Context) {
+    // TiviMate-Aufbau (Wunsch des Nutzers, 2026-11-10): jede Aktion eine Zeile; Löschen fragt beim ersten OK nach
     val scope = rememberCoroutineScope()
     var tick by remember { mutableIntStateOf(0) }
     // Größen und Löschen laufen im Hintergrund: der Metadaten-Ordner kann zehntausende Dateien enthalten
     var sizes by remember { mutableStateOf(List(General.AREAS.size) { 0L }) }
     LaunchedEffect(tick) { sizes = withContext(Dispatchers.IO) { General.AREAS.map { General.areaSize(ctx, it) } } }
-    SectionTitle("Zwischenspeicher")
+    PanelSection(Lang.tr("Zwischenspeicher") + " · " + SettingsLogic.fmtBytes(sizes.sum()))
     General.AREAS.forEachIndexed { i, a ->
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Column(Modifier.width(420.dp)) {
-                Text(a.name + "  ·  " + SettingsLogic.fmtBytes(sizes[i]), color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                Text(a.note, color = Muted, fontSize = 13.sp)
-            }
-            ConfirmPill("Leeren") { scope.launch { withContext(Dispatchers.IO) { General.clearArea(ctx, a) }; tick++ } }
+        ConfirmRow(a.name, SettingsLogic.fmtBytes(sizes[i]) + " · " + Lang.tr(a.note) + " · " + Lang.tr("OK zum Leeren")) {
+            scope.launch { withContext(Dispatchers.IO) { General.clearArea(ctx, a) }; tick++ }
         }
     }
-    Text("Gesamt: " + SettingsLogic.fmtBytes(sizes.sum()), color = Accent2, fontSize = 15.sp)
     Hint("Geleerte Daten lädt die App bei Bedarf neu. Titel-Infos und Bilder erscheinen danach kurz später. Der Playlist-Zwischenspeicher macht den Start schnell; ohne ihn wartet die App auf den Download.")
-    SectionTitle("Verlauf")
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        ConfirmPill("Suchverlauf löschen") { AppSettings.clearSearch(ctx) }
-        ConfirmPill("Zuletzt geschaut löschen") { General.clearHistory(ctx) }
-        ConfirmPill("Weiterschauen löschen") { General.clearResume(ctx) }
-    }
+    PanelSection(Lang.tr("Verlauf"))
+    ConfirmRow("Suchverlauf löschen", null) { AppSettings.clearSearch(ctx) }
+    ConfirmRow("Zuletzt geschaut löschen", null) { General.clearHistory(ctx) }
+    ConfirmRow("Weiterschauen löschen", null) { General.clearResume(ctx) }
     Hint("Meine Liste und Favoriten bleiben immer erhalten.")
-    SectionTitle("Sicherung")
+    PanelSection(Lang.tr("Sicherung"))
     var backupMsg by remember { mutableStateOf<String?>(null) }
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        PillButton("Sicherung erstellen") {
-            scope.launch {
-                val f = withContext(Dispatchers.IO) { Backup.export(ctx) }
-                backupMsg = if (f != null) "Gespeichert: " + f.absolutePath else "Sicherung fehlgeschlagen."
-            }
+    SettingRow("Sicherung erstellen", backupMsg, rawValue = true, onClick = {
+        scope.launch {
+            val f = withContext(Dispatchers.IO) { Backup.export(ctx) }
+            backupMsg = if (f != null) Lang.tr("Gespeichert") + ": " + f.absolutePath else Lang.tr("Sicherung fehlgeschlagen.")
         }
-        ConfirmPill("Sicherung wiederherstellen") {
-            scope.launch {
-                val n = withContext(Dispatchers.IO) { Backup.restore(ctx) }
-                if (n >= 0) Profiles.restart(ctx) else backupMsg = "Keine gültige Sicherung gefunden."
-            }
+    })
+    ConfirmRow("Sicherung wiederherstellen", null) {
+        scope.launch {
+            val n = withContext(Dispatchers.IO) { Backup.restore(ctx) }
+            if (n >= 0) Profiles.restart(ctx) else backupMsg = Lang.tr("Keine gültige Sicherung gefunden.")
         }
     }
-    backupMsg?.let { Text(it, color = Accent2, fontSize = 14.sp, modifier = Modifier.widthIn(max = 680.dp)) }
     Hint("Gesichert werden Einstellungen, Favoriten, Verlauf, Weiterschauen und Profile. Playlists und Zugangsdaten sind nicht enthalten. Beim Wiederherstellen startet die App neu.")
 }
 
@@ -823,19 +841,12 @@ private fun DiagPage(ctx: Context, reload: () -> Unit) {
         "Fehlerprotokoll" to (Diag.history.joinToString("\n") { DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.MEDIUM).format(Date(it.first)) + "  " + it.second }.ifBlank { "leer" }),
         "Letzter Absturz" to (CrashLog.last(ctx)?.let { it.first + "  (" + DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(it.second)) + ")" } ?: "keiner")
     )
-    lines.forEach { (k, v) ->
-        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text(k, color = Muted, fontSize = 16.sp, modifier = Modifier.width(170.dp))
-            Text(v, color = Color.White, fontSize = 16.sp, modifier = Modifier.widthIn(max = 640.dp))
-        }
-    }
-    // Hinweis vor den Knöpfen: Text unter dem letzten Knopf scrollt die Liste nie ins Bild (nichts darunter ist anwählbar)
-    Hint("Der Bericht enthält keine Adressen, Benutzernamen oder Passwörter. Er wird nur kopiert oder dort gespeichert, wo du es auswählst.")
-    // TiviMate „Logs senden“: Bericht samt Fehlerprotokoll auf dem Gerät oder einer SMB-Freigabe ablegen
+    // TiviMate-Aufbau (Wunsch des Nutzers, 2026-11-10): oben die Aktionen als Zeilen, darunter der Stand als Zeilen
+    // (jede wählbar, damit sich die lange Seite mit Hoch/Runter durchblättern lässt)
     val scope = rememberCoroutineScope()
     var saveMenu by remember { mutableStateOf(false) }
     var saved by remember { mutableStateOf<String?>(null) }
-    saved?.let { Text(it, color = Muted, fontSize = 15.sp) }
+    var copied by remember { mutableStateOf(false) }
     fun report() = lines.joinToString("\n") { it.first + ": " + it.second }
     if (saveMenu) {
         val name = "iptv-xy-diagnose-" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.US).format(Date()) + ".txt"
@@ -858,20 +869,19 @@ private fun DiagPage(ctx: Context, reload: () -> Unit) {
         }
         SideMenu(listOf(SideSection(Lang.tr("Bericht speichern"), e)), { saveMenu = false })
     }
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        PillButton("Playlist neu laden", light = true, icon = AIcon.Refresh) { reload() }
-        PillButton("Bericht speichern") { saveMenu = true }
-    }
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        PillButton("Protokoll leeren") { Diag.clear() }
-        PillButton("Bericht kopieren") {
-            val text = report()
-            runCatching {
-                val cm = ctx.getSystemService(android.content.ClipboardManager::class.java)
-                cm?.setPrimaryClip(android.content.ClipData.newPlainText("IPTV-XY Diagnose", text))
-            }
-        }
-    }
+    PanelSection(Lang.tr("Aktionen"))
+    SettingRow("Playlist neu laden", null, onClick = { reload() })
+    SettingRow("Bericht speichern", saved, rawValue = true, onClick = { saveMenu = true })
+    SettingRow("Bericht kopieren", if (copied) Lang.tr("In die Zwischenablage kopiert") else null, onClick = {
+        copied = runCatching {
+            val cm = ctx.getSystemService(android.content.ClipboardManager::class.java)
+            cm?.setPrimaryClip(android.content.ClipData.newPlainText("IPTV-XY Diagnose", report()))
+        }.isSuccess
+    })
+    SettingRow("Protokoll leeren", null, onClick = { Diag.clear() })
+    Hint("Der Bericht enthält keine Adressen, Benutzernamen oder Passwörter. Er wird nur kopiert oder dort gespeichert, wo du es auswählst.")
+    PanelSection(Lang.tr("Stand"))
+    lines.forEach { (k, v) -> SettingRow(k, v, rawValue = true, valueLines = 14, onClick = {}) }
 }
 
 @Composable
@@ -1719,7 +1729,8 @@ fun SettingsPanel(onAdd: () -> Unit, reload: () -> Unit, onClose: () -> Unit) {
     }
     val stack = remember { mutableStateListOf<SP>(SP.Root) }
     val top = stack.last()
-    fun back() { if (stack.size > 1) stack.removeAt(stack.lastIndex) else onClose() }
+    val memo = remember { PanelMemo() }
+    fun back() { if (stack.size > 1) { memo.returning = stack.size - 1; stack.removeAt(stack.lastIndex) } else onClose() }
     val title = when (top) {
         SP.Root -> Lang.tr("Einstellungen")
         is SP.Cat -> Lang.tr(PANEL[top.i].title)
@@ -1745,14 +1756,28 @@ fun SettingsPanel(onAdd: () -> Unit, reload: () -> Unit, onClose: () -> Unit) {
                 Text(raw = true, text = title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             key(stack.size, top) {
-                // Ersten Eintrag markieren (wie ein erster Druck auf „runter“): beim Öffnen und bei jeder Unterseite
+                val depth = stack.size
+                // Nur beim Betreten der Ebene auswerten (spätere Neuzeichnungen dürfen das Gemerkte nicht löschen)
+                val ret = remember {
+                    (memo.returning == depth).also { r ->
+                        memo.returning = -1
+                        if (!r) { memo.focusedAt.remove(depth); memo.scrollAt.remove(depth) }
+                        memo.restore = if (r) memo.focusedAt[depth] else null
+                    }
+                }
+                memo.depth = depth
+                val scroll = rememberScrollState(if (ret) memo.scrollAt[depth] ?: 0 else 0)
+                LaunchedEffect(scroll) { androidx.compose.runtime.snapshotFlow { scroll.value }.collect { memo.scrollAt[depth] = it } }
+                // Ersten Eintrag markieren (wie ein erster Druck auf „runter“): beim Öffnen und bei jeder Unterseite;
+                // zurück aus einem Untermenü: wieder den Eintrag, von dem aus es geöffnet wurde
                 val pfm = LocalFocusManager.current
                 val rootReq = remember { FocusRequester() }
                 LaunchedEffect(Unit) {
                     repeat(15) {
                         kotlinx.coroutines.delay(80)
-                        val ok = if (top == SP.Root) runCatching { rootReq.requestFocus() }.isSuccess else pfm.moveFocus(FocusDirection.Down)
-                        if (ok) return@LaunchedEffect
+                        val ok = if (memo.restore != null && it < 8 && runCatching { memo.req.requestFocus() }.isSuccess) true
+                            else if (top == SP.Root) runCatching { rootReq.requestFocus() }.isSuccess else pfm.moveFocus(FocusDirection.Down)
+                        if (ok) { memo.restore = null; return@LaunchedEffect }
                     }
                 }
                 // Beim Wechsel der Einträge sofort scrollen (keine Animation – fühlt sich mit der Fernbedienung flinker an)
@@ -1760,10 +1785,11 @@ fun SettingsPanel(onAdd: () -> Unit, reload: () -> Unit, onClose: () -> Unit) {
                 // Alles im Panel einheitlich auf TV-Player-Größe (0,8): auch ältere, größere Bauteile werden so kompakt
                 androidx.compose.runtime.CompositionLocalProvider(
                     androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides InstantSpec,
+                    LocalPanelMemo provides memo,
                     androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(dens.density * PANEL_SCALE, dens.fontScale)
                 ) {
                 Column(
-                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).focusGroup()
+                    Modifier.fillMaxSize().verticalScroll(scroll).focusGroup()
                         .padding(horizontal = 12.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
