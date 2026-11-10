@@ -325,7 +325,12 @@ fun LiveTab(live: List<Item>, groups0: Map<String, List<Item>>, favs: List<Item>
                             onFav = { if (ml != null) listMenu = true else if (n != FAV_CAT && n != "ALL" && n != HIDDEN_CAT && n != "GUIDE" && !n.startsWith(PlGroups.P)) grpMenu = true },
                             icon = if (n.startsWith(PlGroups.P)) null else if (ChLock.version >= 0 && ChLock.isGroupLocked(PlGroups.label(n) ?: n)) AIcon.Lock else icon, raw = ml != null || PlGroups.isPl(n), header = n.startsWith(PlGroups.P),
                             indent = n.startsWith(PlGroups.G),
-                            expanded = if (n.startsWith(PlGroups.P)) !PlGroups.collapsed(PlGroups.label(n) ?: "") else null
+                            expanded = if (n.startsWith(PlGroups.P)) !PlGroups.collapsed(PlGroups.label(n) ?: "") else null,
+                            playing = playingCh != null && when {
+                                n == FAV_CAT -> favs.any { it.id == playingCh.id }
+                                n == "ALL" || n == HIDDEN_CAT || ml != null || n.startsWith(PlGroups.P) -> false
+                                else -> groups[n]?.any { it.id == playingCh.id } == true
+                            }
                         ) {
                             // Optik > Gruppen > „Beim Antippen einer Wiedergabeliste“ (TiviMate): auf-/zuklappen oder alle Kanäle der Liste
                             if (n.startsWith(PlGroups.P) && Tm.i(Tm.GRP_PL_TAP, 0) == 0) PlGroups.toggle(ctx, PlGroups.label(n) ?: "")
@@ -535,7 +540,7 @@ internal fun NameDialog(title: String, initial: String, onDismiss: () -> Unit, o
 private fun CatRow(
     label: String, count: Int, selected: Boolean, modifier: Modifier,
     onFocus: () -> Unit, onRight: () -> Unit, onFav: () -> Unit, icon: AIcon? = null, raw: Boolean = false,
-    header: Boolean = false, indent: Boolean = false, expanded: Boolean? = null, onClick: () -> Unit
+    header: Boolean = false, indent: Boolean = false, expanded: Boolean? = null, playing: Boolean = false, onClick: () -> Unit
 ) {
     var f by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(DS.RadiusS)
@@ -558,9 +563,13 @@ private fun CatRow(
             Text(label, color = ink, fontSize = if (header) 19.sp else 18.sp, fontWeight = if (header) FontWeight.SemiBold else FontWeight.Normal,
                 maxLines = 1, overflow = TextOverflow.Ellipsis, raw = raw)
         }
-        // Anzahl nur beim markierten Eintrag (die Liste bleibt ruhig)
-        if (expanded != null) AppIcon(if (expanded) AIcon.Up else AIcon.Down, if (f) DS.FocusInk else Tok.TextMid, size = 18.dp)
-        else if (count >= 0 && f) Text("$count", color = DS.FocusInk.copy(alpha = 0.6f), fontSize = 14.sp)
+        // Wie beim Sender: kleines Play-Symbol an der Gruppe, aus der gerade ein Sender läuft (Wunsch des Nutzers, 2026-11-10)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (playing) AppIcon(AIcon.Play, if (f) DS.FocusInk else Accent2, size = 14.dp)
+            // Anzahl nur beim markierten Eintrag (die Liste bleibt ruhig)
+            if (expanded != null) AppIcon(if (expanded) AIcon.Up else AIcon.Down, if (f) DS.FocusInk else Tok.TextMid, size = 18.dp)
+            else if (count >= 0 && f) Text("$count", color = DS.FocusInk.copy(alpha = 0.6f), fontSize = 14.sp)
+        }
     }
 }
 

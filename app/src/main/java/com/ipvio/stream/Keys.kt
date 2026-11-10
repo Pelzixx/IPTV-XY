@@ -18,17 +18,18 @@ fun Modifier.favKeys(onFav: () -> Unit): Modifier {
     return this.onPreviewKeyEvent { e ->
         when {
             e.key == Key.Menu && e.type == KeyEventType.KeyDown -> { onFav(); true }
-            // Langes OK: erst beim Loslassen auslösen. Öffnet die Aktion ein Menü, bekäme dieses sonst das Loslassen
-            // als Klick auf den ersten Eintrag.
-            e.key == Key.DirectionCenter && e.type == KeyEventType.KeyDown && (longDone || e.nativeKeyEvent.isLongPress) -> { longDone = true; true }
-            e.key == Key.DirectionCenter && e.type == KeyEventType.KeyUp && longDone -> { longDone = false; onFav(); true }
+            // Langes OK: sofort beim Festhalten auslösen (wie TiviMate, Wunsch des Nutzers 2026-11-10). Das Loslassen wird
+            // hier geschluckt; ein dabei geöffnetes Seitenmenü ignoriert es selbst (siehe SideMenu).
+            e.key == Key.DirectionCenter && e.type == KeyEventType.KeyDown && e.nativeKeyEvent.repeatCount == 0 -> { longDone = false; false }
+            e.key == Key.DirectionCenter && e.type == KeyEventType.KeyDown && (longDone || e.nativeKeyEvent.isLongPress) -> { if (!longDone) { longDone = true; onFav() }; true }
+            e.key == Key.DirectionCenter && e.type == KeyEventType.KeyUp && longDone -> { longDone = false; true }
             else -> false
         }
     }
 }
 
 /**
- * Menü-Taste öffnet ein Menü ([onMenu]), OK lange gedrückt macht [onLong] (beim Loslassen).
+ * Menü-Taste öffnet ein Menü ([onMenu]), OK lange gedrückt macht [onLong] (sofort beim Festhalten).
  * Viele Fernbedienungen (Fire TV) haben keine Menü-Taste: dann öffnet langes OK dasselbe Menü.
  */
 @Composable
@@ -37,8 +38,9 @@ fun Modifier.menuKeys(onMenu: () -> Unit, onLong: () -> Unit): Modifier {
     return this.onPreviewKeyEvent { e ->
         when {
             e.key == Key.Menu && e.type == KeyEventType.KeyDown -> { onMenu(); true }
-            e.key == Key.DirectionCenter && e.type == KeyEventType.KeyDown && (longDone || e.nativeKeyEvent.isLongPress) -> { longDone = true; true }
-            e.key == Key.DirectionCenter && e.type == KeyEventType.KeyUp && longDone -> { longDone = false; onLong(); true }
+            e.key == Key.DirectionCenter && e.type == KeyEventType.KeyDown && e.nativeKeyEvent.repeatCount == 0 -> { longDone = false; false }
+            e.key == Key.DirectionCenter && e.type == KeyEventType.KeyDown && (longDone || e.nativeKeyEvent.isLongPress) -> { if (!longDone) { longDone = true; onLong() }; true }
+            e.key == Key.DirectionCenter && e.type == KeyEventType.KeyUp && longDone -> { longDone = false; true }
             else -> false
         }
     }

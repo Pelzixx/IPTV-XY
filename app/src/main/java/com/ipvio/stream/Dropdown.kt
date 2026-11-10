@@ -1,6 +1,10 @@
 package com.ipvio.stream
 
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -196,15 +200,24 @@ fun SideMenu(sections: List<SideSection>, onDismiss: () -> Unit) {
         val fr = remember { FocusRequester() }
         LaunchedEffect(Unit) { kotlinx.coroutines.delay(30); runCatching { fr.requestFocus() } }
         val shown = sections.filter { it.items.isNotEmpty() }
+        // Öffnet sich das Menü schon beim Festhalten von OK (Wunsch des Nutzers, 2026-11-10), kommt das Loslassen hier an:
+        // ein OK-Loslassen ohne vorheriges Drücken im Menü ignorieren, sonst wäre das ein Klick auf den ersten Eintrag
+        var sawDown by remember { mutableStateOf(false) }
+        // Schmaler und kompakter (wie TiviMate), Größe wie die Einstellungsleiste
         LazyColumn(
-            Modifier.fillMaxHeight().width(460.dp).background(Surf.copy(alpha = 0.98f)),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp)
+            Modifier.fillMaxHeight().width(340.dp).background(Surf.copy(alpha = 0.98f))
+                .onPreviewKeyEvent { ev ->
+                    val ok = ev.key == Key.DirectionCenter || ev.key == Key.Enter || ev.key == Key.NumPadEnter
+                    if (ok && ev.type == KeyEventType.KeyDown) { sawDown = true; false }
+                    else ok && ev.type == KeyEventType.KeyUp && !sawDown
+                },
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 16.dp)
         ) {
             shown.forEachIndexed { si, s ->
                 if (si > 0) item { Box(Modifier.padding(horizontal = 16.dp, vertical = 10.dp).fillMaxWidth().height(1.dp).background(DS.Hairline)) }
                 if (s.title != null) item {
-                    Text(raw = s.rawTitle, text = s.title, color = Accent2, fontSize = 17.sp, fontWeight = FontWeight.Medium, maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp))
+                    Text(raw = s.rawTitle, text = s.title, color = Accent2, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp))
                 }
                 itemsIndexed(s.items) { i, e ->
                     SideMenuRow(e, if (si == 0 && i == 0) Modifier.focusRequester(fr) else Modifier) { onDismiss(); e.onPick() }
@@ -219,15 +232,15 @@ private fun SideMenuRow(e: SideEntry, modifier: Modifier, onClick: () -> Unit) {
     var f by remember { mutableStateOf(false) }
     val ink = if (f) DS.FocusInk else Color.White
     Row(
-        modifier.fillMaxWidth().heightIn(min = 56.dp).clip(RoundedCornerShape(DS.RadiusS))
+        modifier.fillMaxWidth().heightIn(min = 44.dp).clip(RoundedCornerShape(DS.RadiusS))
             .background(if (f) TvFocusFill else Color.Transparent)
             .onFocusChanged { f = it.isFocused }
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)
+            .padding(horizontal = 14.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        if (e.icon != null) AppIcon(e.icon, if (e.icon == AIcon.Star && !f) DS.Gold else ink, size = 20.dp)
-        Text(raw = e.raw, text = e.label, color = ink, fontSize = 18.sp, maxLines = 2,
+        if (e.icon != null) AppIcon(e.icon, if (e.icon == AIcon.Star && !f) DS.Gold else ink, size = 17.dp)
+        Text(raw = e.raw, text = e.label, color = ink, fontSize = 15.sp, maxLines = 2,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
     }
 }
