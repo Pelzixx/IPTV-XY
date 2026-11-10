@@ -64,7 +64,7 @@ Bis `memberFrom` (fehlt es: 7 Tage nach dem ersten Hinweis auf dem Gerät) nur a
 danach ist die Eingabe Pflicht – ohne bestätigten Namen lässt sich die App nicht mehr nutzen.
 Die App schickt den Namen so: ohne `@`, ohne `:server`, klein geschrieben.
 
-Jede Anfrage enthält zusätzlich `edition` (`xy`/`township`), `app` (Version), `device` (zufällige Geräte-ID der App)
+Jede Anfrage enthält zusätzlich `edition` (`xy`/`township`), `app` (Version), `device` (Geräte-ID der App, siehe Abschnitt 9)
 und `model` (Gerätename).
 
 ```json
@@ -178,3 +178,28 @@ und Uhrzeit eingeben. Die App prüft den Zeitraum jede Minute selbst. `news` dar
 geplante Mitteilungen, z. B. „Willkommen“ jetzt und eine weitere ab in zwei Wochen) – angezeigt wird die erste gültige.
 Abgelaufene bitte nicht mehr ausliefern. Bei `note` die gerade gültige, sonst die nächste geplante liefern.
 Die App holt die Konfiguration beim Start und alle 30 Minuten.
+
+## 9. Geräte-Grenze je Kunde (ab 3.58)
+
+Wunsch des Betreibers (2026-11-10): je Kunde festlegen, auf wie vielen Geräten er sich mit Element-Name und IPTV-Zugang
+anmelden darf, z. B. **Admin 5, normaler Nutzer 2**. Die Einstellung erfolgt nur im Panel.
+
+**Geräte-ID:** Ab 3.58 ist `device` fest je Gerät: `a-` + 24 Hex-Zeichen (Hash der Android-Geräte-ID, bleibt bei
+Neuinstallation der App gleich, ändert sich nur beim Zurücksetzen des Geräts). Bei Geräten ohne brauchbare Android-ID
+bleibt es die frühere Zufallsnummer (UUID). Zusätzlich kommt `deviceOld` = die frühere Zufallsnummer der App mit
+(bis 3.57 war das `device`). Panel: Gibt es einen Geräte-Eintrag mit `device == deviceOld`, diesen auf die neue ID
+umschreiben statt ein neues Gerät anzulegen – sonst zählt jedes Gerät nach dem Update doppelt.
+
+**Grenze prüfen** bei `check` und `seen`:
+- Gezählt werden die verschiedenen `device` desselben Kunden (Element-Name bzw. Xtream-Zugang, wie bei der strengen
+  Prüfung zusammengelegt), die in den letzten 30 Tagen gesehen wurden. Ältere Geräte fallen automatisch heraus.
+- Bekanntes Gerät: immer erlaubt (auch wenn die Grenze inzwischen gesenkt wurde – erst beim nächsten neuen Gerät greift sie).
+- Neues Gerät und Grenze erreicht: `{"ok": false, "error": "devices", "message": "Du nutzt bereits 2 von 2 Geräten …"}`.
+  Das Gerät wird dann **nicht** gespeichert. Die App sperrt sich (kein „Später“) und zeigt `message`, sonst einen
+  eigenen Text („Mit diesem Zugang sind schon alle erlaubten Geräte verbunden …“).
+
+**Panel-Einstellungen:**
+- Admin-Einstellung „Geräte je Kunde“: Standard für Admins (5) und für normale Nutzer (2). `0` = unbegrenzt.
+- Beim Kunden (Reiter „TV App“): Feld „Max. Geräte“ (leer = Standard seiner Rolle), Liste der Geräte mit Modell,
+  App-Version, zuletzt gesehen und Knopf „Entfernen“ (Platz wird sofort frei).
+- Testzugang („clown“): eigene Grenze, Vorschlag 1.

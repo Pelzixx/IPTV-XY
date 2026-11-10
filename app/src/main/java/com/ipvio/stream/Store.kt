@@ -72,7 +72,7 @@ object AppSettings {
     /** Uhrzeit im Bild: an/aus, Ecke (0 oben rechts, 1 oben links, 2 unten rechts, 3 unten links), Deckkraft in %, Größe (0 klein, 1 mittel, 2 groß). */
     var clockOn by mutableStateOf(false)
     /** Bildrate an den Film anpassen (ExoPlayer: nur, wenn der Wechsel nahtlos möglich ist). */
-    var autoFps by mutableStateOf(true)
+    var autoFps by mutableStateOf(false)
     /** Live TV: markierten Sender klein oben rechts als Vorschau abspielen. */
     var livePreview by mutableStateOf(true)
     /** Uhr: Hintergrundkasten an/aus und seine Deckkraft in % (die Deckkraft der Schrift ist clockOpacity). */
@@ -116,7 +116,8 @@ object AppSettings {
         autoSkipIntro = p.getBoolean("auto_skip", false)
         autoSkipOutro = p.getBoolean("auto_outro", false)
         clockOn = p.getBoolean("clock_on", false)
-        autoFps = p.getBoolean("auto_fps", true)
+        // Standard aus (Wunsch des Nutzers, 2026-11-10): Umschalten der Bildrate führte auf manchen Boxen zu schwarzem Bild
+        autoFps = p.getBoolean("auto_fps", false)
         livePreview = p.getBoolean("live_preview", true)
         clockBg = p.getBoolean("clock_bg", true)
         clockBgOpacity = p.getInt("clock_bg_op", 40).coerceIn(10, 100)

@@ -24,3 +24,16 @@ class MemberLogicTest {
         assertEquals("2026-11-20", c.memberFrom)
     }
 }
+
+class DeviceIdTest {
+    @Test fun fest_und_gehasht() {
+        val a = MemberLogic.deviceId("1a2b3c4d5e6f7a8b")
+        org.junit.Assert.assertEquals(a, MemberLogic.deviceId("1A2B3C4D5E6F7A8B"))
+        org.junit.Assert.assertTrue(a!!.startsWith("a-") && a.length == 26 && !a.contains("1a2b3c4d"))
+    }
+    @Test fun sammel_id_nicht() {
+        org.junit.Assert.assertNull(MemberLogic.deviceId("9774d56d682e549c"))
+        org.junit.Assert.assertNull(MemberLogic.deviceId(null))
+        org.junit.Assert.assertNull(MemberLogic.deviceId("0000000000000000"))
+    }
+}

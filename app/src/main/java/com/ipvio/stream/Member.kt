@@ -35,6 +35,17 @@ data class MemberMsg(val id: String, val title: String, val text: String, val ts
 
 /** Reine Logik ohne Android (Unit-Tests). */
 object MemberLogic {
+    /**
+     * Gerätenummer aus der Android-Geräte-ID: gehasht (die ID selbst geht nicht ans Panel), mit Vorsilbe „a-“.
+     * null bei fehlender oder bekannter Sammel-ID (alte Geräte melden alle dieselbe), dann gilt die Zufallsnummer.
+     */
+    fun deviceId(androidId: String?): String? {
+        val a = androidId?.trim()?.lowercase().orEmpty()
+        if (a.length < 8 || a == "9774d56d682e549c" || a.all { it == '0' }) return null
+        val h = java.security.MessageDigest.getInstance("SHA-256").digest(("iptvxy:" + a).toByteArray())
+        return "a-" + h.take(12).joinToString("") { "%02x".format(it) }
+    }
+
     private val VALID = Regex("""^[a-z0-9._=\-/]{2,64}$""")
 
     /** Element-Namen vereinheitlichen: „@vojadsvv_xy:matrix.tld“ → „vojadsvv_xy“, klein; null = ungültig. */
@@ -121,19 +132,30 @@ object Member {
         lastError = prefs(c).getString("lastError", "").orEmpty()
     }
 
-    /** Zufällige Gerätenummer (nur zur Unterscheidung mehrerer Geräte eines Nutzers im Panel). */
-    private fun device(c: Context): String {
+    /** Gerätenummer für das Panel (Geräte je Nutzer zählen): aus der Android-Geräte-ID, sonst die alte Zufallsnummer. */
+    private fun device(c: Context): String = MemberLogic.deviceId(androidId(c)) ?: oldDevice(c)
+
+    /**
+     * Frühere Zufallsnummer (bis 3.57): geht bei Neuinstallation verloren. Wird als `deviceOld` mitgeschickt, damit das Panel
+     * den bisherigen Eintrag dem Gerät zuordnen kann (Geräte-Grenze, Wunsch des Nutzers 2026-11-10).
+     */
+    private fun oldDevice(c: Context): String {
         val p = prefs(c)
         return p.getString("device", null) ?: java.util.UUID.randomUUID().toString().also { p.edit().putString("device", it).apply() }
     }
 
-    /** Ablehnung des Panels: [code] (unknown, mismatch, bound, trial_expired, auth) und optional eigener Hinweistext. */
+    /** Android-Geräte-ID (bleibt bei Neuinstallation gleich, ändert sich nur beim Zurücksetzen des Geräts). */
+    @android.annotation.SuppressLint("HardwareIds")
+    private fun androidId(c: Context): String? =
+        runCatching { android.provider.Settings.Secure.getString(c.contentResolver, android.provider.Settings.Secure.ANDROID_ID) }.getOrNull()
+
+    /** Ablehnung des Panels: [code] (unknown, mismatch, bound, trial_expired, auth, devices) und optional eigener Hinweistext. */
     private class Rejected(val code: String, val text: String = "") : Exception(code)
 
     private fun post(c: Context, j: JSONObject): JSONObject {
         val url = Presets.memberUrl ?: error("Nicht eingerichtet")
         val pi = runCatching { c.packageManager.getPackageInfo(c.packageName, 0) }.getOrNull()
-        j.put("edition", BuildConfig.EDITION).put("app", pi?.versionName ?: "?").put("device", device(c))
+        j.put("edition", BuildConfig.EDITION).put("app", pi?.versionName ?: "?").put("device", device(c)).put("deviceOld", oldDevice(c))
             .put("model", (android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL).trim())
         val body = j.toString().toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
         Net.withTimeouts(10, 15).newCall(okhttp3.Request.Builder().url(url).post(body).build()).execute().use { r ->
@@ -171,11 +193,12 @@ object Member {
         "mismatch", "bound" -> "Dieser Element-Name gehört zu einem anderen Zugang. Bitte deinen eigenen Element-Namen eingeben."
         "trial_expired" -> "Der Testzeitraum ist abgelaufen. Bitte melde dich bei deinem Anbieter."
         "auth" -> "Benutzername oder Passwort stimmen nicht."
+        "devices" -> "Mit diesem Zugang sind schon alle erlaubten Geräte verbunden. Bitte melde dich bei deinem Anbieter, damit er ein altes Gerät entfernt."
         else -> "Diesen Element-Namen kennt der Anbieter nicht. Bitte genau so eingeben, wie er in Element steht."
     }) }
 
     /** Gründe, bei denen die App sofort gesperrt bleibt (kein „Später“). */
-    private fun hard(code: String) = code == "mismatch" || code == "bound" || code == "trial_expired"
+    private fun hard(code: String) = code == "mismatch" || code == "bound" || code == "trial_expired" || code == "devices"
 
     private fun checkJson(n: String, creds: Triple<String, String, String>?) = JSONObject().put("action", "check").put("name", n).apply {
         // Server und Zugang mitschicken: das Panel prüft, ob Element-Name und Xtream-Zugang zusammengehören
