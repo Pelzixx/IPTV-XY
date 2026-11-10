@@ -46,6 +46,18 @@ object Smb {
     }.getOrElse { it.message ?: it.javaClass.simpleName }
 
     fun openRead(path: String): jcifs.smb.SmbRandomAccessFile = jcifs.smb.SmbRandomAccessFile(file(path), "r")
+
+    /**
+     * Unterordner zum Auswählen (TiviMate: erst verbinden, dann Ordner wählen). Auf „smb://host/“ sind das die Freigaben
+     * (ohne versteckte wie IPC$). Wirft bei Verbindungs- oder Anmeldefehlern.
+     */
+    fun listDirs(dir: String): List<String> {
+        val d = jcifs.smb.SmbFile(dir.trimEnd('/') + "/", cifs(dir))
+        return d.listFiles().filter { f ->
+            val n = f.name.trimEnd('/')
+            n.isNotEmpty() && !n.endsWith("$") && runCatching { f.type == jcifs.SmbConstants.TYPE_SHARE || f.isDirectory }.getOrDefault(false)
+        }.map { it.name.trimEnd('/') }.sortedBy { it.lowercase() }
+    }
 }
 
 /** Datenquelle für den Player: smb://… lesen, alles andere an die normale Quelle weiterreichen. */

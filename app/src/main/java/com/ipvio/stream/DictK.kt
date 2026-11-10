@@ -472,6 +472,13 @@ Gerade läuft kein Spiel¦No match is being played right now¦Şu anda oynanan m
 Aktionen¦Actions¦Eylemler¦Radnje¦Radnje¦Radnje¦Acciones¦Actions¦Azioni
 OK zum Leeren¦OK to clear¦Temizlemek için OK¦OK za brisanje¦OK za brisanje¦OK za brisanje¦OK para vaciar¦OK pour vider¦OK per svuotare
 Links/Rechts zum Ändern¦Left/right to change¦Değiştirmek için sol/sağ¦Lijevo/desno za promjenu¦Lijevo/desno za promjenu¦Levo/desno za promenu¦Izquierda/derecha para cambiar¦Gauche/droite pour modifier¦Sinistra/destra per cambiare
+IP-Adresse¦IP address¦IP adresi¦IP adresa¦IP adresa¦IP adresa¦Dirección IP¦Adresse IP¦Indirizzo IP
+Leer = Gast¦Empty = guest¦Boş = misafir¦Prazno = gost¦Prazno = gost¦Prazno = gost¦Vacío = invitado¦Vide = invité¦Vuoto = ospite
+IP-Adresse, Name, Benutzer und Passwort – danach Ordner wählen¦IP address, name, user and password – then choose a folder¦IP adresi, ad, kullanıcı ve şifre – sonra klasör seçin¦IP adresa, naziv, korisnik i lozinka – zatim odaberite mapu¦IP adresa, naziv, korisnik i lozinka – zatim odaberite mapu¦IP adresa, naziv, korisnik i lozinka – zatim izaberite fasciklu¦Dirección IP, nombre, usuario y contraseña – luego elige una carpeta¦Adresse IP, nom, utilisateur et mot de passe – puis choisis un dossier¦Indirizzo IP, nome, utente e password – poi scegli una cartella
+Ordner wählen¦Choose folder¦Klasör seç¦Odaberi mapu¦Odaberi mapu¦Izaberi fasciklu¦Elegir carpeta¦Choisir un dossier¦Scegli cartella
+Diesen Ordner verwenden¦Use this folder¦Bu klasörü kullan¦Koristi ovu mapu¦Koristi ovu mapu¦Koristi ovu fasciklu¦Usar esta carpeta¦Utiliser ce dossier¦Usa questa cartella
+Verbinde …¦Connecting …¦Bağlanıyor …¦Povezivanje …¦Povezivanje …¦Povezivanje …¦Conectando …¦Connexion …¦Connessione …
+Keine Unterordner¦No subfolders¦Alt klasör yok¦Nema podmapa¦Nema podmapa¦Nema podfascikli¦Sin subcarpetas¦Aucun sous-dossier¦Nessuna sottocartella
 Stand¦Status¦Durum¦Stanje¦Stanje¦Stanje¦Estado¦État¦Stato
 In die Zwischenablage kopiert¦Copied to clipboard¦Panoya kopyalandı¦Kopirano u međuspremnik¦Kopirano u međuspremnik¦Kopirano u međuspremnik¦Copiado al portapapeles¦Copié dans le presse-papiers¦Copiato negli appunti
 Beendet¦Finished¦Bitti¦Završeno¦Završeno¦Završeno¦Finalizado¦Terminé¦Terminata

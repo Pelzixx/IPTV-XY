@@ -2487,16 +2487,24 @@ private fun TmRecording(ctx: Context) {
         val active = c.id == cur?.id
         SettingRow(c.name, c.url + (if (active) "  ·  " + Lang.tr("Aufnahmeverzeichnis") else ""), rawTitle = true, rawValue = true, onClick = { edit = c })
     }
-    SettingRow("SMB-Verbindung hinzufügen", Lang.tr("z. B. smb://192.168.2.9/Freigabe/Aufnahmen"), onClick = {
-        ask = Ask("Adresse der Freigabe", "smb://", "smb://192.168.2.9/Freigabe/Aufnahmen") { u ->
-            val nu = SmbConns.norm(u)
-            if (nu.length > 6) {
-                val n = SmbConn(SmbConns.newId(), SmbConns.hostOf(nu), nu, "", "")
-                SmbConns.upsert(ctx, n)
-                edit = n
+    // TiviMate-Ablauf (Wunsch des Nutzers, 2026-11-10): IP-Adresse, Name, Benutzer, Passwort – dann verbinden und Ordner wählen
+    var browse by remember { mutableStateOf<Pair<String, String>?>(null) }   // Verbindungs-ID zu aktuellem Pfad
+    SettingRow("SMB-Verbindung hinzufügen", Lang.tr("IP-Adresse, Name, Benutzer und Passwort – danach Ordner wählen"), onClick = {
+        ask = Ask("IP-Adresse", "", "192.168.2.9") { ip0 ->
+            val ip = SmbConns.hostOf(ip0).substringBefore('/')
+            if (ip.isNotBlank()) ask = Ask("Name", ip, "NAS, PC …") { nm ->
+                ask = Ask("SMB Benutzername", "", "Leer = Gast") { us ->
+                    val fin: (String) -> Unit = { pw ->
+                        val n = SmbConn(SmbConns.newId(), nm.trim().ifEmpty { ip }, "smb://" + ip, us.trim(), pw)
+                        SmbConns.upsert(ctx, n)
+                        browse = n.id to n.url
+                    }
+                    if (us.isBlank()) fin("") else ask = Ask("SMB Passwort", "", "Passwort", password = true) { fin(it) }
+                }
             }
         }
     })
+    browse?.let { (id, path) -> key(path) { SmbFolderPicker(ctx, id, path, onOpen = { browse = id to it }, onClose = { browse = null }) } }
 
     if (pick) {
         val entries = ArrayList<SideEntry>()
@@ -2514,6 +2522,7 @@ private fun TmRecording(ctx: Context) {
         val c = SmbConns.list().firstOrNull { it.id == c0.id } ?: c0
         val e = ArrayList<SideEntry>()
         e.add(SideEntry("Als Aufnahmeverzeichnis verwenden") { Tm.set(ctx, Tm.REC_DIR, c.url) })
+        e.add(SideEntry(Lang.tr("Ordner wählen") + ": " + c.url, raw = true) { browse = c.id to "smb://" + SmbConns.hostOf(c.url).substringBefore('/') })
         e.add(SideEntry(Lang.tr("Name") + ": " + c.name, raw = true) {
             ask = Ask("Name", c.name, "NAS, PC …") { if (it.isNotBlank()) SmbConns.upsert(ctx, c.copy(name = it.trim())) }
         })
@@ -2544,6 +2553,38 @@ private fun TmRecording(ctx: Context) {
         if (ask == null) SideMenu(listOf(SideSection(c.name, e)), { editClosing = true })
     }
     ask?.let { q -> TextAskDialog(Lang.tr(q.title), q.initial, q.hint, q.password, onDismiss = { ask = null }) { ask = null; q.onSave(it) } }
+}
+
+/**
+ * SMB-Ordner wählen (TiviMate): verbindet mit den gespeicherten Zugangsdaten und zeigt Freigaben bzw. Unterordner.
+ * „Diesen Ordner verwenden“ speichert ihn als Adresse der Verbindung und als Aufnahmeverzeichnis.
+ */
+@Composable
+private fun SmbFolderPicker(ctx: Context, id: String, path: String, onOpen: (String) -> Unit, onClose: () -> Unit) {
+    var dirs by remember { mutableStateOf<List<String>?>(null) }
+    var err by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(path) {
+        val r = withContext(Dispatchers.IO) { runCatching { Smb.listDirs(path) } }
+        dirs = r.getOrNull(); err = r.exceptionOrNull()?.let { it.message ?: it.javaClass.simpleName }
+    }
+    val host = "smb://" + SmbConns.hostOf(path).substringBefore('/')
+    val atRoot = path.trimEnd('/').equals(host, true)
+    val e = ArrayList<SideEntry>()
+    if (!atRoot) e.add(SideEntry(Lang.tr("Diesen Ordner verwenden"), AIcon.Check) {
+        SmbConns.list().firstOrNull { it.id == id }?.let { c ->
+            SmbConns.upsert(ctx, c.copy(url = path.trimEnd('/')))
+            Tm.set(ctx, Tm.REC_DIR, path.trimEnd('/'))
+            android.widget.Toast.makeText(ctx, Lang.tr("Aufnahmeverzeichnis") + ": " + path, android.widget.Toast.LENGTH_SHORT).show()
+        }
+    })
+    if (!atRoot) e.add(SideEntry(Lang.tr("Zurück"), AIcon.Left) { onOpen(path.trimEnd('/').substringBeforeLast('/')) })
+    when {
+        err != null -> e.add(SideEntry(Lang.tr("Verbindung fehlgeschlagen") + ": " + err, raw = true) { onOpen(path) })
+        dirs == null -> e.add(SideEntry(Lang.tr("Verbinde …")) { onOpen(path) })
+        dirs!!.isEmpty() -> e.add(SideEntry(Lang.tr("Keine Unterordner")) { onOpen(path) })
+        else -> dirs!!.forEach { d -> e.add(SideEntry(d, raw = true) { onOpen(path.trimEnd('/') + "/" + d) }) }
+    }
+    SideMenu(listOf(SideSection(path.removePrefix("smb://"), e)), { onClose() })
 }
 
 /** „Kanäle: N, Filme: N, Serien: N“ der Haupt-Wiedergabeliste (wie TiviMate). */
