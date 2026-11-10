@@ -34,7 +34,7 @@ object XyPlayer {
             .build()
             .also {
                 // Bildrate: nur wechseln, wenn der Fernseher das nahtlos kann (kein Aufblitzen); abschaltbar unter Einstellungen > Player
-                it.videoChangeFrameRateStrategy = if (AppSettings.autoFps && Tm.i(Tm.PB_AFR_MODE, 1) == 0) C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_ONLY_IF_SEAMLESS else C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_OFF
+                it.videoChangeFrameRateStrategy = if (AppSettings.autoFps && Tm.afrMode() == 0) C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_ONLY_IF_SEAMLESS else C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_OFF
             }
         return Built(p, http)
     }

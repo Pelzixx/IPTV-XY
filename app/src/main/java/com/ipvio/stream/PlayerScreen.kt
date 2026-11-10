@@ -203,7 +203,8 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     val fpsProbe = remember { FpsProbe() }
     fpsProbe.onFps = { f ->
         measuredFps = f; DiagSend.lastFps = f
-        if (AppSettings.autoFps && Tm.i(Tm.PB_AFR_MODE, 1) == 1) findActivity(ctx)?.let { DisplayAfr.apply(it, f.toFloat()) }
+        if (AppSettings.autoFps && Tm.afrMode() == 1) findActivity(ctx)?.let { DisplayAfr.apply(it, f.toFloat()) }
+        if (AppSettings.autoFps && Tm.afrMode() == 2) DisplayAfr.applySystem(PlayerViewRef.view, f.toFloat())
     }
     DisposableEffect(player) {
         player.setVideoFrameMetadataListener(fpsProbe)
@@ -851,7 +852,8 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
                 val vf = player.videoFormat
                 if (vf != null) showInfo(vf.width, vf.height)
                 // AFR wie TiviMate: Anzeigemodus des Fernsehers passend zur Bildrate (Einstellungen > Wiedergabe)
-                if (vf != null && AppSettings.autoFps && Tm.i(Tm.PB_AFR_MODE, 1) == 1 && vf.frameRate > 0f) findActivity(ctx)?.let { DisplayAfr.apply(it, vf.frameRate) }
+                if (vf != null && AppSettings.autoFps && Tm.afrMode() == 1 && vf.frameRate > 0f) findActivity(ctx)?.let { DisplayAfr.apply(it, vf.frameRate) }
+                if (vf != null && AppSettings.autoFps && Tm.afrMode() == 2 && vf.frameRate > 0f) DisplayAfr.applySystem(PlayerViewRef.view, vf.frameRate)
             }
             override fun onVideoSizeChanged(videoSize: VideoSize) { showInfo(videoSize.width, videoSize.height) }
             override fun onRenderedFirstFrame() { frameShown = true }
@@ -1277,7 +1279,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
         }) {
         AndroidView(
             factory = { c ->
-                PlayerView(c).apply {
+                PlayerView(c).also { PlayerViewRef.view = it }.apply {
                     useController = false
                     setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
                     this.player = player

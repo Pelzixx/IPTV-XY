@@ -27,6 +27,13 @@ object Tm {
 
     fun b(key: String, def: Boolean): Boolean = bools[key] ?: def
     fun i(key: String, def: Int): Int = ints[key] ?: def
+
+    /**
+     * AFR-Methode: 0 nahtlos, 1 Anzeigemodus selbst wechseln, 2 über das Gerät (Android 12+: die App meldet die Bildrate,
+     * die Box schaltet nach ihrer Einstellung „Bildrate anpassen“ um – Wunsch des Nutzers 2026-11-10, Google TV schaltete
+     * sonst doppelt um). Standard: ab Android 12 über das Gerät, davor Anzeigemodus wechseln.
+     */
+    fun afrMode(): Int = i(PB_AFR_MODE, if (android.os.Build.VERSION.SDK_INT >= 31) 2 else 1).let { if (it == 2 && android.os.Build.VERSION.SDK_INT < 31) 1 else it }
     fun s(key: String, def: String = ""): String = strs[key] ?: def
 
     fun set(c: Context, key: String, v: Boolean) { init(c); bools[key] = v; sp?.edit()?.putBoolean(key, v)?.apply() }

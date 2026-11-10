@@ -169,4 +169,5 @@ Für dich¦For you¦Senin için¦Za tebe¦Za tebe¦Za tebe¦Para ti¦Pour toi¦P
 Tabelle¦Table¦Puan durumu¦Tabela¦Tablica¦Tabela¦Clasificación¦Classement¦Classifica
 Verein¦Club¦Kulüp¦Klub¦Klub¦Klub¦Club¦Club¦Squadra
 Tore¦Goals¦Goller¦Golovi¦Golovi¦Golovi¦Goles¦Buts¦Gol
+Über das Gerät (Einstellung „Bildrate anpassen“)¦Via the device („Match frame rate“ setting)¦Cihaz üzerinden („Kare hızını eşleştir“ ayarı)¦Preko uređaja (postavka „Prilagodi broj sličica“)¦Preko uređaja (postavka „Prilagodi broj sličica“)¦Preko uređaja (podešavanje „Prilagodi broj sličica“)¦A través del dispositivo (ajuste «Ajustar frecuencia»)¦Via l’appareil (réglage « Adapter la fréquence »)¦Tramite il dispositivo (impostazione «Adatta frequenza»)
 """

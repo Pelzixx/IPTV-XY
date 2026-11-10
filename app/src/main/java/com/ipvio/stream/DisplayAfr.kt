@@ -93,10 +93,27 @@ object DisplayAfr {
         changed = true
     }
 
+    /**
+     * Android 12+: Bildrate des Videos an das System melden (Surface.setFrameRate, „immer“). Die Box entscheidet nach ihrer
+     * eigenen Einstellung („Bildrate anpassen“: nie / nahtlos / immer), ob und wie sie umschaltet – kein eigener Moduswechsel.
+     */
+    fun applySystem(view: androidx.media3.ui.PlayerView?, fps: Float) {
+        if (Build.VERSION.SDK_INT < 31 || fps <= 1f) return
+        val sv = view?.videoSurfaceView as? android.view.SurfaceView ?: return
+        val s = sv.holder.surface ?: return
+        if (!s.isValid) return
+        runCatching { s.setFrameRate(fps, android.view.Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE, android.view.Surface.CHANGE_FRAME_RATE_ALWAYS) }
+    }
+
     fun restore(a: Activity?) {
         if (!changed || a == null || Build.VERSION.SDK_INT < 23) return
         val w = a.window ?: return
         w.attributes = w.attributes.also { it.preferredDisplayModeId = 0 }
         changed = false
     }
+}
+
+/** Vollbild-Player-Ansicht (für die Bildraten-Meldung an das System, AFR-Methode „über das Gerät“). */
+object PlayerViewRef {
+    @Volatile var view: androidx.media3.ui.PlayerView? = null
 }
