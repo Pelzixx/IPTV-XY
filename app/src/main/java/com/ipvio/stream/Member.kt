@@ -35,6 +35,15 @@ data class MemberMsg(val id: String, val title: String, val text: String, val ts
 
 /** Reine Logik ohne Android (Unit-Tests). */
 object MemberLogic {
+    /** Geräte aus der Panel-Antwort: (verbunden, erlaubt); erlaubt 0 = unbegrenzt. null, wenn das Panel nichts mitschickt. */
+    fun devices(o: org.json.JSONObject): Pair<Int, Int>? {
+        val n = o.optInt("devices", -1); val m = o.optInt("maxDevices", -1)
+        return if (n < 0) null else n to m.coerceAtLeast(0)
+    }
+
+    /** „1 / 2“, unbegrenzt „1 / ∞“. */
+    fun devicesText(d: Pair<Int, Int>): String = d.first.toString() + " / " + (if (d.second == 0) "∞" else d.second.toString())
+
     /**
      * Gerätenummer aus der Android-Geräte-ID: gehasht (die ID selbst geht nicht ans Panel), mit Vorsilbe „a-“.
      * null bei fehlender oder bekannter Sammel-ID (alte Geräte melden alle dieselbe), dann gilt die Zufallsnummer.
@@ -89,6 +98,8 @@ object MemberLogic {
 object Member {
     /** Bestätigter Name (leer = keiner). */
     var name by mutableStateOf("")
+    /** Verbundene und erlaubte Geräte laut Panel (Antwort auf `check`: `devices`, `maxDevices`, 0 = unbegrenzt), null = unbekannt. */
+    var devices by mutableStateOf<Pair<Int, Int>?>(null)
         private set
     /** Eingabefenster offen. */
     var asking by mutableStateOf(false)
@@ -216,7 +227,8 @@ object Member {
             onSuccess = { o ->
                 val confirmed = MemberLogic.norm(o.optString("name", n)) ?: n
                 prefs(c).edit().putString("name", confirmed).putBoolean("blocked", false).remove("lastError").apply()
-                withContext(Dispatchers.Main) { name = confirmed; asking = false; blocked = false; lastError = "" }
+                val dv = MemberLogic.devices(o)
+                withContext(Dispatchers.Main) { name = confirmed; asking = false; blocked = false; lastError = ""; devices = dv }
                 launchPoll(c)
                 null
             },
@@ -258,7 +270,7 @@ object Member {
 
     /** Gespeicherten Namen still nachprüfen: abgelehnt → Name weg, wieder fragen (bei fremdem Namen/Testende sofort Pflicht). */
     private suspend fun recheck(c: Context) = withContext(Dispatchers.IO) {
-        runCatching { post(c, checkJson(name, presetCreds())) }.onFailure { e ->
+        runCatching { post(c, checkJson(name, presetCreds())) }.onSuccess { o -> MemberLogic.devices(o)?.let { d -> withContext(Dispatchers.Main) { devices = d } } }.onFailure { e ->
             if (e is Rejected && e.code != "auth") {
                 val code = e.code; val msg = reason(code, e.text)
                 prefs(c).edit().remove("name").putBoolean("blocked", hard(code)).putString("lastError", msg).apply()

@@ -37,3 +37,11 @@ class DeviceIdTest {
         org.junit.Assert.assertNull(MemberLogic.deviceId("0000000000000000"))
     }
 }
+
+class DevicesTextTest {
+    @Test fun anzeige() {
+        org.junit.Assert.assertEquals("1 / 2", MemberLogic.devicesText(MemberLogic.devices(org.json.JSONObject("""{"ok":true,"devices":1,"maxDevices":2}"""))!!))
+        org.junit.Assert.assertEquals("3 / ∞", MemberLogic.devicesText(MemberLogic.devices(org.json.JSONObject("""{"ok":true,"devices":3,"maxDevices":0}"""))!!))
+        org.junit.Assert.assertNull(MemberLogic.devices(org.json.JSONObject("""{"ok":true}""")))
+    }
+}

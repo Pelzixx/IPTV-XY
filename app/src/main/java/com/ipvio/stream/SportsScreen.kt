@@ -71,8 +71,9 @@ fun SportsScreen(tab: Int, onTab: (Int) -> Unit, onPlay: (Item) -> Unit) {
     // Ligen mit Tabelle auch ohne Spiele im Programm anbieten (Tabelle steht dann unter der Liga)
     val tables = SportsRepo.tables
     val leagues = remember(events, tables) { (events.map { it.league } + tables.keys).distinct().sortedBy { SportsLogic.prio(it) } }
-    // Rubrik „Live“ (Wunsch des Nutzers, 2026-11-10): nur Spiele, die gerade laufen, mit Live-Stand – keine TV-Live-Sendungen
-    val liveNow = events.filter { it.liveScore(nowSec) }
+    // Rubrik „Live“ (Wunsch des Nutzers, 2026-11-10): nur, was gerade wirklich stattfindet – keine Wiederholungen
+    // Findet gerade wirklich statt: Spielstand laut OpenLigaDB oder als Live-Übertragung gekennzeichnet (Darts, F1 …)
+    val liveNow = events.filter { it.realLive(nowSec) }
     val shown = when (league) { null -> events; LIVE_TAB -> liveNow; else -> events.filter { it.league == league } }
     var focused by remember { mutableStateOf<SportEvent?>(null) }
     val hero = focused?.takeIf { f -> shown.any { it.key == f.key } }?.let { f -> shown.first { it.key == f.key } } ?: shown.firstOrNull()
@@ -145,9 +146,24 @@ private fun SportChip(label: String, selected: Boolean, modifier: Modifier = Mod
 }
 
 @Composable
-private fun SportLiveBadge() {
-    Box(Modifier.border(1.dp, LiveRed, RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 1.dp)) {
-        Text("LIVE", color = LiveRed, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+private fun SportLiveBadge(label: String = "LIVE", color: Color = LiveRed) {
+    Box(Modifier.border(1.dp, color, RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 1.dp)) {
+        Text(label, color = color, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+/**
+ * Stand eines Ereignisses (Wunsch des Nutzers, 2026-11-10): rot „LIVE“ nur, wenn es gerade wirklich stattfindet, dazu
+ * „LIVE IM TV“ bzw. „NICHT IM TV“; läuft nur eine Sendung ohne Live-Kennzeichen (Aufzeichnung/Wiederholung): grau „IM TV“.
+ */
+@Composable
+private fun SportStatus(e: SportEvent, now: Long) {
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (e.realLive(now)) {
+            SportLiveBadge()
+            if (e.onTvLive(now)) SportLiveBadge(Lang.tr("LIVE IM TV"), Accent2)
+            else SportLiveBadge(Lang.tr(if (e.channels.isEmpty()) "NICHT IM TV" else "NICHT LIVE IM TV"), Tok.TextLow)
+        } else if (e.live(now)) SportLiveBadge(Lang.tr("IM TV"), Tok.TextMid)
     }
 }
 
@@ -175,7 +191,7 @@ private fun SportHero(e: SportEvent, now: Long, byId: Map<String, Item>, onWatch
         Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(raw = true, text = e.league, color = Tok.TextMid, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                if (e.live(now)) { SportLiveBadge(); SportsLogic.gameMinute(e, now)?.let { Text(raw = true, text = "  " + it, color = Tok.TextMid, fontSize = 14.sp) } }
+                if (e.live(now) || e.realLive(now)) { SportStatus(e, now); if (e.realLive(now)) SportsLogic.gameMinute(e, now)?.let { Text(raw = true, text = "  " + it, color = Tok.TextMid, fontSize = 14.sp) } }
                 else if (e.finished) Text("Beendet", color = Tok.TextLow, fontSize = 13.sp)
             }
             if (e.home != null && e.away != null) {
@@ -225,7 +241,7 @@ private fun SportCard(e: SportEvent, now: Long, onFocus: () -> Unit, onClick: ()
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(raw = true, text = e.league, color = Tok.TextMid, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 1)
-            if (e.live(now)) SportLiveBadge()
+            if (e.live(now) || e.realLive(now)) SportStatus(e, now)
             else if (e.channels.isNotEmpty() && Reminders.isSet(e.channels.first(), e.start)) AppIcon(AIcon.Bell, Accent2, size = 14.dp)
         }
         if (e.home != null && e.away != null) {

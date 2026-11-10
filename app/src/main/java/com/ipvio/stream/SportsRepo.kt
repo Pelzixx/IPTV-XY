@@ -73,7 +73,7 @@ object SportsRepo {
             .groupBy { (_, e) -> e.title.trim().lowercase() + "|" + e.start }
             .map { (k, l) ->
                 val e = l.first().second
-                SportEvent("air|$k", SportsLogic.FOOTBALL, "Jetzt im TV", null, null, e.title.trim(), e.desc, e.start, e.end, bestFirst(l.map { it.first }).map { it.id })
+                SportEvent("air|$k", SportsLogic.FOOTBALL, "Jetzt im TV", null, null, e.title.trim(), e.desc, e.start, e.end, bestFirst(l.map { it.first }).map { it.id }, tvLive = true)
             }
             .sortedWith(compareByDescending<SportEvent> { it.channels.size }.thenBy { it.title })
             .take(60)
@@ -165,7 +165,7 @@ object SportsRepo {
     private fun build(cands: List<Cand>, live: List<Item>, count: Int, final: Boolean): Scan {
         val now = System.currentTimeMillis() / 1000
         val from = now - 3 * 3600; val to = now + 48 * 3600
-        class Acc(val hit: SportHit, val e: EpgEntry, val chans: MutableList<Item>)
+        class Acc(val hit: SportHit, val e: EpgEntry, val chans: MutableList<Item>) { var tv = false }
         val acc = LinkedHashMap<String, Acc>()
         val entries = ArrayList<Pair<Item, EpgEntry>>()
         // Viele Sender teilen sich dasselbe Programm (SD/HD/FHD): jedes Programm nur einmal je Senderart auswerten
@@ -186,7 +186,7 @@ object SportsRepo {
                     val h = SportsLogic.parse(e.title, e.desc, c) ?: continue
                     if (!SportsLogic.allowed(h.league)) continue
                     val k = SportsLogic.groupKey(h, e.start)
-                    acc.getOrPut(k) { Acc(h, e, ArrayList()) }
+                    acc.getOrPut(k) { Acc(h, e, ArrayList()) }.let { a -> if (SportsLogic.liveBroadcast(e.title, e.desc)) a.tv = true }
                     out.add(k)
                 }
                 out
@@ -194,7 +194,7 @@ object SportsRepo {
             for (k in keys) { val a = acc[k] ?: continue; if (a.chans.none { it.id == ch.id }) a.chans.add(ch) }
         }
         val ev = acc.map { (k, a) ->
-            SportEvent(k, a.hit.sport, a.hit.league, a.hit.home, a.hit.away, a.hit.title, a.e.desc, a.e.start, a.e.end, bestFirst(a.chans).map { it.id })
+            SportEvent(k, a.hit.sport, a.hit.league, a.hit.home, a.hit.away, a.hit.title, a.e.desc, a.e.start, a.e.end, bestFirst(a.chans).map { it.id }, tvLive = a.tv)
         }
         return Scan(ev, entries, live, count, System.currentTimeMillis())
     }
@@ -259,16 +259,19 @@ object SportsRepo {
                 SportsLogic.sameTeam(it.home, o.home!!) && SportsLogic.sameTeam(it.away, o.away!!) && kotlin.math.abs(it.start - o.start) < 3 * 3600 }
             val chans = LinkedHashSet<String>()
             var desc = o.desc
-            if (e != null) { used.add(e.key); chans.addAll(e.channels); if (e.desc.isNotBlank()) desc = e.desc }
+            // Läuft die TV-Sendung live? (Wunsch des Nutzers, 2026-11-10: echtes Spiel und Live-Übertragung unterscheiden)
+            var tv = false
+            if (e != null) { used.add(e.key); chans.addAll(e.channels); if (e.desc.isNotBlank()) desc = e.desc; tv = e.tvLive }
             if (chans.isEmpty()) {
                 val hits = sc.entries.filter { (_, x) -> x.start in (o.start - 2 * 3600)..(o.start + 1800) && x.end > o.start &&
                     (x.title + " " + x.desc.take(400)).let { t -> SportsLogic.mentions(t, o.home!!) && SportsLogic.mentions(t, o.away!!) } }
                 bestFirst(hits.map { it.first }).forEach { chans.add(it.id) }
+                tv = hits.any { (_, x) -> SportsLogic.liveBroadcast(x.title, x.desc) }
             }
             // Konferenz derselben Liga zur selben Zeit
             epg.filter { it.home == null && it.league == o.league && it.title.endsWith("Konferenz") && it.start <= o.start + 1800 && it.end > o.start }
-                .forEach { chans.addAll(it.channels) }
-            res.add(o.copy(desc = desc, channels = chans.toList()))
+                .forEach { chans.addAll(it.channels); if (it.tvLive) tv = true }
+            res.add(o.copy(desc = desc, channels = chans.toList(), tvLive = tv))
         }
         // Wiederholungen: dieselbe Paarung ist laut OpenLigaDB schon gespielt (z. B. „VFB – SVW“ nachts) → nicht als Spiel zeigen
         fun replay(e: SportEvent) = e.home != null && e.away != null && oldb.any { o ->

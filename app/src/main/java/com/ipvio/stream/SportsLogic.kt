@@ -12,11 +12,22 @@ data class SportHit(val sport: String, val league: String, val home: String?, va
 data class SportEvent(
     val key: String, val sport: String, val league: String, val home: String?, val away: String?, val title: String,
     val desc: String, val start: Long, val end: Long, val channels: List<String>,
-    val scoreHome: Int? = null, val scoreAway: Int? = null, val finished: Boolean = false, val source: String = "EPG"
+    val scoreHome: Int? = null, val scoreAway: Int? = null, val finished: Boolean = false, val source: String = "EPG",
+    /** Die TV-Sendung dazu ist im Programm als Live-Übertragung gekennzeichnet (nicht Aufzeichnung/Wiederholung). */
+    val tvLive: Boolean = false
 ) {
     fun live(now: Long) = !finished && now in start until end
     /** Spiel läuft gerade und hat einen Live-Stand (Rubrik „Live“); 45 Min. Puffer für Nachspielzeit/Verlängerung. */
     fun liveScore(now: Long) = !finished && scoreHome != null && home != null && now >= start && now < end + 45 * 60
+
+    /**
+     * Findet gerade wirklich statt (Wunsch des Nutzers, 2026-11-10): mit Spielstand laut OpenLigaDB, sonst nur, wenn die
+     * laufende TV-Sendung als Live-Übertragung gekennzeichnet ist (eine Wiederholung ist kein laufendes Ereignis).
+     */
+    fun realLive(now: Long) = if (source == "OpenLigaDB") liveScore(now) else live(now) && tvLive
+
+    /** Wird gerade live im TV gezeigt (Sender vorhanden, Sendung als live gekennzeichnet). */
+    fun onTvLive(now: Long) = channels.isNotEmpty() && tvLive && (live(now) || realLive(now))
 }
 
 object SportsLogic {

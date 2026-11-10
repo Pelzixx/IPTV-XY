@@ -203,3 +203,8 @@ umschreiben statt ein neues Gerät anzulegen – sonst zählt jedes Gerät nach 
 - Beim Kunden (Reiter „TV App“): Feld „Max. Geräte“ (leer = Standard seiner Rolle), Liste der Geräte mit Modell,
   App-Version, zuletzt gesehen und Knopf „Entfernen“ (Platz wird sofort frei).
 - Testzugang („clown“): eigene Grenze, Vorschlag 1.
+
+**Anzeige in der App (ab 3.58):** Die Antwort auf `check` enthält zusätzlich `"devices": <verbundene Geräte>` und
+`"maxDevices": <erlaubt, 0 = unbegrenzt>`, z. B. `{"ok": true, "name": "vojadsvv_xy", "devices": 1, "maxDevices": 2}`.
+Gezählt wie bei der Grenze (gesehen in den letzten 30 Tagen, dieses Gerät eingeschlossen). Die App zeigt das auf der
+Startseite neben Benutzer und Element-Name als „Geräte: 1 / 2“ (unbegrenzt „1 / ∞“). Fehlen die Felder, zeigt sie nichts.

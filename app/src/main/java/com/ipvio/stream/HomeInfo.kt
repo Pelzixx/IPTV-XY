@@ -179,7 +179,9 @@ fun HomeInfoRow(modifier: Modifier = Modifier) {
     // Benutzername (Xtream) und Element-Name unter der Überschrift (Wunsch des Nutzers, 2026-11-09)
     val xUser = url?.let { LoadLogic.xtreamParts(it)?.second }.orEmpty()
     val elem = Member.name
-    val idLine = listOfNotNull(xUser.takeIf { it.isNotEmpty() }?.let { Lang.tr("Benutzer") + ": " + it }, elem.takeIf { it.isNotEmpty() }?.let { "Element: $it" }).joinToString("  ·  ")
+    // Dazu die Geräte laut Panel (Wunsch des Nutzers, 2026-11-10): „Geräte: 1 / 2“
+    val idLine = listOfNotNull(xUser.takeIf { it.isNotEmpty() }?.let { Lang.tr("Benutzer") + ": " + it }, elem.takeIf { it.isNotEmpty() }?.let { "Element: $it" },
+        Member.devices?.takeIf { elem.isNotEmpty() }?.let { Lang.tr("Geräte") + ": " + MemberLogic.devicesText(it) }).joinToString("  ·  ")
     val shape = RoundedCornerShape(DS.RadiusM)
     val card = Modifier.fillMaxHeight().clip(shape).background(Color(0x14FFFFFF)).padding(16.dp)
     Row(modifier.fillMaxWidth().height(if (idLine.isNotEmpty()) 172.dp else 150.dp).padding(horizontal = DS.PageX), horizontalArrangement = Arrangement.spacedBy(16.dp)) {

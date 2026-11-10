@@ -480,6 +480,11 @@ Diesen Ordner verwenden¦Use this folder¦Bu klasörü kullan¦Koristi ovu mapu�
 Verbinde …¦Connecting …¦Bağlanıyor …¦Povezivanje …¦Povezivanje …¦Povezivanje …¦Conectando …¦Connexion …¦Connessione …
 Keine Unterordner¦No subfolders¦Alt klasör yok¦Nema podmapa¦Nema podmapa¦Nema podfascikli¦Sin subcarpetas¦Aucun sous-dossier¦Nessuna sottocartella
 Keine Daten erhalten¦No data received¦Veri alınamadı¦Nema primljenih podataka¦Nema primljenih podataka¦Nema primljenih podataka¦No se recibieron datos¦Aucune donnée reçue¦Nessun dato ricevuto
+Geräte¦Devices¦Cihazlar¦Uređaji¦Uređaji¦Uređaji¦Dispositivos¦Appareils¦Dispositivi
+LIVE IM TV¦LIVE ON TV¦CANLI YAYIN¦UŽIVO NA TV¦UŽIVO NA TV¦UŽIVO NA TV¦EN DIRECTO EN TV¦EN DIRECT À LA TV¦IN DIRETTA TV
+NICHT IM TV¦NOT ON TV¦TV'DE YOK¦NIJE NA TV¦NIJE NA TV¦NIJE NA TV¦NO EN TV¦PAS À LA TV¦NON IN TV
+NICHT LIVE IM TV¦NOT LIVE ON TV¦TV'DE CANLI DEĞİL¦NIJE UŽIVO NA TV¦NIJE UŽIVO NA TV¦NIJE UŽIVO NA TV¦NO EN DIRECTO EN TV¦PAS EN DIRECT À LA TV¦NON IN DIRETTA TV
+IM TV¦ON TV¦TV'DE¦NA TV¦NA TV¦NA TV¦EN TV¦À LA TV¦IN TV
 Mit diesem Zugang sind schon alle erlaubten Geräte verbunden. Bitte melde dich bei deinem Anbieter, damit er ein altes Gerät entfernt.¦All allowed devices are already connected to this account. Please contact your provider to remove an old device.¦Bu hesaba izin verilen tüm cihazlar zaten bağlı. Eski bir cihazı kaldırması için lütfen sağlayıcınıza başvurun.¦Svi dozvoljeni uređaji su već povezani s ovim pristupom. Obratite se svom dobavljaču da ukloni stari uređaj.¦Svi dopušteni uređaji već su povezani s ovim pristupom. Obratite se svom pružatelju da ukloni stari uređaj.¦Svi dozvoljeni uređaji su već povezani sa ovim pristupom. Obratite se svom provajderu da ukloni stari uređaj.¦Ya están conectados todos los dispositivos permitidos para esta cuenta. Contacta con tu proveedor para eliminar un dispositivo antiguo.¦Tous les appareils autorisés sont déjà connectés à ce compte. Contacte ton fournisseur pour supprimer un ancien appareil.¦Tutti i dispositivi consentiti sono già collegati a questo account. Contatta il tuo fornitore per rimuovere un vecchio dispositivo.
 Alle Quellen¦All sources¦Tüm kaynaklar¦Svi izvori¦Svi izvori¦Svi izvori¦Todas las fuentes¦Toutes les sources¦Tutte le fonti
 Gruppenname¦Group name¦Grup adı¦Naziv grupe¦Naziv grupe¦Naziv grupe¦Nombre del grupo¦Nom du groupe¦Nome del gruppo
