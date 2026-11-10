@@ -93,3 +93,14 @@ class SportsLogicTest {
         assertTrue(h == null || h.home == null)
     }
 }
+
+class DartsTest {
+    @Test fun darts_live() {
+        val h = SportsLogic.parse("Darts Live - Interwetten PDC Europe Super League", "", "SPORT1 ʰᵈ")
+        org.junit.Assert.assertNotNull(h)
+        org.junit.Assert.assertEquals("Darts", h!!.league)
+        org.junit.Assert.assertTrue(SportsLogic.allowed("Darts"))
+        org.junit.Assert.assertNotNull(SportsLogic.parse("Darts Live - Grand Slam of Darts", "", "DAZN 2"))
+        org.junit.Assert.assertNotNull(SportsLogic.parse("Darts - Grand Slam Of Darts", "", "SPORT1 ʰᵈ"))
+    }
+}

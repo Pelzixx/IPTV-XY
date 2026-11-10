@@ -99,7 +99,7 @@ object SportsLogic {
      */
     val LEAGUE_PRIO = listOf(
         "Bundesliga", "2. Bundesliga", "DFB-Pokal", "3. Liga", "Champions League", "Europa League", "Conference League",
-        "Länderspiele", "Frauen-Bundesliga", "Formel 1", "Handball-Bundesliga", "Basketball-Bundesliga", "Eishockey"
+        "Länderspiele", "Frauen-Bundesliga", "Formel 1", "Handball-Bundesliga", "Basketball-Bundesliga", "Eishockey", "Darts"
     )
     fun allowed(league: String) = league in LEAGUE_PRIO
     fun prio(league: String) = LEAGUE_PRIO.indexOf(league).let { if (it < 0) 99 else it }
@@ -187,7 +187,9 @@ object SportsLogic {
         }
         // Ohne Paarung: nur eindeutige Ereignisse (Rennen, Turniere) auf erkannter Liga
         if (lg != null && (lg.first == MOTOR || lg.first == TENNIS || lg.second == "Darts" || lg.first == FIGHT) &&
-            Regex("""\b(rennen|race|qualifying|training|sprint|finale?|halbfinale|runde|match|kampf|fight|live)\b""", RegexOption.IGNORE_CASE).containsMatchIn(t) &&
+            // Dart (Wunsch des Nutzers, 2026-11-10): auf Sportsendern ist jede Dart-Sendung ein Turnier („Darts - Grand Slam Of Darts“)
+            (Regex("""\b(rennen|race|qualifying|training|sprint|finale?|halbfinale|runde|match|kampf|fight|live)\b""", RegexOption.IGNORE_CASE).containsMatchIn(t) ||
+                (lg.second == "Darts" && sportCh)) &&
             // Liga nur vom Sendernamen (z. B. Sky Sport F1): die Sendung muss die Serie selbst nennen (sonst Rallye, MotoGP …)
             (lgTitle != null || lg.second != "Formel 1" || F1_WORDS.containsMatchIn(t + " " + desc.take(300)))
         ) return SportHit(lg.first, lg.second, null, null, t)
