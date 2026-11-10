@@ -98,9 +98,23 @@ object EpgSources {
         return out.filter { it.url.startsWith("http://", true) || it.url.startsWith("https://", true) }.distinctBy { it.url }
     }
 
-    /** Anzeigename ohne Zugangsdaten: Anbieter-EPG bzw. nur der Rechnername. */
-    fun label(s: EpgSrc): String = when (s.kind) {
-        EpgSrc.PROVIDER -> "Anbieter-EPG"
+    /**
+     * Anzeigename ohne Zugangsdaten (Wunsch des Nutzers, 2026-11-10): feste Quelle „XY EPG Fest“ bzw. „Township EPG Fest“,
+     * EPG eines Xtream-Zugangs „EPG <Name der Wiedergabeliste>“ (z. B. „EPG XY TV“), sonst der Rechnername.
+     */
+    fun label(s: EpgSrc, brand: String = brandName()): String = when {
+        s.kind == EpgSrc.FIXED && brand.isNotEmpty() -> "$brand EPG Fest"
+        s.kind == EpgSrc.PROVIDER -> s.forName?.takeIf { it.isNotBlank() }?.let { "EPG $it" } ?: "Anbieter-EPG"
         else -> s.url.substringAfter("://").substringBefore('/').substringBefore('?').substringAfter('@').ifEmpty { "EPG" }
+    }
+
+    fun brandName(): String = when (BuildConfig.EDITION) { "xy" -> "XY"; "township" -> "Township"; else -> "" }
+
+    /** Zu welcher Wiedergabeliste gehört die xmltv.php-Adresse? Gleicher Server und Benutzername wie get.php der Liste. */
+    fun ownerOf(providerUrl: String, lists: List<Pair<String, String>>): String? {
+        fun base(u: String) = u.substringBefore('?').substringBeforeLast('/').lowercase().trimEnd('/')
+        fun user(u: String) = Regex("""[?&]username=([^&]+)""").find(u)?.groupValues?.get(1)
+        val b = base(providerUrl); val us = user(providerUrl) ?: return null
+        return lists.firstOrNull { (_, u) -> base(u) == b && user(u) == us }?.first
     }
 }

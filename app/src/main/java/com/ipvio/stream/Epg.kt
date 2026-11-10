@@ -136,7 +136,10 @@ object Xmltv {
         val pl = PlaylistStore.lists.getOrNull(PlaylistStore.active)
         val plName = pl?.name
         val server = plName?.let { n -> Presets.servers.firstOrNull { it.name.equals(n, ignoreCase = true) } }
+        val named = PlaylistStore.lists.map { it.name to it.url }
+        // EPG je Xtream-Zugang unter dem Namen seiner Wiedergabeliste („EPG XY Backup“), nicht pauschal unter der aktiven
         val tagged = EpgSources.pickTagged(urls, Presets.epg, server?.epg.orEmpty(), customUrls(c), plName, pl?.epg.orEmpty())
+            .map { if (it.kind == EpgSrc.PROVIDER) it.copy(forName = EpgSources.ownerOf(it.url, named) ?: it.forName) else it }
         val all = tagged.map { it.url }
         if (all.isEmpty()) { status = "Keine EPG-Adresse gefunden"; return }
         // Sender ohne EPG-Kennung (tvg-id) werden über ihren Namen zugeordnet – viele Xtream-Listen liefern keine Kennung
@@ -153,7 +156,8 @@ object Xmltv {
                 java.io.File(c.cacheDir, "xmltv_icons.txt").readLines().forEach { l -> val i = l.indexOf(ICON_TAB); if (i > 0) icons[l.substring(0, i)] = l.substring(i + 1) }
             }
             if (!force) runCatching { XmltvCache.read(file, key, now) }.getOrNull()?.let { (savedAt, saved) ->
-                loadStats(c, key)?.let { sources = it }
+                // Gespeicherter Stand mit den aktuellen Namen (ältere Stände hießen noch „Anbieter-EPG“ bzw. nach dem Rechner)
+                loadStats(c, key)?.let { st -> sources = if (st.size == tagged.size) st.mapIndexed { i, s -> s.copy(label = EpgSources.label(tagged[i]), forName = tagged[i].forName) } else st }
                 progs.clear()
                 // Ältere Speicherstände können doppelte Sendungen aus mehreren Quellen enthalten
                 for ((k, v) in saved) if (k in wanted) progs[k] = EpgMergeLogic.noOverlap(v)
@@ -327,12 +331,15 @@ object Xmltv {
                         inner = p.next()
                     }
                     val pd = if (ch != null) past[ch] ?: 0 else 0
-                    if (ch != null && ch in wanted && ch !in taken && s != null && e != null &&
+                    if (ch != null && ch in wanted && s != null && e != null &&
                         e > now - (if (pd > 0) pd * 86400L else 3600L) && s < now + 129600 && epgSane(s, e)
                     ) {
-                        val l = out.getOrPut(ch) { ArrayList() }
-                        if (l.size < MAX_PER_CHANNEL + pd * 48) l.add(EpgEntry(pool.of(title), if (EpgPrefs.saveDesc) shortDesc(desc) else "", s, e))
+                        // Zählen, was die Quelle liefert – auch Sender, die eine frühere Quelle schon hat (sonst stünde dort 0)
                         hit.add(ch)
+                        if (ch !in taken) {
+                            val l = out.getOrPut(ch) { ArrayList() }
+                            if (l.size < MAX_PER_CHANNEL + pd * 48) l.add(EpgEntry(pool.of(title), if (EpgPrefs.saveDesc) shortDesc(desc) else "", s, e))
+                        }
                     }
                     // Speicher wird knapp: aufhören und das bisher Gelesene behalten (lieber Lücken im Programm als ein Absturz)
                     if (++seen % 5000 == 0 && Mem.heapTight(0.70)) { truncated = true; return }

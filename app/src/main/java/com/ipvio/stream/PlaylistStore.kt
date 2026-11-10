@@ -803,7 +803,8 @@ object PlaylistStore {
         shownHidden = hidden
         setItems(items, shownOf(items))
         Catchup.start(c, u, items)
-        Xmltv.start(c, epg, items)
+        // Weitere eingeschaltete Listen bleiben im TV-Programm (loadExtras hängt danach ihren neuen Stand an)
+        Xmltv.start(c, (epg + extraEpg).distinct(), merged())
     }
 
     private enum class Local { OK, NONE, FAILED }
@@ -1082,6 +1083,22 @@ object PlaylistStore {
      * Hintergrund-Aktualisierung bei geschlossener App: herunterladen, mit der gespeicherten Sprachauswahl einlesen und
      * den Zwischenspeicher schreiben. Es wird nicht gefragt; ist die Liste ohne Sprachauswahl zu groß, bleibt der alte Stand.
      */
+    /**
+     * Weitere (nicht aktive) Wiedergabeliste von Hand aktualisieren (Wunsch des Nutzers, 2026-11-10): nur diese Liste neu
+     * laden und wieder einhängen – die aktive bleibt aktiv, alle anderen Listen bleiben stehen.
+     */
+    suspend fun refreshOther(c: Context, url: String) {
+        updating = url
+        val ok = try { refreshCacheOnly(c, url) } finally { updating = null }
+        if (ok) {
+            markUpdated(c, url)
+            if (lists.any { it.on && it.url.trim() == url.trim() }) runCatching { loadExtras(c) }
+        } else if (manualUpdate) {
+            manualUpdate = false
+            doneMsg = Lang.tr("Fehler beim Aktualisieren der Wiedergabeliste") + (lastBgError?.let { ": $it" } ?: ""); doneSignal++
+        }
+    }
+
     suspend fun refreshCacheOnly(c: Context, url: String): Boolean {
         ensure(c)
         val u = PlaylistLogic.normalizeUrl(url) ?: return false

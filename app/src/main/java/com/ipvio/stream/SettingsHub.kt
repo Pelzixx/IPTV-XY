@@ -1220,7 +1220,7 @@ private fun PlaylistMainPage(ctx: Context, idx: Int, onXtream: () -> Unit, onEpg
             ?: if (isActive) Lang.tr("Sender und TV-Programm neu laden") else null
     SettingRow("Aktualisieren", upd, rawValue = true, onClick = {
         PlaylistStore.manualUpdate = true
-        if (isActive) reload() else { PlaylistStore.activate(ctx, idx); scope.launch { PlaylistStore.load(ctx, pl.url, false) } }
+        if (isActive) reload() else scope.launch { PlaylistStore.refreshOther(ctx, pl.url) }
     }, trailing = { f -> if (PlaylistStore.updating?.trim() == pl.url.trim()) Spinner(if (f) DS.FocusInk else Accent2, Modifier.size(24.dp)) })
     SettingRow("Löschen", null, onClick = { confirmDelete = true })
     if (confirmDelete) SideMenu(
@@ -2014,7 +2014,7 @@ private fun TmEpgSources(ctx: Context) {
                 EpgSourceStat.ERROR -> Lang.tr("Fehler") + (s.error?.let { ": $it" } ?: "")
                 else -> Lang.tr("Wartet")
             }
-            SettingRow(if (s.kind == EpgSrc.PROVIDER) Lang.tr("Anbieter-EPG") else s.label, "$kind · $state", rawTitle = true, rawValue = true, onClick = {})
+            SettingRow(s.label, "$kind · $state", rawTitle = true, rawValue = true, onClick = {})
         }
     }
     SettingRow("Quelle hinzufügen", null, onClick = {
