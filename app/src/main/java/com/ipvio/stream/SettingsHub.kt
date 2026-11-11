@@ -1891,6 +1891,7 @@ private fun TmGeneral(ctx: Context) {
     val dnsOpts = listOf(Lang.tr("Vorgabe") + " (" + dnsModes[Presets.secureDns.coerceIn(0, 2)] + ")") + dnsModes
     val dnsIdx = (Tm.i(Tm.GEN_DNS, -1) + 1).coerceIn(0, 3)
     SelectRow("Sichere DNS-Abfrage", dnsOpts[dnsIdx], dnsOpts, dnsIdx) { Tm.set(ctx, Tm.GEN_DNS, it - 1) }
+    if (BackupPanel.available()) ToggleRow("Favoriten auf allen Geräten abgleichen", Lang.tr("Favoriten, Meine Liste und Weiterschauen über die Sicherung beim Anbieter auf alle Geräte mit diesem Zugang übertragen"), Tm.b(Tm.GEN_SYNC, true)) { Tm.set(ctx, Tm.GEN_SYNC, it) }
     Text("Löst Adressen verschlüsselt auf (DNS über HTTPS), falls der Internetanbieter Server sperrt. „Automatisch“ nur, wenn die normale Abfrage scheitert.",
         color = Muted, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp))
     val udp = Tm.s(Tm.GEN_UDP)
@@ -2179,6 +2180,7 @@ private fun TmLookPlayer(ctx: Context, open: (String, String) -> Unit) {
     }
     ToggleRow("Zeige schwarzes Bild beim Senderwechsel", null, Tm.b(Tm.PL_BLACK_SWITCH, false)) { Tm.set(ctx, Tm.PL_BLACK_SWITCH, it) }
     ToggleRow("Spielstand einblenden", Lang.tr("Bei Spielen aus dem Sport Guide oben links Stand und Minute zeigen"), Tm.b(Tm.PL_SCORE, false)) { Tm.set(ctx, Tm.PL_SCORE, it) }
+    ToggleRow("Spoiler-Schutz", Lang.tr("Spielstände im Sport Guide, auf der Startseite und im Player ausblenden"), Tm.b(Tm.PL_SPOILER, false)) { Tm.set(ctx, Tm.PL_SPOILER, it) }
     ToggleRow("Zum Umschalten erneut drücken", Lang.tr("Erst das Infofeld des nächsten Senders, beim zweiten Drücken umschalten"), Tm.b(Tm.RC_PRESS_AGAIN, false)) { Tm.set(ctx, Tm.RC_PRESS_AGAIN, it) }
     val zds = listOf(0, 1, 2, 3, 5, 10)
     val zd = Tm.i(Tm.RC_ZAP_DELAY, 0)

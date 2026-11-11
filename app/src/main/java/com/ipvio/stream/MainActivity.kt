@@ -99,6 +99,9 @@ class MainActivity : ComponentActivity() {
         Reminders.foreground = false
         // App verlassen: Vorschau-Stream sofort beenden (kein Ton im Hintergrund)
         PreviewHolder.stopAll()
+        // Geänderte Favoriten/Weiterschauen gleich sichern (anderes Gerät sieht sie dann beim nächsten Start)
+        val app = applicationContext
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch { runCatching { LibSync.push(app, now = true) } }
         super.onStop()
     }
 
@@ -367,6 +370,8 @@ private fun AppContent() {
     // Neue Version: beim Start und danach regelmäßig prüfen, Hinweis-Karte siehe unten
     LaunchedEffect(Unit) { UpdateNotice.watch(ctx) }
     LaunchedEffect(Unit) { WhatsNew.check(ctx) }
+    // Favoriten und Weiterschauen mit den anderen Geräten desselben Zugangs abgleichen
+    LaunchedEffect(Unit) { LibSync.watch(ctx) }
     // Tor-Alarm für markierte Spiele (Sport Guide), Einblendung siehe unten
     LaunchedEffect(Unit) { GoalAlert.watch(ctx) }
     // Element-Name (XY TV/Township): Abfrage und Nachrichten des Betreibers

@@ -1361,7 +1361,8 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
         if (!frameShown) Box(Modifier.fillMaxSize().background(Color.Black))
 
         // Spielstand eines laufenden Spiels auf diesem Sender (abschaltbar, Standard aus); nicht über Menüs und Guide
-        if (cur.live && cur.archive == null && !controls && panel == Panel.NONE && !showGuide && !showChannels && !showCats)
+        // Zeitversetzt (mehr als 30 s hinter live): kein Stand, sonst wäre das Ergebnis vorweggenommen
+        if (cur.live && cur.archive == null && behindSec <= 30 && !controls && panel == Panel.NONE && !showGuide && !showChannels && !showCats)
             ScoreOverlay(cur.itemId, liveAll, Modifier.align(Alignment.TopStart).padding(top = 24.dp, start = 28.dp))
 
         // ---------------------------------------------------------------- Meldungen

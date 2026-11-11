@@ -369,6 +369,9 @@ object Library {
         if (watch.isEmpty()) watch.addAll((prefs(c).getString("watch", "") ?: "").split("\n").filter { it.isNotBlank() })
     }
 
+    /** Nach dem Abgleich mit einem anderen Gerät neu einlesen. */
+    fun reload(c: Context) { favs.clear(); watch.clear(); init(c) }
+
     fun isFav(id: String) = favs.contains(id)
     fun isWatch(id: String) = watch.contains(id)
 
@@ -456,6 +459,8 @@ object ResumeLog {
 object WatchStore {
     val entries = mutableStateListOf<Entry>()
     private fun prefs(c: Context) = Profiles.sp(c, "ipvio_watch")
+    /** Nach dem Abgleich mit einem anderen Gerät neu einlesen. */
+    fun reload(c: Context) { entries.clear(); init(c) }
 
     fun init(c: Context) {
         if (entries.isNotEmpty()) return

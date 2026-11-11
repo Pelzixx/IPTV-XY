@@ -41,6 +41,7 @@ private val LiveRed = Color(0xFFE5484D)
 
 /** Interner Schlüssel der Rubrik „Live“ (kein echter Wettbewerb). */
 private const val LIVE_TAB = "#live"
+private const val MY_TAB = "#mine"
 
 @Composable
 fun SportsScreen(tab: Int, onTab: (Int) -> Unit, onPlay: (Item) -> Unit) {
@@ -74,7 +75,10 @@ fun SportsScreen(tab: Int, onTab: (Int) -> Unit, onPlay: (Item) -> Unit) {
     // Rubrik „Live“ (Wunsch des Nutzers, 2026-11-10): nur, was gerade wirklich stattfindet – keine Wiederholungen
     // Findet gerade wirklich statt: Spielstand laut OpenLigaDB oder als Live-Übertragung gekennzeichnet (Darts, F1 …)
     val liveNow = events.filter { it.realLive(nowSec) }
-    val shown = when (league) { null -> events; LIVE_TAB -> liveNow; else -> events.filter { it.league == league } }
+    // Meine Teams (Wunsch des Nutzers, 2026-11-11): Spiele der Mannschaften, denen man folgt
+    MyTeams.init(ctx)
+    val mine = events.filter { MyTeams.hasMine(it) }
+    val shown = when (league) { null -> events; LIVE_TAB -> liveNow; MY_TAB -> mine; else -> events.filter { it.league == league } }
     var focused by remember { mutableStateOf<SportEvent?>(null) }
     val hero = focused?.takeIf { f -> shown.any { it.key == f.key } }?.let { f -> shown.first { it.key == f.key } } ?: shown.firstOrNull()
     var chanMenu by remember { mutableStateOf<SportEvent?>(null) }
@@ -101,6 +105,7 @@ fun SportsScreen(tab: Int, onTab: (Int) -> Unit, onPlay: (Item) -> Unit) {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     item { SportChip(Lang.tr("Alle"), league == null, Modifier.focusRequester(ContentFocus.req)) { league = null } }
                     item { SportChip(Lang.tr("Live") + if (liveNow.isNotEmpty()) " (${liveNow.size})" else "", league == LIVE_TAB, raw = true) { league = if (league == LIVE_TAB) null else LIVE_TAB } }
+                    if (MyTeams.teams.isNotEmpty()) item { SportChip(Lang.tr("Meine Teams") + " (${mine.size})", league == MY_TAB, raw = true) { league = if (league == MY_TAB) null else MY_TAB } }
                     if (leagues.size > 1) items(leagues) { l -> SportChip(l, league == l, raw = true) { league = if (league == l) null else l } }
                 }
             }
@@ -130,7 +135,15 @@ fun SportsScreen(tab: Int, onTab: (Int) -> Unit, onPlay: (Item) -> Unit) {
     }
     chanMenu?.let { e ->
         val entries = e.channels.mapNotNull { byId[it] }.map { ch -> SideEntry(ChannelEdit.title(ch), AIcon.Live, raw = true) { onPlay(ch) } }
-        SideMenu(listOf(SideSection(e.title, entries)), { chanMenu = null })
+        // Meine Teams: Heim- und Gastmannschaft folgen (Tor-Alarm dann für alle ihre Spiele)
+        val teamEntries = listOfNotNull(e.home, e.away).map { t ->
+            SideEntry((if (MyTeams.isMine(t)) Lang.tr("Nicht mehr folgen") else Lang.tr("Folgen")) + ": " + t, if (MyTeams.isMine(t)) AIcon.Star else AIcon.StarOutline, raw = true) {
+                val on = MyTeams.toggle(ctx, t)
+                Toast.makeText(ctx, Lang.tr(if (on) "Du folgst jetzt diesem Team. Tor-Alarm ist für seine Spiele an." else "Du folgst diesem Team nicht mehr."), Toast.LENGTH_SHORT).show()
+                chanMenu = null
+            }
+        }
+        SideMenu(listOfNotNull(SideSection(e.title, entries), teamEntries.takeIf { it.isNotEmpty() }?.let { SideSection(Lang.tr("Meine Teams"), it) }), { chanMenu = null })
     }
 }
 
@@ -175,7 +188,7 @@ private fun TeamRow(name: String, score: Int?, big: Boolean) {
         }
         Text(raw = true, text = name, color = Color.White, fontSize = if (big) 22.sp else 16.sp, fontWeight = FontWeight.SemiBold,
             maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-        if (score != null) Text(raw = true, text = score.toString(), color = Color.White, fontSize = if (big) 24.sp else 17.sp, fontWeight = FontWeight.Bold, style = TNUM)
+        if (score != null) Text(raw = true, text = if (Spoiler.on()) "–" else score.toString(), color = Color.White, fontSize = if (big) 24.sp else 17.sp, fontWeight = FontWeight.Bold, style = TNUM)
     }
 }
 
@@ -289,7 +302,7 @@ private fun HomeSportCard(e: SportEvent, now: Long, onClick: () -> Unit) {
         }
         for ((team, score) in listOf(e.home!! to e.scoreHome, e.away!! to e.scoreAway)) Row(verticalAlignment = Alignment.CenterVertically) {
             Text(raw = true, text = team, color = Color.White, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-            Text(raw = true, text = score?.toString() ?: "", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Text(raw = true, text = if (score == null) "" else if (Spoiler.on()) "–" else score.toString(), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         }
     }
 }

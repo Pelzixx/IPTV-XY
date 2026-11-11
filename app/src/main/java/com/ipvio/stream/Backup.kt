@@ -29,8 +29,10 @@ object Backup {
     }
 
     /** Schreibt die Sicherung und gibt die Datei zurück (oder null bei Fehler). */
-    fun export(c: Context): File? = runCatching {
+    fun export(c: Context, device: String? = null): File? = runCatching {
         val root = JSONObject().put("v", 1).put("at", System.currentTimeMillis())
+        // Herkunft (Favoriten-Abgleich zwischen Geräten): eigene Sicherung nicht wieder einspielen
+        if (device != null) root.put("device", device)
         val files = JSONObject()
         for (n in fileNames(c)) {
             val all = c.applicationContext.getSharedPreferences(n, Context.MODE_PRIVATE).all
@@ -55,6 +57,23 @@ object Backup {
         f
     }.getOrNull()
 
+    /** Eine gesicherte Einstellungsdatei vollständig ersetzen. */
+    fun applyFile(c: Context, n: String, o: JSONObject) {
+        val e = c.applicationContext.getSharedPreferences(n, Context.MODE_PRIVATE).edit().clear()
+        for (k in o.keys()) {
+            val a = o.getJSONArray(k)
+            when (a.getString(0)) {
+                "s" -> e.putString(k, a.getString(1))
+                "b" -> e.putBoolean(k, a.getBoolean(1))
+                "i" -> e.putInt(k, a.getInt(1))
+                "l" -> e.putLong(k, a.getLong(1))
+                "f" -> e.putFloat(k, a.getDouble(1).toFloat())
+                "t" -> { val arr = a.getJSONArray(1); e.putStringSet(k, (0 until arr.length()).map { arr.getString(it) }.toSet()) }
+            }
+        }
+        e.commit()
+    }
+
     /** Liest die Sicherung zurück. Gibt die Zahl der wiederhergestellten Dateien zurück, -1 bei Fehler. */
     fun restore(c: Context): Int = runCatching {
         val f = file(c)
@@ -66,20 +85,7 @@ object Backup {
         for (n in files.keys()) {
             // Nur bekannte Dateien zulassen
             if (n != Profiles.META && NAMES.none { n == it || n.startsWith(it + "_p") }) continue
-            val o = files.getJSONObject(n)
-            val e = c.applicationContext.getSharedPreferences(n, Context.MODE_PRIVATE).edit().clear()
-            for (k in o.keys()) {
-                val a = o.getJSONArray(k)
-                when (a.getString(0)) {
-                    "s" -> e.putString(k, a.getString(1))
-                    "b" -> e.putBoolean(k, a.getBoolean(1))
-                    "i" -> e.putInt(k, a.getInt(1))
-                    "l" -> e.putLong(k, a.getLong(1))
-                    "f" -> e.putFloat(k, a.getDouble(1).toFloat())
-                    "t" -> { val arr = a.getJSONArray(1); e.putStringSet(k, (0 until arr.length()).map { arr.getString(it) }.toSet()) }
-                }
-            }
-            e.commit()
+            applyFile(c, n, files.getJSONObject(n))
             count++
         }
         count
@@ -172,6 +178,21 @@ object BackupPanel {
         null
     }.getOrElse { it.message ?: it.javaClass.simpleName }
 
+    /** Sichern mit Geräte-ID (Favoriten-Abgleich); Zeitpunkt beim Betreiber (ms) oder null. */
+    fun saveTs(c: Context, device: String): Long? = runCatching {
+        val f = Backup.export(c, device) ?: return null
+        val text = f.readText()
+        if (text.length > MAX) return null
+        val o = call("save", text)
+        if (!o.optBoolean("ok")) null else o.optLong("ts", System.currentTimeMillis() / 1000) * 1000
+    }.getOrNull()
+
+    /** Sicherung als Text holen (ohne einzuspielen) oder null. */
+    fun loadRaw(): String? = runCatching {
+        val o = call("load")
+        if (!o.optBoolean("ok")) null else o.optString("data", "").takeIf { it.isNotEmpty() && it.length <= MAX }
+    }.getOrNull()
+
     /** Zeitpunkt der letzten Sicherung beim Betreiber (ms) oder null. */
     fun info(): Long? = runCatching {
         val o = call("info")
@@ -187,4 +208,70 @@ object BackupPanel {
         Backup.file(c).writeText(data)
         Backup.restore(c)
     }.getOrDefault(-1)
+}
+
+/**
+ * Favoriten und Weiterschauen auf allen Geräten (Wunsch des Nutzers, 2026-11-11; Schnittstelle Abschnitt 12):
+ * Nach Änderungen sichert die App beim Anbieter (höchstens alle 10 Minuten, mit Geräte-ID). Ein anderes Gerät desselben
+ * Xtream-Zugangs holt beim Start eine neuere Sicherung und übernimmt daraus nur Favoriten, „Meine Liste“, Weiterschauen,
+ * Lieblingsgruppen und eigene Senderlisten – keine Einstellungen. Die neueste Änderung gilt.
+ */
+object LibSync {
+    private val NAMES = listOf("ipvio_lib", "ipvio_watch", "ipvio_catfavs", "ipvio_chlists")
+    private const val MIN_GAP = 10 * 60_000L
+    private fun prefs(c: Context) = c.applicationContext.getSharedPreferences("ipvio_sync", Context.MODE_PRIVATE)
+
+    fun enabled(): Boolean = Tm.b(Tm.GEN_SYNC, true) && BackupPanel.available()
+
+    private fun hash(c: Context): Int = NAMES.joinToString("|") { Profiles.sp(c, it).all.toSortedMap().toString() }.hashCode()
+
+    /** Neuere Sicherung eines anderen Geräts übernehmen. */
+    suspend fun pull(c: Context) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        if (!enabled()) return@withContext
+        val p = prefs(c)
+        val ts = BackupPanel.info() ?: return@withContext
+        if (ts <= p.getLong("ts", 0L)) return@withContext
+        val raw = BackupPanel.loadRaw() ?: return@withContext
+        val root = runCatching { JSONObject(raw) }.getOrNull() ?: return@withContext
+        val files = root.optJSONObject("files")
+        if (root.optString("device") != Member.deviceOf(c) && files != null) {
+            var any = false
+            val first = p.getLong("ts", 0L) == 0L
+            for (n in NAMES) files.optJSONObject(Profiles.scopedName(n, Profiles.active))?.let { o ->
+                // Erster Abgleich dieses Geräts: eigene Favoriten und „Meine Liste“ behalten (zusammenführen statt ersetzen)
+                if (first && n == "ipvio_lib") for (k in listOf("favs", "watch")) {
+                    val mine = (Profiles.sp(c, n).getString(k, "") ?: "").split("\n").filter { it.isNotBlank() }
+                    val theirs = o.optJSONArray(k)?.optString(1, "").orEmpty().split("\n").filter { it.isNotBlank() }
+                    if (mine.isNotEmpty()) o.put(k, org.json.JSONArray().put("s").put((theirs + mine).distinct().joinToString("\n")))
+                }
+                Backup.applyFile(c, Profiles.scopedName(n, Profiles.active), o); any = true
+            }
+            if (any) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                Library.reload(c); WatchStore.reload(c); CatFavs.reload(c); ChannelLists.reload(c)
+            }
+        }
+        p.edit().putLong("ts", ts).putInt("hash", hash(c)).apply()
+    }
+
+    /** Eigene Änderungen sichern (nur wenn sich etwas geändert hat, höchstens alle 10 Minuten; [now] = sofort). */
+    suspend fun push(c: Context, now: Boolean = false) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        if (!enabled()) return@withContext
+        val p = prefs(c)
+        val h = hash(c)
+        if (h == p.getInt("hash", 0)) return@withContext
+        val t = System.currentTimeMillis()
+        if (!now && t - p.getLong("pushAt", 0L) < MIN_GAP) return@withContext
+        val ts = BackupPanel.saveTs(c, Member.deviceOf(c)) ?: return@withContext
+        p.edit().putInt("hash", h).putLong("pushAt", t).putLong("ts", ts).apply()
+    }
+
+    /** Beim Start holen, danach alle 10 Minuten eigene Änderungen sichern. */
+    suspend fun watch(c: Context) {
+        kotlinx.coroutines.delay(20_000)
+        runCatching { pull(c) }
+        while (true) {
+            kotlinx.coroutines.delay(MIN_GAP)
+            runCatching { push(c) }
+        }
+    }
 }

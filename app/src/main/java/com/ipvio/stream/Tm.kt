@@ -68,8 +68,10 @@ object Tm {
     // ---------------------------------------------------------------- Optik > Player
     const val PL_BLACK_SWITCH = "pl_black_switch"
     const val PL_SCORE = "pl_score"              // Spielstand laufender Spiele im Player einblenden (Standard aus)
+    const val PL_SPOILER = "pl_spoiler"          // Spoiler-Schutz: Spielstände ausblenden (Standard aus)
     const val PB_LEVEL = "pb_level"              // Lautstärke-Ausgleich (Standard aus)
     const val GEN_DNS = "gen_dns"                // Sichere DNS-Abfrage: -1 Panel-Vorgabe, 0 Aus, 1 An, 2 Automatisch
+    const val GEN_SYNC = "gen_sync"              // Favoriten/Weiterschauen über die Sicherung beim Anbieter abgleichen (Standard an)
     // Senderliste
     const val CL_HL_NOW = "cl_hl_now"
     const val CL_HIDE_PAST = "cl_hide_past"

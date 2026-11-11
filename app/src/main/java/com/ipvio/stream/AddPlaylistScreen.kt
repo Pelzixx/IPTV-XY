@@ -71,6 +71,9 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
     // Element-Name (XY TV/Township, Wunsch des Nutzers 2026-11-09): bei der Anmeldung beim Anbieter Pflicht,
     // das Panel prüft, ob er zum Xtream-Zugang gehört – erst danach wird die Playlist geladen
     var elem by remember { mutableStateOf(Member.name) }
+    // Aktivierungscode (Wunsch des Nutzers, 2026-11-11): Kunde gibt nur den Code aus dem Panel ein, die App holt Zugang und Element-Name
+    var codeMode by remember { mutableStateOf(false) }
+    var code by remember { mutableStateOf("") }
     var checking by remember { mutableStateOf(false) }
     fun presetLogin(h: String, u: String, p: String, e: String) {
         val finalUrl = PlaylistStore.xtreamUrl(h, u, p)
@@ -174,19 +177,44 @@ fun AddPlaylistScreen(onDone: () -> Unit) {
 
             if (servers.isNotEmpty()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    LoginTab(BuildConfig.PROVIDER.ifBlank { "Vorgegeben" }, !manual, if (!manual) Modifier.focusRequester(startFocus) else Modifier) {
-                        manualPick = false; PlaylistStore.error = null
+                    LoginTab(BuildConfig.PROVIDER.ifBlank { "Vorgegeben" }, !manual && !codeMode, if (!manual) Modifier.focusRequester(startFocus) else Modifier) {
+                        manualPick = false; codeMode = false; PlaylistStore.error = null
                     }
-                    LoginTab("Selbst eingeben", manual, if (manual) Modifier.focusRequester(startFocus) else Modifier) {
+                    LoginTab("Selbst eingeben", manual && !codeMode, if (manual) Modifier.focusRequester(startFocus) else Modifier) {
+                        codeMode = false
                         if (!manual) { manualPick = true; xtream = true; host = ""; PlaylistStore.error = null }
                     }
+                    // Aktivierungscode aus dem Panel (nur, wenn der Anbieter ein Panel hat)
+                    if (Member.required()) LoginTab("Code", codeMode) { codeMode = true; manualPick = false; PlaylistStore.error = null }
                 }
                 Box(Modifier.widthIn(max = FormWidth).fillMaxWidth().height(1.dp).background(Surf2))
                 Spacer(Modifier.height(20.dp))
             }
 
             Column(Modifier.widthIn(max = FormWidth), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (!manual) {
+                if (codeMode) {
+                    // Aktivierungscode: Panel liefert Server, Zugang und Element-Name, dann normale Anmeldung beim Anbieter
+                    FieldLabel("Aktivierungscode")
+                    SmallField(code, { code = it.uppercase().take(9) }, "z. B. K7M-42Q")
+                    Text("Den Code bekommst du von deinem Anbieter. Er gilt 48 Stunden und nur einmal.", color = Muted, fontSize = 14.sp)
+                    PlaylistStore.error?.let { ErrorText(it) }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 4.dp)) {
+                        SmallButton(if (checking) "Prüfe …" else "Aktivieren", primary = true) {
+                            if (PlaylistStore.loading || checking) return@SmallButton
+                            checking = true; PlaylistStore.error = null
+                            scope.launch {
+                                val r = Member.activate(ctx, code)
+                                checking = false
+                                r.onSuccess { a ->
+                                    elem = a.name; user = a.user; pass = a.pass
+                                    sel = PresetLogic.indexOf(a.server, Presets.servers).coerceAtLeast(0)
+                                    presetLogin(a.server, a.user, a.pass, a.name)
+                                }.onFailure { PlaylistStore.error = it.message }
+                            }
+                        }
+                        if (canCancel) SmallButton("Abbrechen") { PlaylistStore.clearPending(ctx); onDone() }
+                    }
+                } else if (!manual) {
                     if (servers.size > 1) {
                         FieldLabel("Server")
                         @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)

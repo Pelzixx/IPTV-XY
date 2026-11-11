@@ -212,3 +212,71 @@ umschreiben statt ein neues Gerät anzulegen – sonst zählt jedes Gerät nach 
 `"maxDevices": <erlaubt, 0 = unbegrenzt>`, z. B. `{"ok": true, "name": "vojadsvv_xy", "devices": 1, "maxDevices": 2}`.
 Gezählt wie bei der Grenze (gesehen in den letzten 30 Tagen, dieses Gerät eingeschlossen). Die App zeigt das auf der
 Startseite neben Benutzer und Element-Name als „Geräte: 1 / 2“ (unbegrenzt „1 / ∞“). Fehlen die Felder, zeigt sie nichts.
+
+## 10. Aktivierungscode (ab 3.59, `member`, action `activate`)
+
+Der Betreiber legt im Panel einen Kunden komplett an (Server aus der eigenen Konfiguration, Xtream-Benutzer, Passwort,
+Element-Name, Geräte-Grenze) und lässt sich einen **Aktivierungscode** erzeugen. Der Kunde gibt in der App auf der
+Anmeldeseite unter „Code“ nur diesen Code ein, die App holt sich alles Weitere.
+
+- Code: 6 Zeichen aus `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (ohne 0/O/1/I), Anzeige mit Bindestrich `K7M-42Q`.
+  Die App schickt ihn ohne Bindestrich/Leerzeichen und in Großbuchstaben.
+- Gültig 48 Stunden, nur einmal einlösbar. Mehrere offene Codes je Kunde sind erlaubt (z. B. für zwei Geräte).
+- Panel: beim Kunden Knopf „Aktivierungscode erzeugen“ (zeigt Code, Ablaufzeit, Status offen/eingelöst/abgelaufen,
+  eingelöst mit Gerät und Zeitpunkt), Liste der Codes, Löschen.
+
+Anfrage (zusätzlich wie immer `edition`, `app`, `device`, `model`):
+
+```json
+{"action": "activate", "code": "K7M42Q"}
+```
+
+Antworten:
+
+```json
+{"ok": true, "server": "http://host:8080", "serverName": "XY TV", "user": "xtreamname", "pass": "…", "name": "vojadsvv_xy"}
+{"ok": false, "error": "invalid"}   // Code unbekannt
+{"ok": false, "error": "expired"}   // älter als 48 h
+{"ok": false, "error": "used"}      // schon von einem anderen Gerät eingelöst
+{"ok": false, "error": "locked"}    // zu viele Fehlversuche (5 je Gerät bzw. IP in 1 Stunde)
+{"ok": false, "error": "devices"}   // Geräte-Grenze des Kunden erreicht (Abschnitt 9)
+```
+
+- Beim Einlösen: Code als eingelöst markieren, Gerät dem Kunden zuordnen (zählt für die Geräte-Grenze).
+  Dasselbe Gerät darf denselben Code innerhalb von 10 Minuten noch einmal einlösen (gleiche Antwort), falls die App abbrach.
+- `server` muss einer der Server aus der Konfiguration sein; `serverName` = dessen `name`.
+- Fehlversuche zählen und sperren; das Passwort nur in dieser Antwort und nur über HTTPS.
+
+## 11. Support-Aktionen aus dem Panel (ab 3.59, `member`)
+
+Der Betreiber kann einem Gerät (oder allen Geräten eines Kunden) Aufträge geben. Die App holt sie zusammen mit den
+Nachrichten (`messages`, beim Start und alle 5 Minuten) ab. Die Antwort von `messages` bekommt dafür zusätzlich:
+
+```json
+{"ok": true, "messages": [], "actions": [{"id": "x1", "do": "reload"}, {"id": "x2", "do": "diag"}]}
+```
+
+`do`-Werte:
+- `reload` – Wiedergabelisten und EPG neu laden
+- `clearCache` – Zwischenspeicher (Bilder, EPG, Listen-Kopien) leeren und neu laden
+- `diag` – Diagnose senden (Abschnitt 2); die Diagnose-ID kommt in der Bestätigung zurück
+- `update` – nach einer neuen App-Version suchen und, falls vorhanden, Update anbieten
+- `restart` – App neu starten
+
+Nur Aktionen für **dieses** Gerät (`device`) bzw. für alle Geräte des Kunden liefern, jede nur einmal je Gerät.
+Nach dem Ausführen bestätigt die App:
+
+```json
+{"action": "done", "name": "vojadsvv_xy", "ids": ["x1", "x2"], "results": {"x2": "A1B2"}}
+```
+
+Antwort `{"ok": true}`. Panel: im Reiter „TV App“ des Kunden je Gerät Knöpfe „Listen neu laden“, „Cache leeren“,
+„Diagnose anfordern“, „Update prüfen“, „App neu starten“ sowie „für alle Geräte“; Liste der Aufträge mit Status
+(wartet / erledigt mit Zeitpunkt, bei `diag` die Diagnose-ID als Link). Offene Aufträge nach 7 Tagen verwerfen.
+
+## 12. Favoriten und Weiterschauen auf allen Geräten (ab 3.59, keine Panel-Änderung nötig)
+
+Die App nutzt die vorhandene Sicherung (Abschnitt 3): Sie sichert nach Änderungen automatisch (höchstens alle 10 Minuten)
+und schreibt in die Sicherung zusätzlich `"device"` (Geräte-ID). Ein anderes Gerät desselben Xtream-Zugangs holt beim
+Start eine neuere Sicherung und übernimmt daraus nur Favoriten, „Meine Liste“, Weiterschauen, Lieblingsgruppen und
+eigene Senderlisten – keine Einstellungen. Das Panel muss dafür nichts ändern; die Sicherungen werden nur häufiger.

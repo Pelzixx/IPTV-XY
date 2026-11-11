@@ -64,12 +64,15 @@ object GoalAlert {
 
     suspend fun watch(c: Context) {
         init(c)
+        MyTeams.init(c)
         while (true) {
             val now = System.currentTimeMillis() / 1000
-            val mine = SportsRepo.events.filter { it.key in watched }
+            // Beobachtet: einzeln markierte Spiele und alle Spiele von „Meine Teams“
+            fun mineOf() = SportsRepo.events.filter { it.key in watched || (MyTeams.hasMine(it) && supported(it)) }
+            val mine = mineOf()
             if (mine.any { it.live(now) || (now >= it.start - 120 && !it.finished) }) {
                 runCatching { SportsRepo.refreshScores() }
-                for (e in SportsRepo.events.filter { it.key in watched }) {
+                for (e in mineOf()) {
                     val kind = GoalLogic.change(last[e.key], e)
                     last[e.key] = e
                     if (kind != null && pending == null) {

@@ -29,6 +29,9 @@ object ChannelLists {
         lists.addAll(ChannelListLogic.decode(prefs(c).getString("l", null)))
     }
 
+    /** Nach dem Abgleich mit einem anderen Gerät neu einlesen. */
+    fun reload(c: Context) { inited = false; lists.clear(); init(c) }
+
     private fun set(c: Context, l: List<ChList>) {
         lists.clear(); lists.addAll(l)
         prefs(c).edit().putString("l", ChannelListLogic.encode(l)).apply()

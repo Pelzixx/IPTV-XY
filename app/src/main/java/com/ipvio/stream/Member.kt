@@ -145,6 +145,8 @@ object Member {
 
     /** Gerätenummer für das Panel (Geräte je Nutzer zählen): aus der Android-Geräte-ID, sonst die alte Zufallsnummer. */
     private fun device(c: Context): String = MemberLogic.deviceId(androidId(c)) ?: oldDevice(c)
+    /** Geräte-ID der App (für den Favoriten-Abgleich). */
+    fun deviceOf(c: Context): String = device(c)
 
     /**
      * Frühere Zufallsnummer (bis 3.57): geht bei Neuinstallation verloren. Wird als `deviceOld` mitgeschickt, damit das Panel
@@ -239,6 +241,35 @@ object Member {
         )
     }
 
+    /** Ergebnis eines eingelösten Aktivierungscodes (Server aus der Konfiguration, Xtream-Zugang, Element-Name). */
+    class Activation(val server: String, val serverName: String, val user: String, val pass: String, val name: String)
+
+    /**
+     * Aktivierungscode einlösen (Schnittstelle Abschnitt 10): der Betreiber hat im Panel alles angelegt, der Kunde gibt nur
+     * den Code ein. Fehler als lesbarer Text.
+     */
+    suspend fun activate(c: Context, raw: String): Result<Activation> = withContext(Dispatchers.IO) {
+        val code = raw.uppercase().filter { it.isLetterOrDigit() }
+        if (code.length != 6) return@withContext Result.failure(Exception(Lang.tr("Bitte den 6-stelligen Code eingeben, z. B. K7M-42Q.")))
+        runCatching { post(c, JSONObject().put("action", "activate").put("code", code)) }.fold(
+            onSuccess = { o ->
+                val s = o.optString("server", "").trim(); val u = o.optString("user", "").trim(); val p = o.optString("pass", "")
+                if (s.isEmpty() || u.isEmpty() || p.isEmpty()) Result.failure(Exception(Lang.tr("Antwort unvollständig. Bitte beim Anbieter melden.")))
+                else Result.success(Activation(s, o.optString("serverName", ""), u, p, o.optString("name", "").trim()))
+            },
+            onFailure = { e ->
+                val msg = if (e is Rejected) e.text.ifBlank { Lang.tr(when (e.code) {
+                    "expired" -> "Dieser Code ist abgelaufen. Bitte beim Anbieter einen neuen anfordern."
+                    "used" -> "Dieser Code wurde schon auf einem anderen Gerät eingelöst."
+                    "locked" -> "Zu viele Fehlversuche. Bitte in einer Stunde erneut versuchen."
+                    "devices" -> "Mit diesem Zugang sind schon alle erlaubten Geräte verbunden. Bitte melde dich bei deinem Anbieter, damit er ein altes Gerät entfernt."
+                    else -> "Diesen Code kennt der Anbieter nicht. Bitte genau so eingeben, wie er angezeigt wurde."
+                }) } else Lang.tr("Anbieter gerade nicht erreichbar.") + " " + (e.message ?: "")
+                Result.failure(Exception(msg))
+            }
+        )
+    }
+
     private fun launchPoll(c: Context) {
         kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch { runCatching { poll(c) }; runCatching { seen(c) } }
     }
@@ -294,6 +325,47 @@ object Member {
             if (t.isEmpty() && x.isEmpty()) null else MemberNote(t, x, j.optLong("from", 0L), j.optLong("until", 0L))
         }
         withContext(Dispatchers.Main) { inbox = list; note = nt }
+        o.optJSONArray("actions")?.let { runActions(c, n, it) }
+    }
+
+    /**
+     * Support-Aktionen aus dem Panel (Schnittstelle Abschnitt 11): der Betreiber hilft, ohne dass der Kunde suchen muss.
+     * Jede Aktion nur einmal (gemerkt), danach Bestätigung an das Panel.
+     */
+    private suspend fun runActions(c: Context, n: String, a: org.json.JSONArray) {
+        val done = prefs(c).getStringSet("acts", emptySet()).orEmpty().toMutableSet()
+        val ids = ArrayList<String>()
+        val results = JSONObject()
+        var restart = false
+        for (i in 0 until a.length()) {
+            val o = a.optJSONObject(i) ?: continue
+            val id = o.optString("id", "").trim().ifEmpty { continue }
+            if (id in done) { ids.add(id); continue }
+            when (o.optString("do")) {
+                "reload" -> withContext(Dispatchers.Main) { reloadAll(c) }
+                "clearCache" -> {
+                    runCatching { c.cacheDir.listFiles()?.forEach { f -> if (f.name != "updates") f.deleteRecursively() } }
+                    withContext(Dispatchers.Main) { reloadAll(c) }
+                }
+                "diag" -> DiagSend.send(c, Lang.tr("Vom Anbieter angefordert")).onSuccess { results.put(id, it) }
+                "update" -> AppUpdate.check(c).getOrNull()?.let { u -> withContext(Dispatchers.Main) { UpdateNotice.pending = u } }
+                "restart" -> restart = true
+            }
+            done.add(id); ids.add(id)
+        }
+        // Gemerkte Aufträge kurz halten
+        prefs(c).edit().putStringSet("acts", done.toList().takeLast(200).toSet()).apply()
+        if (ids.isNotEmpty()) runCatching { post(c, JSONObject().put("action", "done").put("name", n).put("ids", org.json.JSONArray(ids)).put("results", results)) }
+        if (restart) withContext(Dispatchers.Main) { Profiles.restart(c) }
+    }
+
+    /** Wiedergabelisten und TV-Programm neu laden (wie „Aktualisieren“). */
+    private fun reloadAll(c: Context) {
+        val u = PlaylistStore.savedUrl(c) ?: return
+        kotlinx.coroutines.CoroutineScope(Dispatchers.Main).launch {
+            PlaylistStore.load(c, u, false)
+            Xmltv.start(c, (PlaylistStore.epgUrls + PlaylistStore.extraEpg).distinct(), PlaylistStore.channels, force = true)
+        }
     }
 
     /** Persönliche Kachel auf der Startseite (Titel, Text) aus dem Panel, null = keine. */

@@ -30,7 +30,7 @@ import kotlinx.coroutines.delay
  */
 @Composable
 fun ScoreOverlay(chId: String?, liveAll: List<Item>, modifier: Modifier = Modifier) {
-    if (chId == null || !Tm.b(Tm.PL_SCORE, false)) return
+    if (chId == null || !Tm.b(Tm.PL_SCORE, false) || Spoiler.on()) return
     // Sportdaten bereitstellen, falls der Sport Guide noch nie geöffnet wurde
     LaunchedEffect(Unit) {
         if (SportsRepo.events.isEmpty() && !SportsRepo.loading && liveAll.isNotEmpty()) runCatching { SportsRepo.refresh(liveAll) }

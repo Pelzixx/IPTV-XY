@@ -14,6 +14,9 @@ object CatFavs {
         list.addAll((prefs(c).getString("c", "") ?: "").split("\n").filter { it.isNotBlank() })
     }
 
+    /** Nach dem Abgleich mit einem anderen Gerät neu einlesen. */
+    fun reload(c: Context) { inited = false; list.clear(); init(c) }
+
     fun toggle(c: Context, name: String) {
         init(c)
         if (!list.remove(name)) list.add(0, name)
