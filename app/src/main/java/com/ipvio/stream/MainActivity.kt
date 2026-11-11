@@ -140,7 +140,6 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         ScreenAwake.detach(this)
         PreviewHolder.releaseAll()
-        FullPlayerView.clear()
         super.onDestroy()
     }
 
@@ -531,6 +530,8 @@ private fun AppContent() {
                 onCategories = { cats = it },
                 onAdd = { adding = true }
             ) }
+            // Die eine Videofläche (Vorschau und Vollbild, wie TiviMate) liegt über dem Inhalt und unter den Einblendungen des Players
+            VideoStageView()
         }
         if (underLive && p != null) playerUi(p)
         // Genre-Erkennung im Hintergrund: dezent oben rechts, nie im Player

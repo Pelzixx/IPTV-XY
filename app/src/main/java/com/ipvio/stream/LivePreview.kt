@@ -32,6 +32,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.draw.drawBehind
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultDataSource
@@ -48,7 +54,7 @@ import kotlinx.coroutines.delay
 /**
  * Player für die Vorschau in Live TV, ein einziger für die ganze Seite. Wie TiviMate mit Ton (abschaltbar).
  * Viele Anbieter erlauben nur eine Verbindung gleichzeitig: OK auf den laufenden Sender übergibt diesen Player an den
- * Vollbild-Player ([handover]) – kein Neuladen, keine zweite Verbindung. Sonst wird vor dem Vollbild [stop] gerufen.
+ * Vollbild-Player ([PreviewHolder.takeFor]) – kein Neuladen, keine zweite Verbindung. Sonst wird vor dem Vollbild gestoppt.
  */
 /** [startUrl] ≠ null: vom Vollbild zurückgegebener Player, der diesen Sender schon spielt (kein Neuladen). */
 class LivePreviewPlayer internal constructor(private val built: XyPlayer.Built, startUrl: String?) {
@@ -56,7 +62,7 @@ class LivePreviewPlayer internal constructor(private val built: XyPlayer.Built, 
     val player: ExoPlayer = built.player
     private var url: String? = startUrl
     private var released = false
-    /** An den Vollbild-Player übergeben: gehört dann nicht mehr der Vorschau (stop/release wirken nicht mehr). */
+    /** An den Vollbild-Player ausgeliehen: gehört dann nicht der Vorschau (stop/release/play wirken nicht). */
     private var handedOver = false
 
     fun play(u: String, itemId: String? = null) {
@@ -76,7 +82,7 @@ class LivePreviewPlayer internal constructor(private val built: XyPlayer.Built, 
 
     /** Für den Vollbild-Player: Player samt Verbindung übernehmen, wenn er gerade [u] spielt. */
     fun handover(u: String): XyPlayer.Built? {
-        if (!isOn(u) || player.playbackState == androidx.media3.common.Player.STATE_IDLE) return null
+        if (!isOn(u) || player.playbackState == Player.STATE_IDLE) return null
         handedOver = true
         return built
     }
@@ -89,76 +95,33 @@ class LivePreviewPlayer internal constructor(private val built: XyPlayer.Built, 
 
     fun release() { url = null; if (!released && !handedOver) { released = true; player.release() } }
     val isReleased: Boolean get() = released || handedOver
-    /** Endgültig weg (nicht nur gerade im Vollbild ausgeliehen). */
+    /** Endgültig weg (nicht nur gerade ans Vollbild ausgeliehen). */
     val isDead: Boolean get() = released
-    fun owns(p: androidx.media3.common.Player): Boolean = player === p
+    val isLent: Boolean get() = handedOver && !released
+    fun owns(p: Player): Boolean = player === p
     /** Vollbild gibt denselben Player zurück: wieder Vorschau, spielt [u] weiter. */
     fun takeBack(u: String) { handedOver = false; url = u; runCatching { player.volume = if (Tm.b(Tm.CV_SOUND, true)) 1f else 0f } }
     /** Vollbild hat den ausgeliehenen Player selbst freigegeben. */
     fun lost() { handedOver = false; released = true; url = null }
 }
 
-/**
- * Vorschau-Player und seine Videofläche bleiben über Reiterwechsel erhalten (TiviMate behält seine Ansichten):
- * beim Öffnen des TV-Bereichs muss weder ExoPlayer noch PlayerView neu angelegt werden. Beim Verlassen wird nur gestoppt.
- */
+/** Vorschau-Player über Reiterwechsel und Vollbild hinweg (Live TV bleibt beim Vollbild darunter bestehen). */
 object PreviewHolder {
     private var p: LivePreviewPlayer? = null
-    private var v: PlayerView? = null
-    /** Zählt jede Rückgabe aus dem Vollbild: Live TV bleibt unter dem Vollbild bestehen und meldet die Videofläche dann neu an. */
+    /** Zählt jede Rückgabe aus dem Vollbild (auch mit anderem Player): Live TV holt sich dann den aktuellen Vorschau-Player. */
     var gen by androidx.compose.runtime.mutableIntStateOf(0)
         private set
 
     // Ausgeliehen ans Vollbild zählt nicht als weg: Live TV darunter behält denselben Vorschau-Player
     fun player(ctx: Context): LivePreviewPlayer = p?.takeIf { !it.isDead } ?: LivePreviewPlayer(ctx.applicationContext).also { p = it }
 
-    /** Videofläche der Vorschau wieder an den (zurückgegebenen) Player hängen, ohne die Ansicht neu zu bauen. */
-    fun reattach(pl: LivePreviewPlayer) {
-        val cur = v ?: return
-        if (attached && cur.player === pl.player) return
-        cur.player = null; cur.player = pl.player; attached = true
-    }
-
-    /** Videofläche der Vorschau hängt schon am laufenden Player (vor dem Schließen des Vollbilds umgehängt). */
-    private var attached = true
-
-    /**
-     * Vollbild schließt gleich: Bild schon jetzt in die Vorschau umhängen, solange die Vollbild-Fläche noch darüber liegt –
-     * so ist beim Zurück sofort das laufende Bild da (kein altes Standbild, kein Logo).
-     */
-    fun attachNow(pl: androidx.media3.common.Player) {
-        val cur = v ?: return
-        cur.player = null; cur.player = pl; attached = true
-    }
-
-    /** Vollbild hat den Player freigegeben statt zurückzugeben (z. B. anderer Reiter): Vorschau baut beim nächsten Mal neu. */
-    fun lost(pl: androidx.media3.common.Player) {
-        val cur = p ?: return
-        if (cur.owns(pl)) { cur.lost(); p = null; gen++ }
-    }
-
-    fun view(c: Context, pl: LivePreviewPlayer): PlayerView {
-        // Erst lösen, dann neu setzen: kam der Player aus dem Vollbild zurück, ist es dasselbe Objekt, und die Videofläche
-        // muss trotzdem neu angemeldet werden (sonst bleibt die Vorschau schwarz)
-        v?.let { cur -> if (cur.context === c) { (cur.parent as? android.view.ViewGroup)?.removeView(cur); cur.player = null; cur.player = pl.player; return cur } }
-        return PlayerView(c).apply {
-            useController = false
-            setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
-            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-            player = pl.player
-        }.also { v = it }
-    }
-
-    fun releaseAll() { p?.release(); p = null; v = null }
+    fun releaseAll() { p?.release(); p = null; VideoStage.reset() }
     /** App verlassen: Vorschau sofort stoppen. */
     fun stopAll() { p?.stop() }
     /** Lage der Vorschau im Fenster: das Vollbild wächst von hier aus auf (TiviMate). */
     var rect: androidx.compose.ui.geometry.Rect? = null
 
-    /**
-     * Zurück aus dem Vollbild in TV (Wunsch des Nutzers, wie TiviMate): der laufende Player wird wieder zur Vorschau,
-     * das Bild läuft ohne Unterbrechung weiter.
-     */
+    /** Zurück aus dem Vollbild in TV (wie TiviMate): der laufende Player wird wieder zur Vorschau, das Bild läuft weiter. */
     fun giveBack(b: XyPlayer.Built, url: String) {
         val cur = p
         if (cur != null && cur.owns(b.player)) cur.takeBack(url)
@@ -170,14 +133,125 @@ object PreviewHolder {
         gen++
     }
 
+    /** Vollbild hat den Player freigegeben statt zurückzugeben: Vorschau baut beim nächsten Mal neu. */
+    fun lost(pl: Player) {
+        val cur = p ?: return
+        if (cur.owns(pl)) { cur.lost(); p = null; gen++ }
+    }
+
     /** Vollbild-Player: laufenden Vorschau-Player übernehmen, wenn er gerade diesen Sender spielt; sonst Vorschau stoppen. */
     fun takeFor(url: String): XyPlayer.Built? {
         val cur = p ?: return null
-        // Der Vorschau-Player bleibt hier eingetragen (ausgeliehen) und kommt beim Zurück wieder ([giveBack])
         val b = cur.handover(url)
-        if (b != null) attached = false
         if (b == null) cur.stop()
         return b
+    }
+}
+
+/**
+ * Eine einzige Videofläche für Vorschau und Vollbild (wie TiviMate): Sie liegt über dem Inhalt und ändert nur Lage und Größe.
+ * Viele TV-Sticks haben nur eine Hardware-Videoebene – wechselte der Player zwischen zwei Flächen, blieb das Bild stehen
+ * (Ton lief weiter) oder es wurde neu geladen. So gibt es keinen Flächenwechsel mehr.
+ */
+object VideoStage {
+    /** Player, dessen Bild gezeigt wird (Vorschau oder Vollbild – meist derselbe). */
+    var player by mutableStateOf<Player?>(null)
+    /** Lage der Vorschau im Fenster; null = keine Vorschau auf dem Bildschirm. */
+    var previewRect by mutableStateOf<androidx.compose.ui.geometry.Rect?>(null)
+    /** Vorschau zeigt Bild (sonst Logo bzw. Name von [cover]). */
+    var previewOn by mutableStateOf(false)
+    var cover by mutableStateOf<Item?>(null)
+    /** Vollbild-Player benutzt die Fläche. */
+    var full by mutableStateOf(false)
+    /** Lage im Vollbild; null = ganzer Bildschirm (sonst z. B. kleines Bild im Guide oder 4:3-Fläche). */
+    var fullRect by mutableStateOf<androidx.compose.ui.geometry.Rect?>(null)
+    /** Vergrößerung im Vollbild (Bildformat „Zoom“). */
+    var fullZoom by mutableStateOf(1f)
+    var fullResize by mutableStateOf(AspectRatioFrameLayout.RESIZE_MODE_FIT)
+    /** 0 = in der Vorschau, 1 = Vollbild; dazwischen wächst bzw. schrumpft das Bild. */
+    var t by androidx.compose.runtime.mutableFloatStateOf(1f)
+    var moving by mutableStateOf(false)
+    /** Die eine PlayerView (bleibt über Reiter und Vollbild erhalten). */
+    var view: PlayerView? = null
+        private set
+    /** Untertitel-Stil des Vollbild-Players anwenden. */
+    var onStyle: ((PlayerView) -> Unit)? = null
+
+    fun viewFor(c: Context): PlayerView {
+        view?.let { cur -> if (cur.context === c) { (cur.parent as? android.view.ViewGroup)?.removeView(cur); return cur } }
+        return PlayerView(c).apply {
+            useController = false
+            setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
+            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+            setShutterBackgroundColor(android.graphics.Color.BLACK)
+        }.also { view = it }
+    }
+
+    fun reset() { view = null; player = null; full = false; previewRect = null; previewOn = false }
+}
+
+/** Die gemeinsame Videofläche; in der App-Wurzel über dem Inhalt und unter den Einblendungen des Vollbild-Players. */
+@Composable
+fun VideoStageView() {
+    val s = VideoStage
+    val pr = s.previewRect
+    if (!s.full && pr == null) return
+    val pl = s.player
+    // In der Vorschau unter der Oberfläche (Live TV schneidet dort ein Fenster frei, Menüs dürfen das Bild verdecken);
+    // im Vollbild und beim Wachsen/Schrumpfen über Live TV
+    val z = if (s.full || s.moving) 0f else -1f
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().zIndex(z)) {
+        val bw = constraints.maxWidth.toFloat(); val bh = constraints.maxHeight.toFloat()
+        val fr = s.fullRect
+        val fullBox = fr ?: androidx.compose.ui.geometry.Rect(0f, 0f, bw, bh)
+        // Schwarz hinter dem Vollbild (nicht beim Auf-/Zuklappen: dann ist Live TV dahinter zu sehen)
+        if (s.full && !s.moving) Box(Modifier.fillMaxSize().background(Color.Black))
+        // In Ruhe genau an ihrer Lage; beim Wachsen/Schrumpfen in voller Größe, nur über die Grafikebene verkleinert
+        // (die Videofläche wird so nicht in jedem Bild neu ausgemessen)
+        val animate = s.moving && pr != null
+        val box = if (animate || s.full || pr == null) fullBox else pr
+        AndroidView(
+            factory = { c -> s.viewFor(c).also { v -> v.player = s.player; s.onStyle?.invoke(v) } },
+            update = { v ->
+                if (v.player !== pl) v.player = pl
+                val rm = if (s.full) s.fullResize else AspectRatioFrameLayout.RESIZE_MODE_FIT
+                if (v.resizeMode != rm) v.resizeMode = rm
+                // Untertitel nur im Vollbild
+                v.subtitleView?.visibility = if (s.full) android.view.View.VISIBLE else android.view.View.GONE
+            },
+            modifier = Modifier
+                .layout { m, _ ->
+                    val w = box.width.toInt().coerceAtLeast(1); val h = box.height.toInt().coerceAtLeast(1)
+                    val pm = m.measure(androidx.compose.ui.unit.Constraints.fixed(w, h))
+                    layout(bw.toInt(), bh.toInt()) { pm.place(box.left.toInt(), box.top.toInt()) }
+                }
+                .graphicsLayer {
+                    val p0 = pr
+                    if (animate && p0 != null) {
+                        val tt = s.t
+                        fun lerp(a: Float, b: Float) = a + (b - a) * tt
+                        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0f)
+                        scaleX = lerp(p0.width / fullBox.width, 1f)
+                        scaleY = lerp(p0.height / fullBox.height, 1f)
+                        translationX = lerp(p0.left - fullBox.left, 0f)
+                        translationY = lerp(p0.top - fullBox.top, 0f)
+                    } else if (s.full && s.fullZoom != 1f) {
+                        transformOrigin = androidx.compose.ui.graphics.TransformOrigin.Center
+                        scaleX = s.fullZoom; scaleY = s.fullZoom; translationX = 0f; translationY = 0f
+                    } else { scaleX = 1f; scaleY = 1f; translationX = 0f; translationY = 0f }
+                }
+        )
+        // Vorschau ohne Bild (Sender lädt, Fehler, kein Sender markiert): Logo bzw. Name an Stelle des Bildes
+        val cv = s.cover
+        if (!s.full && !s.moving && pr != null && !s.previewOn && cv != null) {
+            val d = androidx.compose.ui.platform.LocalDensity.current
+            Box(Modifier.offset { androidx.compose.ui.unit.IntOffset(pr.left.toInt(), pr.top.toInt()) }
+                .size(with(d) { pr.width.toDp() }, with(d) { pr.height.toDp() }).clip(RoundedCornerShape(DS.RadiusS)).background(Surf),
+                contentAlignment = Alignment.Center) {
+                if (Logos.of(cv) != null) AsyncImage(Logos.of(cv), null, Modifier.fillMaxSize().padding(28.dp), contentScale = ContentScale.Fit)
+                else Text(raw = true, text = cv.title, color = Muted, fontSize = 18.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+        }
     }
 }
 
@@ -186,13 +260,6 @@ object PreviewHolder {
 fun LivePreview(p: LivePreviewPlayer, ch: Item?, modifier: Modifier = Modifier, fallback: Item? = null) {
     // Läuft der Sender schon (zurück aus dem Vollbild): gleich das Bild, nicht erst für einen Moment das Logo
     var showVideo by remember { mutableStateOf(ch != null && p.isOn(ch.url) && p.player.playbackState == Player.STATE_READY) }
-    // Zurück aus dem Vollbild (Live TV blieb darunter bestehen): Videofläche wieder anmelden, Bild läuft ohne Neuladen weiter
-    val gen = PreviewHolder.gen
-    LaunchedEffect(gen) {
-        if (gen == 0) return@LaunchedEffect
-        PreviewHolder.reattach(p)
-        if (ch != null && p.isOn(ch.url)) showVideo = true
-    }
     DisposableEffect(p) {
         val l = object : Player.Listener {
             override fun onRenderedFirstFrame() { showVideo = true }
@@ -201,6 +268,14 @@ fun LivePreview(p: LivePreviewPlayer, ch: Item?, modifier: Modifier = Modifier, 
         p.player.addListener(l)
         onDispose { p.player.removeListener(l) }
     }
+    // Die gemeinsame Videofläche zeigt diesen Player an dieser Stelle (nicht, solange das Vollbild ihn hat)
+    val logoCh = ch ?: fallback
+    SideEffect {
+        if (!VideoStage.full) VideoStage.player = p.player
+        VideoStage.previewOn = showVideo
+        VideoStage.cover = logoCh
+    }
+    DisposableEffect(Unit) { onDispose { VideoStage.previewRect = null; VideoStage.cover = null; if (!VideoStage.full) VideoStage.player = null } }
     // App im Hintergrund (Home-Taste, App geschlossen): Vorschau anhalten, sonst läuft der Ton weiter und die Verbindung bleibt belegt;
     // beim Zurückkommen den markierten Sender wieder starten
     val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
@@ -213,11 +288,10 @@ fun LivePreview(p: LivePreviewPlayer, ch: Item?, modifier: Modifier = Modifier, 
         lifecycle.addObserver(obs)
         onDispose { lifecycle.removeObserver(obs) }
     }
-    LaunchedEffect(ch?.id, started, p, gen) {
-        // Läuft der Sender schon (aus dem Vollbild zurückgegeben): Bild sofort zeigen statt erst das Logo
+    LaunchedEffect(ch?.id, started, p) {
         val on = ch != null && started && p.isOn(ch.url) && p.player.playbackState == Player.STATE_READY
         // Vorschau gerade ans Vollbild ausgeliehen (Live TV liegt verdeckt darunter): nichts ändern
-        if (!on && p.isReleased && !p.isDead) return@LaunchedEffect
+        if (!on && p.isLent) return@LaunchedEffect
         showVideo = on
         if (!started) return@LaunchedEffect
         if (ch == null || !AppSettings.livePreview) { p.stop(); return@LaunchedEffect }
@@ -225,21 +299,10 @@ fun LivePreview(p: LivePreviewPlayer, ch: Item?, modifier: Modifier = Modifier, 
         delay(700)
         p.play(if (Stalker.isPlay(ch.url)) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Stalker.playable(ch.url) } else ch.url, ch.id)
     }
-    val shape = RoundedCornerShape(DS.RadiusS)
-    Box(modifier.onGloballyPositioned { PreviewHolder.rect = it.boundsInWindow() }.clip(shape).background(Color.Black), contentAlignment = Alignment.Center) {
-        AndroidView(
-            factory = { c -> PreviewHolder.view(c, p) },
-            modifier = Modifier.fillMaxSize()
-        )
-        // Kein Sender markiert (Fokus links in den Kategorien): statt einer schwarzen Fläche das Logo des oberen Senders
-        val logoCh = ch ?: fallback
-        if (!showVideo && logoCh != null) {
-            Box(Modifier.fillMaxSize().background(Surf), contentAlignment = Alignment.Center) {
-                if (Logos.of(logoCh) != null) AsyncImage(Logos.of(logoCh), null, Modifier.fillMaxSize().padding(28.dp), contentScale = ContentScale.Fit)
-                else Text(raw = true, text = logoCh.title, color = Muted, fontSize = 18.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            }
-        }
-    }
+    // Nur Platzhalter: das Bild selbst zeichnet die gemeinsame Videofläche darüber
+    // Nur ein freigeschnittenes Fenster: das Bild selbst zeigt die gemeinsame Videofläche darunter
+    Box(modifier.onGloballyPositioned { val r = it.boundsInWindow(); PreviewHolder.rect = r; if (VideoStage.previewRect != r) VideoStage.previewRect = r }
+        .drawBehind { drawRect(Color.Black, blendMode = androidx.compose.ui.graphics.BlendMode.Clear) })
 }
 
 /** Oben links in Live TV: Sender, laufende Sendung mit Zeit und Fortschritt, Beschreibung und was danach kommt. */

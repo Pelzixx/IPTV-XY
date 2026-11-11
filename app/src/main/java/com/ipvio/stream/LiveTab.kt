@@ -240,13 +240,6 @@ fun LiveTab(live: List<Item>, groups0: Map<String, List<Item>>, favs: List<Item>
     // Nach dem Zurück aus dem Vollbild ([PreviewHolder.gen]) ggf. ein anderer Vorschau-Player (Vollbild hatte einen eigenen)
     val preview = remember(PreviewHolder.gen) { PreviewHolder.player(ctx) }
     val previewNow = androidx.compose.runtime.rememberUpdatedState(preview)
-    // Vollbild-Ansicht schon vorbereiten, wenn der Stick gerade nichts zu tun hat: OK auf einen Sender ruckelt dann nicht
-    DisposableEffect(Unit) {
-        val q = android.os.Looper.myQueue()
-        val idle = android.os.MessageQueue.IdleHandler { FullPlayerView.prepare(ctx); false }
-        q.addIdleHandler(idle)
-        onDispose { q.removeIdleHandler(idle) }
-    }
     DisposableEffect(Unit) { onDispose { previewNow.value.stop() } }
     // Läuft der Sender schon in der Vorschau, bleibt sie an: der Vollbild-Player übernimmt sie (TiviMate)
     fun open(ch: Item) {
@@ -1001,7 +994,7 @@ object LiveUi {
     var groupsOpen by mutableStateOf(false)
     /** Live TV bleibt unter dem Vollbild-Player bestehen (TiviMate): zählt jedes Zurück aus dem Vollbild (Fokus zurück auf den Sender). */
     var backGen by androidx.compose.runtime.mutableIntStateOf(0)
-    /** Live TV liegt gerade sichtbar unter dem Player (während Auf-/Zuklappen des Bildes). */
+    /** Live TV liegt gerade sichtbar unter dem Player (während das Bild auf- bzw. zuklappt). */
     var underShown by mutableStateOf(false)
     /** Der Player hat den Fokus schon vor dem Schließen an den Sender in Live TV zurückgegeben. */
     var focusBack = false
