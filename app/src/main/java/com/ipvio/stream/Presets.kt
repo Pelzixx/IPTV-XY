@@ -35,6 +35,8 @@ object Presets {
     val memberFrom: String? get() = remote?.memberFrom
     /** Pflicht-Update an (Standard) oder aus – im Panel schaltbar ("forceUpdate": false). */
     val forceUpdate: Boolean get() = remote?.forceUpdate ?: true
+    /** Vorgabe für die sichere DNS-Abfrage aus dem Panel ("secureDns": "off" | "on" | "auto"), sonst automatisch. */
+    val secureDns: Int get() = remote?.secureDns ?: 2
     /** Laufband (News/Störungen aus dem Element-Raum des Betreibers), null = keins. */
     val tickerUrl: String? get() = remote?.ticker
 
@@ -74,7 +76,8 @@ object Presets {
 /** Inhalt von config.json: {"servers":[{"name":"XY TV","url":"http://…:8080"}], "epg":["https://…/epg.xml.gz"]} */
 /** [news] = Mitteilung für die Startseite (JSON wie news.json), [diag]/[backup] = Adressen der Panel-Endpunkte (docs/panel-schnittstelle.md). */
 data class RemoteConfig(val servers: List<PresetServer>, val epg: List<String>, val news: String? = null, val diag: String? = null, val backup: String? = null,
-    val member: String? = null, val memberFrom: String? = null, val forceUpdate: Boolean = true, val ticker: String? = null)
+    val member: String? = null, val memberFrom: String? = null, val forceUpdate: Boolean = true, val ticker: String? = null,
+    /** Sichere DNS-Abfrage als Vorgabe: 0 aus, 1 an, 2 automatisch (Standard). */ val secureDns: Int = 2)
 
 /** Reine Logik ohne Android (Unit-Tests). */
 object PresetLogic {
@@ -131,7 +134,8 @@ object PresetLogic {
         o.optJSONArray("epg")?.let { a -> for (i in 0 until a.length()) epg.add(a.optString(i, "")) }
         fun url(k: String) = o.optString(k, "").trim().takeIf { it.startsWith("https://") || it.startsWith("http://") }
         RemoteConfig(servers, parseUrls(epg.joinToString("\n")), (o.optJSONArray("news") ?: o.optJSONObject("news"))?.toString(), url("diag"), url("backup"),
-            url("member"), o.optString("memberFrom", "").trim().ifEmpty { null }, o.optBoolean("forceUpdate", true), url("ticker"))
+            url("member"), o.optString("memberFrom", "").trim().ifEmpty { null }, o.optBoolean("forceUpdate", true), url("ticker"),
+            when (o.optString("secureDns", "").trim().lowercase()) { "off", "aus" -> 0; "on", "an" -> 1; else -> 2 })
     }.getOrNull()
 
     /**

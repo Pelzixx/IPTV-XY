@@ -366,6 +366,7 @@ private fun AppContent() {
     LaunchedEffect(Unit) { Recorder.init(ctx); Recorder.schedule(ctx) }
     // Neue Version: beim Start und danach regelmäßig prüfen, Hinweis-Karte siehe unten
     LaunchedEffect(Unit) { UpdateNotice.watch(ctx) }
+    LaunchedEffect(Unit) { WhatsNew.check(ctx) }
     // Tor-Alarm für markierte Spiele (Sport Guide), Einblendung siehe unten
     LaunchedEffect(Unit) { GoalAlert.watch(ctx) }
     // Element-Name (XY TV/Township): Abfrage und Nachrichten des Betreibers
@@ -546,6 +547,8 @@ private fun AppContent() {
             if (UpdateNotice.forced) UpdateGate(u)
             else if (p == null && !adding && remindNow == null && pinAsk == null) UpdateCard(u, Modifier.align(Alignment.TopCenter).padding(top = 24.dp))
         }
+        // Nach einem Update einmal die Neuerungen (nicht im Player, nicht zusammen mit anderen Fenstern)
+        WhatsNew.pending?.let { w -> if (p == null && !adding && pinAsk == null && UpdateNotice.pending == null && !Member.asking) WhatsNewCard(w) }
         // Laufband unten, nicht im Vollbild-Player
         if (p == null) TickerBar(Modifier.align(Alignment.BottomCenter))
         // Nachricht des Betreibers an diesen Nutzer (nicht mitten im Film/Sender)

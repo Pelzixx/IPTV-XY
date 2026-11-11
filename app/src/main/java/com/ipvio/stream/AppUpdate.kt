@@ -50,6 +50,17 @@ object AppUpdate {
         }
     }
 
+    /** Angaben zur neuesten veröffentlichten Version, auch wenn sie schon installiert ist (für „Was ist neu“). */
+    suspend fun latest(c: Context): UpdateInfo? = withContext(Dispatchers.IO) {
+        runCatching {
+            Net.base.newCall(Request.Builder().url(url(c)).header("User-Agent", "IPTV-XY").build()).execute().use { r ->
+                if (!r.isSuccessful) return@use null
+                val j = JSONObject(r.body?.string().orEmpty())
+                UpdateInfo(j.optLong("versionCode", 0L), j.optString("versionName"), "", j.optString("notes"))
+            }
+        }.getOrNull()
+    }
+
     /** Lädt die APK in den Zwischenspeicher; [onProgress] liefert Prozent (0..100) oder -1 bei unbekannter Größe. */
     suspend fun download(c: Context, info: UpdateInfo, onProgress: (Int) -> Unit): Result<File> = withContext(Dispatchers.IO) {
         runCatching {

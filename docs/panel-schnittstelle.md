@@ -18,6 +18,10 @@ Stand 2026-11-09. Beide Panels liefern dieselbe Schnittstelle; die App untersche
 Neu sind `news`, `diag` und `backup` (alle optional). Fehlt `news`, zeigt die Startseite keine Mitteilung.
 Leere Felder in `news` weglassen oder `""`.
 
+Ab 3.58 optional: `"secureDns": "auto"` (Standard), `"on"` oder `"off"` – Vorgabe für die sichere DNS-Abfrage (DNS über HTTPS:
+Cloudflare, ersatzweise Quad9). `auto` = nur wenn die normale Namensauflösung scheitert, `on` = immer verschlüsselt,
+`off` = nie. Der Kunde kann es in der App unter Allgemein > „Sichere DNS-Abfrage“ überschreiben.
+
 ## 2. Diagnose (`diag`, POST, `Content-Type: application/json`)
 
 Die App sendet nur auf Knopfdruck (Einstellungen → Über → „Diagnose senden“):

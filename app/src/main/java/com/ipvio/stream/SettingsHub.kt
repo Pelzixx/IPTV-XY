@@ -1886,6 +1886,13 @@ private fun TmGeneral(ctx: Context) {
     SettingRow("User-Agent", ua.ifBlank { Lang.tr("Nicht festgelegt") }, rawValue = true, onClick = {
         ask = Ask("User-Agent", ua, "Mozilla/5.0 …") { Tm.set(ctx, Tm.GEN_UA, it.trim()) }
     })
+    // Sichere DNS-Abfrage: Vorgabe aus dem Panel oder selbst gewählt
+    val dnsModes = listOf(Lang.tr("Aus"), Lang.tr("An"), Lang.tr("Automatisch"))
+    val dnsOpts = listOf(Lang.tr("Vorgabe") + " (" + dnsModes[Presets.secureDns.coerceIn(0, 2)] + ")") + dnsModes
+    val dnsIdx = (Tm.i(Tm.GEN_DNS, -1) + 1).coerceIn(0, 3)
+    SelectRow("Sichere DNS-Abfrage", dnsOpts[dnsIdx], dnsOpts, dnsIdx) { Tm.set(ctx, Tm.GEN_DNS, it - 1) }
+    Text("Löst Adressen verschlüsselt auf (DNS über HTTPS), falls der Internetanbieter Server sperrt. „Automatisch“ nur, wenn die normale Abfrage scheitert.",
+        color = Muted, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp))
     val udp = Tm.s(Tm.GEN_UDP)
     SettingRow("UDP Proxy (Adresse:Port)", udp.ifBlank { Lang.tr("Nicht festgelegt") }, rawValue = true, onClick = {
         ask = Ask("UDP Proxy (Adresse:Port)", udp, "192.168.1.1:4022") { Tm.set(ctx, Tm.GEN_UDP, it.trim()) }
@@ -2171,6 +2178,7 @@ private fun TmLookPlayer(ctx: Context, open: (String, String) -> Unit) {
         AppSettings.setPlayerExtra(ctx, AppSettings.autoNext, hides[it], AppSettings.showEndTime, AppSettings.autoSkipIntro)
     }
     ToggleRow("Zeige schwarzes Bild beim Senderwechsel", null, Tm.b(Tm.PL_BLACK_SWITCH, false)) { Tm.set(ctx, Tm.PL_BLACK_SWITCH, it) }
+    ToggleRow("Spielstand einblenden", Lang.tr("Bei Spielen aus dem Sport Guide oben links Stand und Minute zeigen"), Tm.b(Tm.PL_SCORE, false)) { Tm.set(ctx, Tm.PL_SCORE, it) }
     ToggleRow("Zum Umschalten erneut drücken", Lang.tr("Erst das Infofeld des nächsten Senders, beim zweiten Drücken umschalten"), Tm.b(Tm.RC_PRESS_AGAIN, false)) { Tm.set(ctx, Tm.RC_PRESS_AGAIN, it) }
     val zds = listOf(0, 1, 2, 3, 5, 10)
     val zd = Tm.i(Tm.RC_ZAP_DELAY, 0)
@@ -2283,6 +2291,7 @@ private fun TmPlayback(ctx: Context, open: (String, String) -> Unit) {
     ToggleRow("Wähle standardmäßig die Surround-Audiospur aus", null, Tm.b(Tm.PB_SURROUND, false)) { Tm.set(ctx, Tm.PB_SURROUND, it) }
     val offs = (-1000..1000 step 50).toList()
     SelectRow("Audioversatz (ms)", (if (AudioOffset.ms > 0) "+" else "") + AudioOffset.ms, offs.map { (if (it > 0) "+" else "") + it }, offs.indexOf(AudioOffset.ms).coerceAtLeast(0)) { AudioOffset.set(ctx, offs[it]) }
+    ToggleRow("Lautstärke-Ausgleich", Lang.tr("Gleicht laute und leise Stellen an, z. B. nachts oder bei lauter Werbung"), Tm.b(Tm.PB_LEVEL, false)) { Tm.set(ctx, Tm.PB_LEVEL, it); LevelFx.refresh(VideoStage.player as? androidx.media3.exoplayer.ExoPlayer) }
     ToggleRow("Audio-Passthrough", null, Tm.b(Tm.PB_PASSTHROUGH, false)) { Tm.set(ctx, Tm.PB_PASSTHROUGH, it) }
     ToggleRow("Getunnelte Wiedergabe", null, Tm.b(Tm.PB_TUNNEL, false)) { Tm.set(ctx, Tm.PB_TUNNEL, it) }
     ToggleRow("Falls verfügbar, Untertitel für alle Kanäle anzeigen", null, Tm.b(Tm.PB_SUB_ALL, false)) { Tm.set(ctx, Tm.PB_SUB_ALL, it) }

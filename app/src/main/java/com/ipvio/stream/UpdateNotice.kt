@@ -148,3 +148,58 @@ fun UpdateGate(info: UpdateInfo) {
         }
     }
 }
+
+/**
+ * „Was ist neu“ (Wunsch des Nutzers, 2026-11-11): nach einem Update einmal die Neuerungen dieser Version zeigen
+ * (Text aus der Update-Datei, wie im Release eingetragen). Nicht nach der Erstinstallation.
+ */
+object WhatsNew {
+    var pending by mutableStateOf<UpdateInfo?>(null)
+
+    suspend fun check(c: Context) {
+        val p = Profiles.sp(c, "ipvio_upd")
+        val cur = AppUpdate.currentCode(c)
+        val seen = p.getLong("seen_code", -1L)
+        if (seen == cur) return
+        p.edit().putLong("seen_code", cur).apply()
+        // Erstinstallation (noch nie gemerkt): nichts zeigen
+        if (seen < 0L || seen > cur) return
+        delay(4_000)
+        val info = AppUpdate.latest(c) ?: return
+        if (info.code == cur && info.notes.isNotBlank()) pending = info
+    }
+}
+
+/** Karte „Neu in Version …“ mit den Neuerungen; OK oder Zurück schließt sie. */
+@Composable
+fun WhatsNewCard(info: UpdateInfo) {
+    val fr = remember { FocusRequester() }
+    LaunchedEffect(info.code) { delay(150); runCatching { fr.requestFocus() } }
+    androidx.compose.ui.window.Dialog(onDismissRequest = { WhatsNew.pending = null },
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+        BackHandler { WhatsNew.pending = null }
+        Box(Modifier.fillMaxSize().background(Color(0xCC000000)), contentAlignment = Alignment.Center) {
+            val shape = RoundedCornerShape(DS.RadiusL)
+            Column(
+                Modifier.widthIn(max = 760.dp).clip(shape).background(Surf).border(1.dp, Accent2, shape).padding(28.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    AppIcon(AIcon.Star, Accent2, size = 28.dp)
+                    Text(raw = true, text = Lang.tr("Neu in Version") + " " + info.name, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                }
+                // Neuerungen: Punkte („·“ oder „;“) als eigene Zeilen
+                val lines = info.notes.split(Regex("""\s*(?:·|;|\n)\s*""")).map { it.trim() }.filter { it.isNotEmpty() }
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    lines.take(12).forEach { l ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(raw = true, text = "•", color = Accent2, fontSize = 16.sp)
+                            Text(raw = true, text = l, color = Color.White, fontSize = 16.sp, lineHeight = 22.sp)
+                        }
+                    }
+                }
+                PillButton("OK", Modifier.focusRequester(fr), light = true) { WhatsNew.pending = null }
+            }
+        }
+    }
+}

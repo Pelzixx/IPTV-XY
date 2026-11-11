@@ -155,6 +155,9 @@ dependencies {
     implementation("org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1")
 
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    // Sichere DNS-Abfrage (DNS über HTTPS) und Laden der Streams über denselben Client
+    implementation("com.squareup.okhttp3:okhttp-dnsoverhttps:4.12.0")
+    implementation("androidx.media3:media3-datasource-okhttp:1.11.1")
     // Aufnahmen auf SMB-Netzwerkfreigaben (TiviMate: Aufnahmeverzeichnis smb://…)
     implementation("org.codelibs:jcifs:2.1.39")
     // QR-Code auf der Startseite (HomeInfo.kt)

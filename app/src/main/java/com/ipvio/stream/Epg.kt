@@ -57,7 +57,7 @@ object EpgNet {
     suspend fun fetch(url: String): String? = gate.withPermit {
         withContext(Dispatchers.IO) {
             try {
-                client.newCall(Request.Builder().url(url).build()).execute().use { r -> if (r.isSuccessful) r.body?.string() else null }
+                client.newCall(Request.Builder().url(url).header("User-Agent", TmNet.userAgent()).build()).execute().use { r -> if (r.isSuccessful) r.body?.string() else null }
             } catch (e: Exception) {
                 null
             }
@@ -198,7 +198,9 @@ object Xmltv {
             // Runde 20: Intervall einstellbar; „beim Start“ bzw. geänderte Wiedergabeliste laden einmal frisch
             val forced = EpgPrefs.forceNext
             EpgPrefs.forceNext = false
-            if (!forced && age < EpgPrefs.intervalH * 3600L && progs.isNotEmpty()) return@launch
+            // Hat beim letzten Mal eine Quelle nichts geliefert (z. B. Xtream-EPG des Zugangs), nicht bis zum Intervall warten
+            val hadError = sources.any { it.state == EpgSourceStat.ERROR }
+            if (!forced && !hadError && age < EpgPrefs.intervalH * 3600L && progs.isNotEmpty()) return@launch
             val hadSaved = progs.isNotEmpty()
             if (!hadSaved) status = "Wird geladen …"
             val map = HashMap<String, MutableList<EpgEntry>>()
@@ -295,7 +297,7 @@ object Xmltv {
         url: String, wanted: Set<String>, out: HashMap<String, MutableList<EpgEntry>>, past: Map<String, Int> = emptyMap(),
         hit: MutableSet<String> = HashSet(), taken: Set<String> = emptySet(), src: String = "", onProgress: (Long) -> Unit = {}
     ) {
-        client.newCall(Request.Builder().url(url).build()).execute().use { r ->
+        client.newCall(Request.Builder().url(url).header("User-Agent", TmNet.userAgent()).build()).execute().use { r ->
             if (!r.isSuccessful) throw PlaylistError("HTTP ${r.code}")
             // Fortschritt in MB (heruntergeladene Bytes), höchstens einmal je MB gemeldet
             val counting = object : java.io.FilterInputStream((r.body ?: throw PlaylistError("leer")).byteStream()) {
@@ -480,7 +482,7 @@ object IntroDb {
         val url = "https://api.theintrodb.org/v3/media?tmdb_id=$tmdbId$tv&duration_ms=$durMs"
         val body = withContext(Dispatchers.IO) {
             try {
-                client.newCall(Request.Builder().url(url).build()).execute().use { r ->
+                client.newCall(Request.Builder().url(url).header("User-Agent", TmNet.userAgent()).build()).execute().use { r ->
                     if (r.isSuccessful) r.body?.string() else null
                 }
             } catch (e: Exception) {

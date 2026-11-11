@@ -55,8 +55,7 @@ object MultiView {
 private fun MultiCell(item: Item, audio: Boolean, focused: Boolean, modifier: Modifier, onOk: () -> Unit) {
     val ctx = LocalContext.current
     val player = remember(item.id) {
-        val http = DefaultHttpDataSource.Factory().setUserAgent(TmNet.userAgentFor(item.id))
-            .setAllowCrossProtocolRedirects(true).setConnectTimeoutMs(10_000).setReadTimeoutMs(15_000)
+        val http = androidx.media3.datasource.okhttp.OkHttpDataSource.Factory(Net.player).setUserAgent(TmNet.userAgentFor(item.id))
         ExoPlayer.Builder(ctx, SoftAudio.factory(ctx))
             .setMediaSourceFactory(DefaultMediaSourceFactory(ctx).setDataSourceFactory(DefaultDataSource.Factory(ctx, http)))
             .build()

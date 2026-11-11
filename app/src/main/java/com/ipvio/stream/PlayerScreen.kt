@@ -148,7 +148,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     // Eigene HTTP-Einstellungen: folgt Weiterleitungen auch von http nach https (viele IPTV-Server tun das)
     // und gibt nach 10 s Verbindungsaufbau bzw. 15 s Lesezeit auf, statt endlos zu warten.
     // User-Agent je Wiedergabeliste (TiviMate): vor jedem neuen Stream passend setzen
-    val httpRef = remember { arrayOfNulls<DefaultHttpDataSource.Factory>(1) }
+    val httpRef = remember { arrayOfNulls<androidx.media3.datasource.okhttp.OkHttpDataSource.Factory>(1) }
     // TiviMate: läuft der Sender schon in der Vorschau, wird deren Player übernommen (kein Neuladen, keine zweite Verbindung);
     // sonst wird die Vorschau gestoppt und ein neuer Player gebaut
     val handedOver = remember { req.live && req.archive == null }.let { live -> remember { if (live) PreviewHolder.takeFor(req.url) else { PreviewHolder.takeFor(""); null } } }
@@ -1359,6 +1359,10 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
         }
         // Optik > Player: „Zeige schwarzes Bild beim Senderwechsel“ – bis das erste Bild des neuen Senders da ist
         if (!frameShown) Box(Modifier.fillMaxSize().background(Color.Black))
+
+        // Spielstand eines laufenden Spiels auf diesem Sender (abschaltbar, Standard aus); nicht über Menüs und Guide
+        if (cur.live && cur.archive == null && !controls && panel == Panel.NONE && !showGuide && !showChannels && !showCats)
+            ScoreOverlay(cur.itemId, liveAll, Modifier.align(Alignment.TopStart).padding(top = 24.dp, start = 28.dp))
 
         // ---------------------------------------------------------------- Meldungen
         if (buffering && msg == null && !showGuide) {
