@@ -20,15 +20,23 @@ object EpgNames {
         return t.replace("+", "plus").filter { it.isLetterOrDigit() }
     }
 
+    // Sendernamen der Liste: einmal vereinheitlichen und merken (Logo und Programm fragen das beim Blättern für jede Zeile ab)
+    private val titleCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+    fun normTitle(s: String): String {
+        titleCache[s]?.let { return it }
+        if (titleCache.size > 50_000) titleCache.clear()
+        return norm(s).also { titleCache[s] = it }
+    }
+
     /** Schlüssel eines Senders: Kennung (klein) oder „n:“ + vereinheitlichter Name; null, wenn beides fehlt. */
     fun key(item: Item): String? =
         item.tvgId?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
-            ?: norm(item.title).takeIf { it.length >= 2 }?.let { PFX + it }
+            ?: normTitle(item.title).takeIf { it.length >= 2 }?.let { PFX + it }
 
     /** Alle Schlüssel eines Senders in Reihenfolge: zuerst die Kennung, dann der Name (falls die Kennung im EPG fehlt). */
     fun keys(item: Item): List<String> {
         val id = item.tvgId?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
-        val n = norm(item.title).takeIf { it.length >= 2 }?.let { PFX + it }
+        val n = normTitle(item.title).takeIf { it.length >= 2 }?.let { PFX + it }
         // Von Hand zugewiesener EPG-Kanal zuerst
         val own = runCatching { EpgAssign.get(item.id) }.getOrNull()
         return listOfNotNull(own, id, n).distinct()

@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -139,6 +140,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         ScreenAwake.detach(this)
         PreviewHolder.releaseAll()
+        FullPlayerView.clear()
         super.onDestroy()
     }
 
@@ -422,12 +424,11 @@ private fun AppContent() {
         val d = detail
         val b = browse
         val c = cats
-        when {
-            MultiView.open -> MultiViewScreen(liveAll) { item ->
-                MultiView.open = false
-                if (item != null) start(item, item.title, item.url)
-            }
-            p != null -> {
+        // TiviMate: Sender aus Live TV im Vollbild – Live TV bleibt darunter bestehen (verdeckt). Zurück ist dann sofort da,
+        // ohne Neuaufbau der Liste und ohne dass die Vorschau erst das Logo zeigt.
+        val underLive = p != null && p.live && p.archive == null && tab == 3 && !MultiView.open && personTop == null &&
+            d == null && b == null && c == null && !adding
+        val playerUi: @Composable (PlayReq) -> Unit = { p ->
                 val zap = if (p.live || p.archive != null) {
                     val ctxList = ZapContext.list
                     if (ctxList.any { it.id == p.itemId }) ctxList
@@ -442,10 +443,15 @@ private fun AppContent() {
                 // Neuer Start von außen (z. B. Erinnerung „Umschalten“) während der Wiedergabe: Player neu aufbauen
                 key(p) {
                     // Optik > Player > Senderliste > Vorschaumodus > „Animierter Übergang“ (TiviMate): Live-Player blendet weich ein
-                    Box(if (p.live && Tm.b(Tm.CV_ANIM, true)) Modifier.fillMaxSize().screenEnter() else Modifier.fillMaxSize()) {
-                    PlayerScreen(p, zap, liveAll, seriesItem) {
-                        // Live: zurück in Live TV auf den zuletzt gesehenen Sender (auch nach Umschalten im Player)
-                        if (p.live || p.archive != null) LastFocus.pending = History.ids.firstOrNull { id -> liveAll.any { it.id == id } }
+                    // (über Live TV nicht: dort wächst das Bild aus der Vorschau)
+                    Box(if (p.live && !underLive && Tm.b(Tm.CV_ANIM, true)) Modifier.fillMaxSize().screenEnter() else Modifier.fillMaxSize()) {
+                    PlayerScreen(p, zap, liveAll, seriesItem, overLive = underLive) {
+                        if (underLive) LiveUi.underShown = false
+                        // Live: zurück in Live TV auf den zuletzt gesehenen Sender (auch nach Umschalten im Player);
+                        // über Live TV hat der Player den Fokus schon vor dem Schließen zurückgegeben
+                        val focusHanded = LiveUi.focusBack; LiveUi.focusBack = false
+                        if ((p.live || p.archive != null) && !focusHanded) LastFocus.pending = History.ids.firstOrNull { id -> liveAll.any { it.id == id } }
+                        if (underLive && !focusHanded) LiveUi.backGen++
                         if (AppNav.toGuide) { AppNav.toGuide = false; if (tab != 3) { tab = 3; AppNav.focusTab = 3 } }
                         if (AppNav.toSearch) { AppNav.toSearch = false; tab = MenuLogic.SEARCH; AppNav.focusTab = MenuLogic.SEARCH }
                         if (AppNav.toTab >= 0) { val t = AppNav.toTab; AppNav.toTab = -1; tab = t; AppNav.focusTab = t }
@@ -454,7 +460,14 @@ private fun AppContent() {
                     }
                     }
                 }
+        }
+        var homeHere = false
+        when {
+            MultiView.open -> MultiViewScreen(liveAll) { item ->
+                MultiView.open = false
+                if (item != null) start(item, item.title, item.url)
             }
+            p != null && !underLive -> playerUi(p)
             // Runde 17: jeder Bildschirm blendet weich ein (screenEnter); der Player bewusst ohne Effekt
             personTop != null -> key(personTop.id) { Box(Modifier.fillMaxSize().screenEnter()) { PersonScreen(personTop, all, onOpen = { pushTop(it) }, onBack = { popTop() }) } }
             // TiviMate-Aufbau: eigene Detailseite (Infos, Abspielen, Extern, Trailer, Meine Liste, Staffelreihen)
@@ -498,8 +511,12 @@ private fun AppContent() {
                 onBrowse = { browse = BrowseState(it) },
                 onTab = { goTab(it) }
             ) }
+            else -> homeHere = true
+        }
+        // Feste Stelle außerhalb des „when“: bleibt beim Öffnen des Vollbilds aus Live TV bestehen (wird nur verdeckt)
+        if (homeHere) {
             // TiviMate: Reiterwechsel ohne Einblenden (sofort da, kein zusätzliches Neuzeichnen)
-            else -> Box(Modifier.fillMaxSize()) { HomeScreen(
+            Box(Modifier.fillMaxSize().then(if (underLive) Modifier.graphicsLayer { alpha = if (LiveUi.underShown) 1f else 0f } else Modifier)) { HomeScreen(
                 tab = tab, onTab = { goTab(it) }, states = states,
                 onOpen = open,
                 onPlayNow = { i -> LastFocus.pending = i.id; if (i.kind == Kind.SERIES) pushTop(i) else { if (i.kind != Kind.LIVE) pushTop(i); start(i, i.title, i.url) } },
@@ -515,6 +532,7 @@ private fun AppContent() {
                 onAdd = { adding = true }
             ) }
         }
+        if (underLive && p != null) playerUi(p)
         // Genre-Erkennung im Hintergrund: dezent oben rechts, nie im Player
         if (p == null && !adding) MetaBadge(Modifier.align(Alignment.TopEnd).padding(top = 16.dp, end = 22.dp))
         pinAsk?.let { go ->

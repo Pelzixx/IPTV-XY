@@ -123,7 +123,7 @@ fun LiveTab(live: List<Item>, groups0: Map<String, List<Item>>, favs: List<Item>
     // Optik > EPG: Darstellung der Zeilen, einmal je Liste
     val look = GuideLook(
         Tm.b(Tm.EPG_NUMBERS, false), Tm.b(Tm.EPG_NAMES, true), Tm.b(Tm.EPG_TWO_LINE_NAMES, false), Tm.b(Tm.EPG_CATCHUP_ICON, true),
-        if (Tm.b(Tm.EPG_HL_CURRENT, true)) History.ids.firstOrNull() else null, Tm.b(Tm.EPG_TWO_LINE_TITLES, false),
+        null, Tm.b(Tm.EPG_TWO_LINE_TITLES, false),
         Tm.b(Tm.EPG_MARK_RUNNING, false), Tm.b(Tm.EPG_MARK_PROGRESS, true), Tm.b(Tm.EPG_NOW_FULL, true)
     )
     val bivSpec = if (Tm.b(Tm.EPG_SCROLL_ANIM, false)) androidx.compose.foundation.gestures.LocalBringIntoViewSpec.current else InstantSpec
@@ -133,15 +133,20 @@ fun LiveTab(live: List<Item>, groups0: Map<String, List<Item>>, favs: List<Item>
     // Zurück aus dem Player: der zuletzt gesehene Sender bekommt den Fokus (nicht die Seitenleiste)
     val chanState = remember { LazyListState() }
     val restoreReq = remember { FocusRequester() }
-    val restoreId = remember { LastFocus.pending }
-    LaunchedEffect(Unit) {
-        val id = restoreId ?: return@LaunchedEffect
+    var restoreId by remember { mutableStateOf(LastFocus.pending) }
+    val firstBackGen = remember { LiveUi.backGen }
+    LaunchedEffect(LiveUi.backGen) {
+        // Erster Aufbau: gemerkter Sender; zurück aus dem Vollbild (Seite blieb bestehen): zuletzt gesehener Sender
+        val back = LiveUi.backGen != firstBackGen
+        val id = (if (back) LastFocus.pending else restoreId) ?: return@LaunchedEffect
+        restoreId = id
         val i = list.indexOfFirst { it.id == id }
         if (i < 0) return@LaunchedEffect
-        runCatching { chanState.scrollToItem(maxOf(i - 2, 0)) }
+        // Nur blättern, wenn der Sender nicht schon zu sehen ist (sonst springt die Liste beim Zurück)
+        if (!back || chanState.layoutInfo.visibleItemsInfo.none { it.index == i }) runCatching { chanState.scrollToItem(maxOf(i - 2, 0)) }
         repeat(15) {
-            kotlinx.coroutines.delay(80)
-            if (runCatching { restoreReq.requestFocus() }.isSuccess) { LastFocus.pending = null; return@LaunchedEffect }
+            kotlinx.coroutines.delay(if (back) 20 else 80)
+            if (runCatching { restoreReq.requestFocus() }.getOrDefault(false)) { LastFocus.pending = null; return@LaunchedEffect }
         }
     }
     val catState = remember { LazyListState() }
@@ -232,8 +237,17 @@ fun LiveTab(live: List<Item>, groups0: Map<String, List<Item>>, favs: List<Item>
     // Optik > EPG „Verwende Zurück, um zu den aktuellen Programmen zurückzukehren“
     androidx.activity.compose.BackHandler(enabled = tOff != 0 && Tm.b(Tm.EPG_BACK_NOW, true)) { tOff = 0 }
     // Vorschau nur, solange ein Sender in der Liste markiert ist (nicht beim Wechseln der Kategorie)
-    val preview = remember { PreviewHolder.player(ctx) }
-    DisposableEffect(Unit) { onDispose { preview.stop() } }
+    // Nach dem Zurück aus dem Vollbild ([PreviewHolder.gen]) ggf. ein anderer Vorschau-Player (Vollbild hatte einen eigenen)
+    val preview = remember(PreviewHolder.gen) { PreviewHolder.player(ctx) }
+    val previewNow = androidx.compose.runtime.rememberUpdatedState(preview)
+    // Vollbild-Ansicht schon vorbereiten, wenn der Stick gerade nichts zu tun hat: OK auf einen Sender ruckelt dann nicht
+    DisposableEffect(Unit) {
+        val q = android.os.Looper.myQueue()
+        val idle = android.os.MessageQueue.IdleHandler { FullPlayerView.prepare(ctx); false }
+        q.addIdleHandler(idle)
+        onDispose { q.removeIdleHandler(idle) }
+    }
+    DisposableEffect(Unit) { onDispose { previewNow.value.stop() } }
     // Läuft der Sender schon in der Vorschau, bleibt sie an: der Vollbild-Player übernimmt sie (TiviMate)
     fun open(ch: Item) {
         // Gruppenoption „Externen Player nutzen“ (TiviMate)
@@ -241,7 +255,9 @@ fun LiveTab(live: List<Item>, groups0: Map<String, List<Item>>, favs: List<Item>
         if (!preview.isOn(ch.url)) preview.stop(); ZapContext.list = list; ZapContext.key = sel; LiveMemory.setSel(ctx, sel); onOpen(ch)
     }
     // Sender, der gerade läuft (zuletzt gesehen) – für Vorschau und ▶
-    val playingCh = History.ids.firstOrNull()?.let { id -> list.firstOrNull { it.id == id } ?: PlaylistStore.channels.firstOrNull { it.id == id && it.kind == Kind.LIVE } }
+    // Als abgeleiteter Zustand, nur dort gelesen, wo er gebraucht wird: ein Senderwechsel (auch im Vollbild, Live TV liegt
+    // darunter) baut so nicht die ganze Seite mit allen Zeilen neu auf
+    val playingState = remember(list) { androidx.compose.runtime.derivedStateOf { History.ids.firstOrNull()?.let { id -> list.firstOrNull { it.id == id } ?: PlaylistStore.channels.firstOrNull { it.id == id && it.kind == Kind.LIVE } } } }
     // Fernbedienung > EPG: Aktionen, die die ganze Liste betreffen
     val fmGuide = androidx.compose.ui.platform.LocalFocusManager.current
     fun guideAct(a: EAct): Boolean = when (a) {
@@ -261,10 +277,10 @@ fun LiveTab(live: List<Item>, groups0: Map<String, List<Item>>, favs: List<Item>
     var idleTick by remember { mutableIntStateOf(0) }
     var guideHasFocus by remember { mutableStateOf(false) }
     val fsTo = Tm.i(Tm.CV_FS_TIMEOUT, 0)
-    LaunchedEffect(idleTick, playingCh?.id, fsTo, manage, guideHasFocus) {
+    LaunchedEffect(idleTick, fsTo, manage, guideHasFocus) {
         // nur solange der Fokus im TV-Guide liegt (nicht in der Seitenleiste, in Menüs oder Dialogen)
         if (fsTo <= 0 || !AppSettings.livePreview || manage != 0 || !guideHasFocus) return@LaunchedEffect
-        val ch = (if (Tm.b(Tm.CV_AUTOPLAY, false)) focus.shown else null) ?: playingCh ?: return@LaunchedEffect
+        val ch = (if (Tm.b(Tm.CV_AUTOPLAY, false)) focus.shown else null) ?: playingState.value ?: return@LaunchedEffect
         kotlinx.coroutines.delay(fsTo * 1000L)
         open(ch)
     }
@@ -331,11 +347,11 @@ fun LiveTab(live: List<Item>, groups0: Map<String, List<Item>>, favs: List<Item>
                             icon = if (n.startsWith(PlGroups.P)) null else if (ChLock.version >= 0 && ChLock.isGroupLocked(PlGroups.label(n) ?: n)) AIcon.Lock else icon, raw = ml != null || PlGroups.isPl(n), header = n.startsWith(PlGroups.P),
                             indent = n.startsWith(PlGroups.G),
                             expanded = if (n.startsWith(PlGroups.P)) !PlGroups.collapsed(PlGroups.label(n) ?: "") else null,
-                            playing = playingCh != null && when {
+                            playing = playingState.value.let { playingCh -> playingCh != null && when {
                                 n == FAV_CAT -> favs.any { it.id == playingCh.id }
                                 n == "ALL" || n == HIDDEN_CAT || ml != null || n.startsWith(PlGroups.P) -> false
                                 else -> groups[n]?.any { it.id == playingCh.id } == true
-                            }
+                            } }
                         ) {
                             // Optik > Gruppen > „Beim Antippen einer Wiedergabeliste“ (TiviMate): auf-/zuklappen oder alle Kanäle der Liste
                             if (n.startsWith(PlGroups.P) && Tm.i(Tm.GRP_PL_TAP, 0) == 0) PlGroups.toggle(ctx, PlGroups.label(n) ?: "")
@@ -408,7 +424,7 @@ fun LiveTab(live: List<Item>, groups0: Map<String, List<Item>>, favs: List<Item>
             // Rechts: oben Vorschau und Sendung, darunter Zeitleiste und Sender
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 Row(Modifier.fillMaxWidth().height(220.dp), horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-                    GuideTop(focus, list.firstOrNull(), preview, playingCh)
+                    GuideTop(focus, list.firstOrNull(), preview, playingState)
                 }
                 Spacer(Modifier.height(14.dp))
                 if (list.isNotEmpty()) TimelineHeader(ws, nowSec)
@@ -482,7 +498,7 @@ fun LiveTab(live: List<Item>, groups0: Map<String, List<Item>>, favs: List<Item>
                                 val has = ch.id in addList.ids
                                 if (has) ChannelLists.remove(ctx, addList.id, ch.id) else ChannelLists.add(ctx, addList.id, ch.id)
                                 Toast.makeText(ctx, (if (has) Lang.tr("Entfernt: ") else Lang.tr("Hinzugefügt: ")) + ch.title, Toast.LENGTH_SHORT).show()
-                            } else if (Tm.b(Tm.CV_STAY, true) && AppSettings.livePreview && !Tm.b(Tm.CV_AUTOPLAY, false) && playingCh?.id != ch.id) {
+                            } else if (Tm.b(Tm.CV_STAY, true) && AppSettings.livePreview && !Tm.b(Tm.CV_AUTOPLAY, false) && playingState.value?.id != ch.id) {
                                 // Vorschaumodus > „Bleib in der Liste beim Sender wechseln“: erst in der Vorschau, das zweite OK im Vollbild
                                 History.add(ctx, ch.id)
                             } else open(ch)
@@ -644,7 +660,9 @@ private fun ChannelLine(
     @Suppress("UNUSED_VARIABLE") val editVersion = ChannelEdit.version
     // Ohne Netz (gespeichertes EPG): beim schnellen Scrollen startet je Zeile kein Abruf mehr. Neu, wenn das EPG geladen ist.
     val epg = remember(item.id, Xmltv.channelCount, Xmltv.status, nowSec / 300) { Epg.nowLocal(item) }
-    val isCurrent = look.currentId == item.id
+    // Laufender Sender je Zeile als abgeleiteter Ja/Nein-Wert: ein Senderwechsel zeichnet nur die zwei betroffenen Zeilen neu,
+    // nicht die ganze Liste (kostete vorher im Vollbild jedes Mal ~0,3 s, weil Live TV darunter bestehen bleibt)
+    val isCurrent by remember(item.id) { androidx.compose.runtime.derivedStateOf { Tm.b(Tm.EPG_HL_CURRENT, true) && History.ids.firstOrNull() == item.id } }
     // TiviMate: Rechts/Links wählt einzelne Sendungen (auch über das Zeitfenster hinaus, die Zeitleiste läuft mit)
     // TiviMate: ohne EPG volle Stunden als Blöcke mit dem Sendernamen (anwählbar wie Sendungen)
     val all = remember(item.id, Xmltv.channelCount, Xmltv.status, nowSec / 300) {
@@ -981,6 +999,12 @@ fun ReminderCard(r: Reminder, modifier: Modifier, onClose: () -> Unit, onSwitch:
 /** TiviMate: Im TV-Guide ist die Symbolleiste links ausgeblendet; sie erscheint erst zusammen mit den Gruppen („Links“). */
 object LiveUi {
     var groupsOpen by mutableStateOf(false)
+    /** Live TV bleibt unter dem Vollbild-Player bestehen (TiviMate): zählt jedes Zurück aus dem Vollbild (Fokus zurück auf den Sender). */
+    var backGen by androidx.compose.runtime.mutableIntStateOf(0)
+    /** Live TV liegt gerade sichtbar unter dem Player (während Auf-/Zuklappen des Bildes). */
+    var underShown by mutableStateOf(false)
+    /** Der Player hat den Fokus schon vor dem Schließen an den Sender in Live TV zurückgegeben. */
+    var focusBack = false
 }
 
 /** Markierter Sender im TV-Guide (eigener Zustand, damit nur der Kopf neu zeichnet). */
@@ -994,7 +1018,8 @@ class GuideFocusState {
 
 /** Kopf des TV-Guides: Vorschau und Sendung des markierten Senders (wechselt erst nach kurzem Verweilen). */
 @Composable
-private fun RowScope.GuideTop(focus: GuideFocusState, first: Item?, preview: LivePreviewPlayer, playingCh: Item? = null) {
+private fun RowScope.GuideTop(focus: GuideFocusState, first: Item?, preview: LivePreviewPlayer, playingState: androidx.compose.runtime.State<Item?>) {
+    val playingCh = playingState.value
     LaunchedEffect(focus.target) { if (focus.shown != null) kotlinx.coroutines.delay(300); focus.shown = focus.target }
     val shown = focus.shown ?: first
     // Optik > EPG > Vorschau: aus = kein Vorschaubild, die Sendung nutzt die ganze Breite

@@ -89,6 +89,13 @@ class LivePreviewPlayer internal constructor(private val built: XyPlayer.Built, 
 
     fun release() { url = null; if (!released && !handedOver) { released = true; player.release() } }
     val isReleased: Boolean get() = released || handedOver
+    /** Endgültig weg (nicht nur gerade im Vollbild ausgeliehen). */
+    val isDead: Boolean get() = released
+    fun owns(p: androidx.media3.common.Player): Boolean = player === p
+    /** Vollbild gibt denselben Player zurück: wieder Vorschau, spielt [u] weiter. */
+    fun takeBack(u: String) { handedOver = false; url = u; runCatching { player.volume = if (Tm.b(Tm.CV_SOUND, true)) 1f else 0f } }
+    /** Vollbild hat den ausgeliehenen Player selbst freigegeben. */
+    fun lost() { handedOver = false; released = true; url = null }
 }
 
 /**
@@ -98,8 +105,37 @@ class LivePreviewPlayer internal constructor(private val built: XyPlayer.Built, 
 object PreviewHolder {
     private var p: LivePreviewPlayer? = null
     private var v: PlayerView? = null
+    /** Zählt jede Rückgabe aus dem Vollbild: Live TV bleibt unter dem Vollbild bestehen und meldet die Videofläche dann neu an. */
+    var gen by androidx.compose.runtime.mutableIntStateOf(0)
+        private set
 
-    fun player(ctx: Context): LivePreviewPlayer = p?.takeIf { !it.isReleased } ?: LivePreviewPlayer(ctx.applicationContext).also { p = it }
+    // Ausgeliehen ans Vollbild zählt nicht als weg: Live TV darunter behält denselben Vorschau-Player
+    fun player(ctx: Context): LivePreviewPlayer = p?.takeIf { !it.isDead } ?: LivePreviewPlayer(ctx.applicationContext).also { p = it }
+
+    /** Videofläche der Vorschau wieder an den (zurückgegebenen) Player hängen, ohne die Ansicht neu zu bauen. */
+    fun reattach(pl: LivePreviewPlayer) {
+        val cur = v ?: return
+        if (attached && cur.player === pl.player) return
+        cur.player = null; cur.player = pl.player; attached = true
+    }
+
+    /** Videofläche der Vorschau hängt schon am laufenden Player (vor dem Schließen des Vollbilds umgehängt). */
+    private var attached = true
+
+    /**
+     * Vollbild schließt gleich: Bild schon jetzt in die Vorschau umhängen, solange die Vollbild-Fläche noch darüber liegt –
+     * so ist beim Zurück sofort das laufende Bild da (kein altes Standbild, kein Logo).
+     */
+    fun attachNow(pl: androidx.media3.common.Player) {
+        val cur = v ?: return
+        cur.player = null; cur.player = pl; attached = true
+    }
+
+    /** Vollbild hat den Player freigegeben statt zurückzugeben (z. B. anderer Reiter): Vorschau baut beim nächsten Mal neu. */
+    fun lost(pl: androidx.media3.common.Player) {
+        val cur = p ?: return
+        if (cur.owns(pl)) { cur.lost(); p = null; gen++ }
+    }
 
     fun view(c: Context, pl: LivePreviewPlayer): PlayerView {
         // Erst lösen, dann neu setzen: kam der Player aus dem Vollbild zurück, ist es dasselbe Objekt, und die Videofläche
@@ -124,16 +160,23 @@ object PreviewHolder {
      * das Bild läuft ohne Unterbrechung weiter.
      */
     fun giveBack(b: XyPlayer.Built, url: String) {
-        p?.release()
-        b.player.volume = if (Tm.b(Tm.CV_SOUND, true)) 1f else 0f
-        p = LivePreviewPlayer(b, url)
+        val cur = p
+        if (cur != null && cur.owns(b.player)) cur.takeBack(url)
+        else {
+            cur?.release()
+            b.player.volume = if (Tm.b(Tm.CV_SOUND, true)) 1f else 0f
+            p = LivePreviewPlayer(b, url)
+        }
+        gen++
     }
 
     /** Vollbild-Player: laufenden Vorschau-Player übernehmen, wenn er gerade diesen Sender spielt; sonst Vorschau stoppen. */
     fun takeFor(url: String): XyPlayer.Built? {
         val cur = p ?: return null
+        // Der Vorschau-Player bleibt hier eingetragen (ausgeliehen) und kommt beim Zurück wieder ([giveBack])
         val b = cur.handover(url)
-        if (b != null) p = null else cur.stop()
+        if (b != null) attached = false
+        if (b == null) cur.stop()
         return b
     }
 }
@@ -141,7 +184,15 @@ object PreviewHolder {
 /** Vorschaufenster: spielt den markierten Sender nach kurzer Pause ab; bis dahin (und bei Fehlern) das Senderlogo. */
 @Composable
 fun LivePreview(p: LivePreviewPlayer, ch: Item?, modifier: Modifier = Modifier, fallback: Item? = null) {
-    var showVideo by remember { mutableStateOf(false) }
+    // Läuft der Sender schon (zurück aus dem Vollbild): gleich das Bild, nicht erst für einen Moment das Logo
+    var showVideo by remember { mutableStateOf(ch != null && p.isOn(ch.url) && p.player.playbackState == Player.STATE_READY) }
+    // Zurück aus dem Vollbild (Live TV blieb darunter bestehen): Videofläche wieder anmelden, Bild läuft ohne Neuladen weiter
+    val gen = PreviewHolder.gen
+    LaunchedEffect(gen) {
+        if (gen == 0) return@LaunchedEffect
+        PreviewHolder.reattach(p)
+        if (ch != null && p.isOn(ch.url)) showVideo = true
+    }
     DisposableEffect(p) {
         val l = object : Player.Listener {
             override fun onRenderedFirstFrame() { showVideo = true }
@@ -162,9 +213,12 @@ fun LivePreview(p: LivePreviewPlayer, ch: Item?, modifier: Modifier = Modifier, 
         lifecycle.addObserver(obs)
         onDispose { lifecycle.removeObserver(obs) }
     }
-    LaunchedEffect(ch?.id, started) {
+    LaunchedEffect(ch?.id, started, p, gen) {
         // Läuft der Sender schon (aus dem Vollbild zurückgegeben): Bild sofort zeigen statt erst das Logo
-        showVideo = ch != null && started && p.isOn(ch.url) && p.player.playbackState == Player.STATE_READY
+        val on = ch != null && started && p.isOn(ch.url) && p.player.playbackState == Player.STATE_READY
+        // Vorschau gerade ans Vollbild ausgeliehen (Live TV liegt verdeckt darunter): nichts ändern
+        if (!on && p.isReleased && !p.isDead) return@LaunchedEffect
+        showVideo = on
         if (!started) return@LaunchedEffect
         if (ch == null || !AppSettings.livePreview) { p.stop(); return@LaunchedEffect }
         // Beim Durchblättern nicht jeden Sender anspielen

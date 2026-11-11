@@ -53,6 +53,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -142,7 +144,7 @@ private fun findActivity(c: Context): ComponentActivity? =
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesItem: Item? = null, onBack: () -> Unit) {
+fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesItem: Item? = null, overLive: Boolean = false, onBack: () -> Unit) {
     val ctx = LocalContext.current
     CatFavs.init(ctx)
     // Eigene HTTP-Einstellungen: folgt Weiterleitungen auch von http nach https (viele IPTV-Server tun das)
@@ -162,6 +164,8 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     // Zurück nach TV schrumpft es wieder in die Vorschau, und der Player läuft dort weiter ([toPreview])
     val growFrom = remember { if (handedOver != null && Look.motion != 0) PreviewHolder.rect else null }
     val grow = remember { androidx.compose.animation.core.Animatable(if (growFrom != null) 0f else 1f) }
+    // Live TV schon im ersten Bild dahinter zeigen (sonst blitzt kurz der leere Hintergrund auf)
+    remember { if (overLive && growFrom != null) LiveUi.underShown = true; 0 }
     var shrinkTo by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     val toPreview = remember { booleanArrayOf(false) }
     val h = remember { Handler(Looper.getMainLooper()) }
@@ -733,15 +737,20 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
             cur.live && cur.archive == null && NavState.tab == 3 && AppSettings.livePreview &&
                 player.playbackState == Player.STATE_READY && player.playerError == null -> {
                 toPreview[0] = true
+                // Über Live TV: Fokus schon jetzt auf den Sender in der Liste (die Seite liegt bereit), damit er beim Schließen
+                // nicht verloren geht und in der Seitenleiste landet
+                if (overLive) { LastFocus.pending = cur.itemId; LiveUi.focusBack = true; LiveUi.backGen++ }
                 val r = PreviewHolder.rect
                 if (r != null && Look.motion != 0) {
                     shrinkTo = r
+                    if (overLive) LiveUi.underShown = true
                     scope.launch {
                         grow.snapTo(1f)
-                        grow.animateTo(0f, androidx.compose.animation.core.tween(260, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+                        grow.animateTo(0f, androidx.compose.animation.core.tween(240, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+                        if (overLive) PreviewHolder.attachNow(player)
                         onBack()
                     }
-                } else onBack()
+                } else { if (overLive) PreviewHolder.attachNow(player); onBack() }
             }
             else -> onBack()
         }
@@ -876,7 +885,7 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
             val http = httpRef[0]
             if (toPreview[0] && http != null && player.playbackState != Player.STATE_IDLE && player.playerError == null)
                 PreviewHolder.giveBack(XyPlayer.Built(player, http), cur.url)
-            else player.release()
+            else { PreviewHolder.lost(player); player.release() }
         }
     }
 
@@ -1120,7 +1129,13 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
     LaunchedEffect(miniTick) { if (miniTick > 0) { delay(1800); miniBar = false } }
 
     Box(
-        Modifier.fillMaxSize().background(Color.Black)
+        Modifier.fillMaxSize()
+            // Über Live TV: Schwarz blendet beim Aufwachsen/Schrumpfen mit, Live TV ist dahinter zu sehen
+            .drawBehind {
+                // Während das Bild aufwächst/schrumpft kein Schwarz: Live TV bleibt dahinter stehen (spart auf schwachen Sticks
+                // eine bildschirmfüllende Überblendung je Bild)
+                if (!(overLive && (growFrom != null || shrinkTo != null) && grow.value < 1f)) drawRect(Color.Black)
+            }
             .focusRequester(rootFocus)
             .onPreviewKeyEvent { e ->
                 interact = System.currentTimeMillis()
@@ -1262,29 +1277,41 @@ fun PlayerScreen(req: PlayReq, zapList: List<Item>, liveAll: List<Item>, seriesI
             5 -> Modifier.align(Alignment.Center).fillMaxHeight().aspectRatio(4f / 3f)
             else -> Modifier.fillMaxSize()
         }
-        LaunchedEffect(Unit) { if (growFrom != null) grow.animateTo(1f, androidx.compose.animation.core.tween(320, easing = androidx.compose.animation.core.FastOutSlowInEasing)) }
-        Box(Modifier.fillMaxSize().layout { m, c ->
+        LaunchedEffect(Unit) {
+            if (growFrom == null) return@LaunchedEffect
+            // Live TV darunter sichtbar, solange das Bild aufwächst (TiviMate)
+            if (overLive) LiveUi.underShown = true
+            // Erst loslegen, wenn der Player aufgebaut und einmal gezeichnet ist – sonst fallen die ersten (langsamen) Bilder
+            // in die Animation und das Bild springt gleich zur Hälfte
+            androidx.compose.runtime.withFrameNanos { }
+            androidx.compose.runtime.withFrameNanos { }
+            grow.animateTo(1f, androidx.compose.animation.core.tween(260, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+            if (overLive && shrinkTo == null) LiveUi.underShown = false
+        }
+        // Aufwachsen/Schrumpfen nur über die Grafikebene (verschieben und skalieren): die Videofläche behält ihre volle Größe
+        // und wird nicht in jedem Bild neu ausgemessen – das ruckelte vorher, weil die Fläche dabei jedes Mal neu angelegt wurde
+        Box(Modifier.fillMaxSize().graphicsLayer {
             val t = grow.value
             val r = shrinkTo ?: growFrom
-            if (r == null || t >= 1f) {
-                val pl = m.measure(c)
-                layout(c.maxWidth, c.maxHeight) { pl.place(0, 0) }
-            } else {
+            if (r != null && t < 1f && size.width > 0f && size.height > 0f) {
                 fun lerp(a: Float, b: Float) = a + (b - a) * t
-                val w = lerp(r.width, c.maxWidth.toFloat()).toInt().coerceAtLeast(1)
-                val hh = lerp(r.height, c.maxHeight.toFloat()).toInt().coerceAtLeast(1)
-                val pl = m.measure(androidx.compose.ui.unit.Constraints.fixed(w, hh))
-                layout(c.maxWidth, c.maxHeight) { pl.place(lerp(r.left, 0f).toInt(), lerp(r.top, 0f).toInt()) }
-            }
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0f)
+                scaleX = lerp(r.width / size.width, 1f)
+                scaleY = lerp(r.height / size.height, 1f)
+                translationX = lerp(r.left, 0f)
+                translationY = lerp(r.top, 0f)
+            } else { scaleX = 1f; scaleY = 1f; translationX = 0f; translationY = 0f }
         }) {
         AndroidView(
             factory = { c ->
-                PlayerView(c).also { PlayerViewRef.view = it }.apply {
-                    useController = false
-                    setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
+                // Videofläche wiederverwenden: eine neue PlayerView anzulegen kostet auf schwachen Sticks ~100 ms (ruckelt beim OK)
+                FullPlayerView.get(c).also { PlayerViewRef.view = it }.apply {
+                    // Über Live TV: Vollbild-Fläche liegt sicher über der (verdeckten) Vorschau-Fläche
+                    (videoSurfaceView as? android.view.SurfaceView)?.setZOrderMediaOverlay(overLive)
                     this.player = player
                 }
             },
+            onRelease = { v -> v.player = null },
             update = { v ->
                 // nur anwenden, wenn sich wirklich etwas geändert hat (spart Arbeit bei jedem Neuzeichnen)
                 val styleKey = "$am|${AppSettings.subSize}|${AppSettings.subColor}|${AppSettings.subBg}|${AppSettings.subEdge}"
@@ -2080,4 +2107,29 @@ internal fun recToggle(ctx: Context, item: Item?) {
         val n = Recorder.recordNow(ctx, item)
         android.widget.Toast.makeText(ctx, Lang.tr("Aufnahme läuft") + ": " + n.title + " (" + Lang.tr("bis") + " " + hhmm(n.end) + ")", android.widget.Toast.LENGTH_LONG).show()
     }
+}
+
+/**
+ * Eine PlayerView für den Vollbild-Player, die über mehrere Öffnungen erhalten bleibt (wie TiviMate: Ansichten werden
+ * nicht jedes Mal neu aufgebaut). Wird beim Öffnen aus der alten Elternansicht gelöst und frisch eingerichtet.
+ */
+object FullPlayerView {
+    private var v: PlayerView? = null
+    fun get(c: Context): PlayerView {
+        v?.let { cur ->
+            if (cur.context === c) {
+                (cur.parent as? android.view.ViewGroup)?.removeView(cur)
+                cur.player = null
+                cur.tag = null
+                return cur
+            }
+        }
+        return PlayerView(c).apply {
+            useController = false
+            setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
+        }.also { v = it }
+    }
+    /** Nur anlegen, falls noch keine da ist (nie eine gerade gezeigte Ansicht lösen). */
+    fun prepare(c: Context) { if (v?.context !== c) get(c) }
+    fun clear() { v = null }
 }
